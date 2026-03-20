@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOBERANO MCR — Painel Fiscal</title>
+<script src="config.js"></script>
+<script src="assets/env-loader.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --b1:#1a4a3a;--b2:#0f3328;--b3:#2a7a5a;--bc:#e8f5ef;
+  --az:#198754;--ac:#d1e7dd;
+  --lr:#e67e00;--lc:#fff8e6;
+  --vm:#dc3545;--vmc:#fde8ea;
+  --vd:#1A8754;--vdc:#d1e7dd;
+  --c1:#111;--c2:#444;--c3:#888;--c4:#ccc;--c5:#e8e8e8;--c6:#f5f5f5;
+  --bg:#f0f5f3;--w:#fff;--r:14px;--sh:0 2px 16px rgba(0,0,0,0.06);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-height:100vh}
+.mono{font-family:'JetBrains Mono',monospace}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes countUp{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes slideIn{from{transform:translateX(120%)}to{transform:translateX(0)}}
+@keyframes dotLive{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.nav{background:linear-gradient(160deg,#0f3328 0%,#0a2820 60%,#071e17 100%);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 24px rgba(0,0,0,0.18)}
+.nav-brand{display:flex;align-items:center;gap:14px}
+.nav-logo{color:#fff;font-size:15px;font-weight:900;letter-spacing:2.5px;display:flex;align-items:center;gap:10px}
+.nav-logo-dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#4acfa4,#6fdfb1)}
+.nav-sub{color:rgba(255,255,255,.5);font-size:11px;font-weight:700;letter-spacing:.5px}
+.nav-center{display:flex;gap:4px}
+.nav-tab{background:transparent;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.65);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;font-family:inherit;transition:all .18s}
+.nav-tab:hover{background:rgba(255,255,255,.1);color:#fff}
+.nav-tab.active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.35)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.refresh-dot{width:7px;height:7px;border-radius:50%;background:#4caf50;display:inline-block;margin-right:4px;animation:dotLive 2s infinite;vertical-align:middle}
+.refresh-label{color:rgba(255,255,255,.5);font-size:11px;font-weight:700}
+.user-pill{display:flex;align-items:center;gap:8px;color:#fff;font-size:12px;font-weight:800}
+.user-avatar{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}
+.btn-sair{background:rgba(220,53,69,.2);border:1px solid rgba(220,53,69,.35);color:#ff8f9a;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:800}
+.wrap{max-width:1360px;margin:0 auto;padding:22px}
+.kpi{background:var(--w);border-radius:var(--r);padding:18px 16px;box-shadow:var(--sh);animation:fadeUp .4s ease both;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.04)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.kpi-green::before{background:linear-gradient(90deg,#1A8754,#2ecc71)}
+.kpi-orange::before{background:linear-gradient(90deg,#e67e00,#f5a623)}
+.kpi-red::before{background:linear-gradient(90deg,#dc3545,#e8575f)}
+.kpi-gray::before{background:linear-gradient(90deg,#666,#999)}
+.kpi-label{font-size:10px;color:var(--c3);font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.kpi-val{font-size:30px;font-weight:900;line-height:1;animation:countUp .5s ease both}
+.kpi-sub{font-size:11px;color:var(--c3);margin-top:6px;font-weight:700}
+.card{background:var(--w);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;animation:fadeUp .4s ease both;border:1px solid rgba(0,0,0,.04)}
+.card-head{padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-head h3{font-size:13px;font-weight:900}
+.card-body{padding:18px}
+.btn-a{padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:900;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:linear-gradient(135deg,var(--b1),var(--b2));color:#fff}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(10,40,32,.25)}
+.btn-green{background:linear-gradient(135deg,#1A8754,#2ecc71);color:#fff}
+.btn-orange{background:linear-gradient(135deg,#e67e00,#f5a623);color:#fff}
+.btn-danger{background:linear-gradient(135deg,#dc3545,#e8575f);color:#fff}
+.btn-ghost{background:var(--c6);color:var(--c2);border:1.5px solid var(--c5)}
+.om-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:var(--b1);white-space:nowrap;background:var(--bc);padding:4px 8px;border-radius:6px}
+.empty{text-align:center;padding:36px 16px;color:var(--c3);font-weight:800;font-size:13px}
+.spinner{width:26px;height:26px;border:3px solid rgba(26,74,58,.12);border-top-color:var(--b1);border-radius:50%;animation:spin .7s linear infinite;margin:20px auto}
+#fiscal-toast{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:380px;width:calc(100% - 32px)}
+.toast-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:14px;color:#fff;font-size:13px;font-weight:700;box-shadow:0 8px 32px rgba(0,0,0,0.2);pointer-events:auto;cursor:pointer;animation:slideIn .3s cubic-bezier(.22,1,.36,1);transition:transform .3s,opacity .25s}
+.toast-item.out{transform:translateX(120%);opacity:0}
+.badge-status{font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:20px;width:100%;max-width:760px;max-height:90vh;overflow-y:auto;box-shadow:0 40px 100px rgba(0,0,0,.35)}
+.modal-head{padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-radius:20px 20px 0 0}
+.modal-title{font-size:15px;font-weight:900}
+.modal-body{padding:20px 24px}
+.modal-section{margin-bottom:20px}
+.modal-section-title{font-size:10px;font-weight:900;color:var(--c3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--c5)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.detail-item{background:var(--c6);border-radius:10px;padding:10px 12px}
+.detail-label{font-size:10px;color:var(--c3);font-weight:800;text-transform:uppercase;margin-bottom:2px}
+.detail-value{font-size:13px;font-weight:800}
+.mat-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:5px;font-size:12px}
+.mat-nome{flex:1;font-weight:700}
+.mat-qtd{font-family:'JetBrains Mono',monospace;font-weight:900;color:var(--b1)}
+.mat-total{font-family:'JetBrains Mono',monospace;font-weight:900;color:var(--lr)}
+.sign-box{background:linear-gradient(135deg,#e8f5ef,#d1e7dd);border:2px solid #a8d5b8;border-radius:14px;padding:18px;text-align:center;margin-top:16px}
+.sign-box-title{font-size:14px;font-weight:900;color:#0f3328;margin-bottom:6px}
+.sign-box-sub{font-size:11px;color:#2a7a5a;font-weight:700;margin-bottom:14px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
+@media(max-width:900px){.detail-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.nav-center{display:none}}
+</style>
+</head>
+<body>
+<div id="app" style="display:none">
+  <div id="fiscal-toast"></div>
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo"><div class="nav-logo-dot"></div>SOBERANO MCR</div>
+      <div class="nav-sub">Painel Fiscal</div>
+    </div>
+    <div class="nav-center">
+      <button class="nav-tab active" onclick="goPage('painel',this)">Painel</button>
+      <button class="nav-tab" onclick="goPage('arquivadas',this)">Arquivadas</button>
+    </div>
+    <div class="nav-right">
+      <div><span class="refresh-dot" id="refreshDot"></span><span class="refresh-label" id="refreshLabel">ao vivo</span></div>
+      <div class="user-pill"><div class="user-avatar" id="avatarLetter">F</div><span id="userLabel">FISCAL</span></div>
+      <button class="btn-sair" onclick="doLogout()">← Sair</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <!-- PAINEL -->
+    <div class="page active" id="pg-painel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:18px;font-weight:900;color:var(--b1)">Validação Fiscal de OMs</div>
+          <div style="font-size:11px;color:var(--c3);font-weight:700;margin-top:2px">OMs aguardando assinatura e arquivamento</div>
+        </div>
+        <button class="btn-a btn-primary" onclick="loadFiscal()">↻ Atualizar</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+        <div class="kpi kpi-green"><div class="kpi-label">Sem Mat. / Sem Assin.</div><div class="kpi-val" id="fkpi1">—</div><div class="kpi-sub">aguard. assinatura</div></div>
+        <div class="kpi kpi-orange"><div class="kpi-label">Com Mat. / Sem Assin.</div><div class="kpi-val" id="fkpi2">—</div><div class="kpi-sub">verificar materiais</div></div>
+        <div class="kpi kpi-red"><div class="kpi-label">Mat. Alterado Admin</div><div class="kpi-val" id="fkpi3">—</div><div class="kpi-sub">revisar alterações</div></div>
+        <div class="kpi kpi-gray"><div class="kpi-label">Canceladas</div><div class="kpi-val" id="fkpi4">—</div><div class="kpi-sub">aguard. assinatura</div></div>
+      </div>
+
+      <!-- BLOCO 1 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <h3>🟢 Bloco 1 — Sem material, sem assinatura do cliente</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb1count"></span>
+            <button class="btn-a btn-green" style="padding:7px 12px;font-size:11px" onclick="assinarLoteBloco1()">✍ Assinar em Lote</button>
+          </div>
+        </div>
+        <div class="card-body"><div id="fiscalB1"><div class="empty">Nenhuma OM.</div></div></div>
+      </div>
+
+      <!-- BLOCO 2 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <h3>🟠 Bloco 2 — Com material, sem assinatura do cliente</h3>
+          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb2count"></span>
+        </div>
+        <div class="card-body"><div id="fiscalB2"><div class="empty">Nenhuma OM.</div></div></div>
+      </div>
+
+      <!-- BLOCO 3 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <h3>🔴 Bloco 3 — Material alterado pelo Admin</h3>
+          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb3count"></span>
+        </div>
+        <div class="card-body"><div id="fiscalB3"><div class="empty">Nenhuma OM.</div></div></div>
+      </div>
+
+      <!-- BLOCO 4 -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <h3>⚫ Bloco 4 — Canceladas</h3>
+          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb4count"></span>
+        </div>
+        <div class="card-body"><div id="fiscalB4"><div class="empty">Nenhuma OM.</div></div></div>
+      </div>
+    </div>
+
+    <!-- ARQUIVADAS -->
+    <div class="page" id="pg-arquivadas">
+      <div class="card">
+        <div class="card-head">
+          <h3>📁 OMs Arquivadas</h3>
+          <span style="font-size:11px;color:var(--c3);font-weight:700" id="arquivadasCount"></span>
+        </div>
+        <div class="card-body"><div id="arquivadasList"><div class="empty">Nenhuma OM arquivada.</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE OM FISCAL -->
+<div class="modal-overlay" id="omModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Detalhe da OM</div>
+      <button onclick="closeModal()" style="background:var(--c6);border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR ASSINATURA -->
+<div id="signModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:420px;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
+    <div style="font-size:17px;font-weight:900;color:var(--b1);margin-bottom:6px">✍ Confirmar Assinatura</div>
+    <div style="font-size:12px;color:var(--c3);font-weight:700;margin-bottom:16px">OM <span id="signOMNum" style="font-family:'JetBrains Mono',monospace;color:var(--b1)"></span></div>
+    <div style="background:var(--bc);border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#0f3328;margin-bottom:18px">
+      Ao assinar, esta OM será arquivada definitivamente e removida do painel.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('signModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button>
+      <button id="btnConfirmSign" onclick="confirmarAssinatura()" class="btn-a btn-green" style="flex:2;justify-content:center;padding:13px">✍ Assinar e Arquivar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DEVOLVER PARA ADMIN -->
+<div id="devolverModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:460px;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
+    <div style="font-size:17px;font-weight:900;color:#dc3545;margin-bottom:6px">↩ Devolver para Admin</div>
+    <div style="font-size:12px;color:var(--c3);font-weight:700;margin-bottom:16px">OM <span id="devolverOMNum" style="font-family:'JetBrains Mono',monospace;color:#dc3545"></span></div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;color:var(--c2);text-transform:uppercase;margin-bottom:6px">Motivo da devolução</div>
+      <textarea id="devolverMotivo" rows="3" style="width:100%;padding:10px;border:2px solid var(--c5);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:none" placeholder="Descreva o problema encontrado…"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('devolverModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button>
+      <button id="btnConfirmDevolver" onclick="confirmarDevolucao()" class="btn-a btn-danger" style="flex:2;justify-content:center;padding:13px">↩ Devolver</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+const CONFIG = {
+  SUPABASE_URL:      (window.ENV && window.ENV.SUPABASE_URL) || window.SUPABASE_URL || "",
+  SUPABASE_ANON_KEY: (window.ENV && window.ENV.SUPABASE_ANON_KEY) || window.SUPABASE_ANON_KEY || "",
+  SESSION_KEY:       "pcm_auth_session"
+};
+
+class FiscalDashboard {
+  constructor() {
+    if (!window.supabase || typeof window.supabase.createClient !== "function") throw new Error("Biblioteca Supabase indisponível");
+    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) throw new Error("Configuração Supabase ausente");
+    this.sb              = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    this.currentUser     = null;
+    this.fiscalData      = { b1: [], b2: [], b3: [], b4: [] };
+    this.b1Selected      = {};
+    this._signOM         = null;
+    this._devolverOM     = null;
+    this.realtimeChannel = null;
+    this.$               = id => document.getElementById(id);
+    this.init();
+  }
+
+  async init() {
+    await this.verificarFiscal();
+    this.setupRealtime();
+    this.$("app").style.display = "block";
+  }
+
+  showFatalError(msg) {
+    this.fiscalToast(msg, "error");
+    setTimeout(() => { window.location.href = "PCM_MCR_v5.html"; }, 1200);
+  }
+
+  async verificarFiscal() {
+    try {
+      const raw = localStorage.getItem(CONFIG.SESSION_KEY);
+      if (!raw) throw new Error("Sessão não encontrada");
+      const sess = JSON.parse(raw);
+      const userId = sess.user?.id;
+      if (!userId) throw new Error("ID de usuário inválido na sessão");
+      await this.sb.auth.setSession({ access_token: sess.access_token, refresh_token: sess.refresh_token || "" });
+      const { data: profile, error } = await this.sb
+        .from("profiles").select("role, username").eq("user_id", userId).single();
+      if (error) throw new Error("Falha ao consultar perfil: " + error.message);
+      if (!profile) throw new Error("Perfil não encontrado");
+      if (profile.role !== "fiscal" && profile.role !== "admin") {
+        window.location.href = "PCM_MCR_v5.html"; return;
+      }
+      this.currentUser = profile.username || "fiscal";
+      this.$("userLabel").textContent    = this.currentUser.toUpperCase();
+      this.$("avatarLetter").textContent = this.currentUser[0].toUpperCase();
+      await this.loadFiscal();
+    } catch (err) {
+      console.error("Falha na verificação de fiscal:", err);
+      this.showFatalError("Falha ao validar acesso fiscal.");
+    }
+  }
+
+  setupRealtime() {
+    if (this.realtimeChannel) { this.sb.removeChannel(this.realtimeChannel); this.realtimeChannel = null; }
+    const dot = this.$("refreshDot");
+    const lbl = this.$("refreshLabel");
+    this._rtDebounce = null;
+    this.realtimeChannel = this.sb.channel("oms-fiscal-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "oms" }, () => {
+        clearTimeout(this._rtDebounce);
+        this._rtDebounce = setTimeout(() => {
+          this.loadFiscal(true);
+          if (dot) { dot.style.background = "#f5a623"; dot.style.transform = "scale(1.5)"; setTimeout(() => { dot.style.background = "#4caf50"; dot.style.transform = ""; }, 600); }
+        }, 400);
+      })
+      .subscribe(status => {
+        if (status === "SUBSCRIBED") {
+          if (dot) dot.style.background = "#4caf50";
+          if (lbl) lbl.textContent = "ao vivo";
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          if (dot) dot.style.background = "#dc3545";
+          if (lbl) lbl.textContent = "reconectando...";
+          setTimeout(() => this.setupRealtime(), 5000);
+        }
+      });
+  }
+
+  async loadFiscal(silent = false) {
+    if (!silent) this.$("refreshDot").classList.add("loading");
+    try {
+      const [res1, res2, res3, res4] = await Promise.all([
+        this.sb.from("vw_fiscal_bloco1").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
+        this.sb.from("vw_fiscal_bloco2").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
+        this.sb.from("vw_fiscal_bloco3").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
+        this.sb.from("vw_fiscal_bloco4").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at")
+      ]);
+      if (res1.error) throw res1.error;
+      if (res2.error) throw res2.error;
+      if (res3.error) throw res3.error;
+      if (res4.error) throw res4.error;
+      this.fiscalData = {
+        b1: res1.data || [], b2: res2.data || [],
+        b3: res3.data || [], b4: res4.data || []
+      };
+      this.updateKPIs();
+      this.renderAllBlocks();
+    } catch (err) {
+      this.fiscalToast(`Falha ao carregar painel: ${err.message}`, "error");
+      console.error("Erro loadFiscal:", err);
+    } finally {
+      this.$("refreshDot").classList.remove("loading");
+    }
+  }
+
+  updateKPIs() {
+    const { b1, b2, b3, b4 } = this.fiscalData;
+    this.$("fkpi1").textContent = b1.length;
+    this.$("fkpi2").textContent = b2.length;
+    this.$("fkpi3").textContent = b3.length;
+    this.$("fkpi4").textContent = b4.length;
+    this.$("fb1count").textContent = `${b1.length} ordens`;
+    this.$("fb2count").textContent = `${b2.length} ordens`;
+    this.$("fb3count").textContent = `${b3.length} ordens`;
+    this.$("fb4count").textContent = `${b4.length} ordens`;
+  }
+
+  renderAllBlocks() {
+    this.renderBlock("fiscalB1", this.fiscalData.b1, "b1");
+    this.renderBlock("fiscalB2", this.fiscalData.b2, "b2");
+    this.renderBlock("fiscalB3", this.fiscalData.b3, "b3");
+    this.renderBlock("fiscalB4", this.fiscalData.b4, "b4");
+  }
+
+  renderBlock(containerId, oms, blockType) {
+    const container = this.$(containerId);
+    if (!oms?.length) { container.innerHTML = '<div class="empty">Nenhuma OM.</div>'; return; }
+    let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<thead><tr style="background:var(--c6)">';
+    ["OM","CC","Equipe","Executante","Material","Status","Ações"].forEach(c => {
+      html += `<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--c3);font-weight:800">${c}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    oms.forEach((om, i) => {
+      const mat         = Array.isArray(om.materiais_usados) ? om.materiais_usados : [];
+      const executantes = Array.isArray(om.executantes) ? om.executantes : [];
+      const exec        = executantes[0] || om.primeiro_executante || "—";
+      const hasMat      = mat.length > 0;
+      const hasModif    = !!om.admin_modificou_material;
+      const bg          = i % 2 === 0 ? "#fff" : "#fafafa";
+      html += `<tr style="background:${bg};border-bottom:1px solid var(--c5)">`;
+      html += `<td style="padding:8px 10px"><span class="om-num">${esc(om.num || "—")}</span></td>`;
+      html += `<td style="padding:8px 10px;font-weight:700">${esc(om.cc || "—")}</td>`;
+      html += `<td style="padding:8px 10px;font-weight:700">${esc(om.equipe || "—")}</td>`;
+      html += `<td style="padding:8px 10px">${esc(exec)}</td>`;
+      html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${hasMat ? "#fff3cd" : "#e8e8e8"};color:${hasMat ? "#856404" : "#888"}">${hasMat ? "✓ " + mat.length + " item(s)" : "Sem mat."}</span></td>`;
+      let statusLabel = esc(om.estado_fluxo || "—"), statusColor = "#888", statusBg = "#e8e8e8";
+      if (om.cancelada)  { statusLabel = "Cancelada";     statusColor = "#dc3545"; statusBg = "#fde8ea"; }
+      else if (hasModif) { statusLabel = "Mat. Alterado"; statusColor = "#856404"; statusBg = "#fff3cd"; }
+      html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${statusBg};color:${statusColor}">${statusLabel}</span></td>`;
+      html += `<td style="padding:8px 10px;text-align:right"><div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">`;
+      html += `<button onclick="dashboard.abrirOMFiscal('${esc(om.num)}')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Ver</button>`;
+      if (blockType === "b1") {
+        html += `<button onclick="dashboard.toggleSelectB1('${esc(om.num)}', this)" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Selecionar</button>`;
+        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
+      }
+      if (blockType === "b2") {
+        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
+      }
+      if (blockType === "b3") {
+        html += `<button onclick="dashboard.devolverAdmin('${esc(om.num)}')" class="btn-a btn-danger" style="padding:5px 9px;font-size:10px">↩ Devolver</button>`;
+        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
+      }
+      if (blockType === "b4") {
+        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">✍ Assinar Cancel.</button>`;
+      }
+      html += `</div></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  toggleSelectB1(num, btn) {
+    if (this.b1Selected[num]) {
+      delete this.b1Selected[num];
+      btn.style.background = ""; btn.style.color = ""; btn.textContent = "Selecionar";
+    } else {
+      this.b1Selected[num] = true;
+      btn.style.background = "#1A8754"; btn.style.color = "#fff"; btn.textContent = "✓ Selecionado";
+    }
+  }
+
+  assinarLoteBloco1() {
+    const nums = Object.keys(this.b1Selected);
+    if (!nums.length) return this.fiscalToast("Nenhuma OM selecionada no Bloco 1", "warn");
+    if (!confirm(`Assinar e arquivar ${nums.length} OM(s)?`)) return;
+    const agora = new Date().toISOString();
+    this.sb.from("oms").update({ fiscal_assinou: true, data_assinatura_fiscal: agora, estado_fluxo: "arquivada", updated_at: agora })
+      .in("num", nums)
+      .then(({ error }) => {
+        if (error) throw error;
+        this.b1Selected = {};
+        this.fiscalToast(`${nums.length} OM(s) assinadas e arquivadas`, "success");
+        this.loadFiscal();
+      })
+      .catch(err => this.fiscalToast(`Erro ao assinar lote: ${err.message}`, "error"));
+  }
+
+  assinarOM(num) {
+    this._signOM = num;
+    this.$("signOMNum").textContent = num;
+    this.$("signModal").style.display = "flex";
+  }
+
+  async confirmarAssinatura() {
+    if (!this._signOM) return;
+    const btn = this.$("btnConfirmSign");
+    btn.disabled = true; btn.textContent = "Aguarde…";
+    const agora = new Date().toISOString();
+    try {
+      const { error } = await this.sb.from("oms").update({
+        fiscal_assinou: true, data_assinatura_fiscal: agora,
+        estado_fluxo: "arquivada", updated_at: agora
+      }).eq("num", this._signOM);
+      if (error) throw error;
+      this.fiscalToast(`OM ${this._signOM} assinada e arquivada`, "success");
+      this.$("signModal").style.display = "none";
+      this._signOM = null;
+      await this.loadFiscal();
+    } catch (err) {
+      this.fiscalToast(`Erro: ${err.message}`, "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "✍ Assinar e Arquivar";
+    }
+  }
+
+  devolverAdmin(num) {
+    this._devolverOM = num;
+    this.$("devolverOMNum").textContent = num;
+    this.$("devolverMotivo").value = "";
+    this.$("devolverModal").style.display = "flex";
+  }
+
+  async confirmarDevolucao() {
+    const motivo = this.$("devolverMotivo").value.trim();
+    if (!motivo) return this.fiscalToast("Motivo da devolução é obrigatório", "warn");
+    const btn = this.$("btnConfirmDevolver");
+    btn.disabled = true; btn.textContent = "Aguarde…";
+    const agora = new Date().toISOString();
+    try {
+      const { error: err1 } = await this.sb.from("oms").update({
+        estado_fluxo: "devolvida_admin", updated_at: agora
+      }).eq("num", this._devolverOM);
+      if (err1) throw err1;
+      const { error: err2 } = await this.sb.from("desvios").insert({
+        om_num: this._devolverOM, tipo: "DEVOLUCAO FISCAL",
+        descricao: "Devolvido pelo fiscal: " + motivo,
+        registrado_por: this.currentUser, origem: "fiscal",
+        created_at: agora
+      });
+      if (err2) {
+        await this.sb.from("oms").update({ estado_fluxo: "enviada_fiscal", updated_at: new Date().toISOString() }).eq("num", this._devolverOM);
+        throw err2;
+      }
+      this.fiscalToast(`OM ${this._devolverOM} devolvida ao admin`, "warn");
+      this.$("devolverModal").style.display = "none";
+      this._devolverOM = null;
+      await this.loadFiscal();
+    } catch (err) {
+      this.fiscalToast(`Erro na devolução: ${err.message}`, "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "↩ Devolver";
+    }
+  }
+
+  abrirOMFiscal(num) {
+    const allOms = [...this.fiscalData.b1, ...this.fiscalData.b2, ...this.fiscalData.b3, ...this.fiscalData.b4];
+    const om = allOms.find(o => o.num === num);
+    if (!om) {
+      this.sb.from("oms").select("*").eq("num", num).single()
+        .then(({ data, error }) => {
+          if (error || !data) { this.fiscalToast("OM não encontrada", "error"); return; }
+          this.renderModalOM(data);
+        })
+        .catch(err => this.fiscalToast(`Erro ao buscar OM: ${err.message}`, "error"));
+      return;
+    }
+    this.renderModalOM(om);
+  }
+
+  renderModalOM(om) {
+    const mat = Array.isArray(om.materiais_usados) ? om.materiais_usados : [];
+    const executantes = Array.isArray(om.executantes) ? om.executantes : [];
+    let html = '';
+    html += '<div class="modal-section"><div class="modal-section-title">Dados da Ordem</div><div class="detail-grid">';
+    html += `<div class="detail-item"><div class="detail-label">OM</div><div class="detail-value mono">${esc(om.num || "—")}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">Título</div><div class="detail-value">${esc(om.titulo || "—")}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">Equipe</div><div class="detail-value">${esc(om.equipe || "—")}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">CC</div><div class="detail-value">${esc(om.cc || "—")}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">Equipamento</div><div class="detail-value">${esc(om.equipamento || "—")}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">Estado Fluxo</div><div class="detail-value">${esc(om.estado_fluxo || "—")}</div></div>`;
+    html += '</div></div>';
+    html += '<div class="modal-section"><div class="modal-section-title">Executantes</div>';
+    if (executantes.length) {
+      executantes.forEach(e => { html += `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bc);color:var(--b1);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;margin:3px">${esc(e)}</span>`; });
+    } else { html += '<span style="color:var(--c3)">—</span>'; }
+    html += '</div>';
+    if (mat.length) {
+      html += '<div class="modal-section"><div class="modal-section-title">Materiais Utilizados' +
+        (om.admin_modificou_material ? ' <span style="color:#dc3545;font-size:10px;background:#fde8ea;padding:2px 6px;border-radius:4px">ALTERADO PELO ADMIN</span>' : '') + '</div>';
+      mat.forEach(m => {
+        const nome = esc(m.nome || m.descricao || "Material");
+        const qtd = m.quantidade || m.qtd || 1;
+        const preco = m.precoUnit || m.preco || m.valor_unitario || 0;
+        html += `<div class="mat-row"><span class="mat-nome">${nome}</span><span class="mat-qtd">× ${qtd}</span><span class="mat-total">R$ ${parseFloat(m.total || (qtd * preco)).toFixed(2)}</span></div>`;
+      });
+      const totalGeral = mat.reduce((acc, m) => acc + parseFloat(m.total || ((m.quantidade || m.qtd || 1) * (m.precoUnit || m.preco || m.valor_unitario || 0))), 0);
+      html += `<div style="text-align:right;font-weight:900;font-size:14px;color:var(--lr);margin-top:8px">Total: R$ ${totalGeral.toFixed(2)}</div></div>`;
+    }
+    html += '<div class="modal-section"><div class="modal-section-title">Assinaturas</div><div class="detail-grid">';
+    html += `<div class="detail-item"><div class="detail-label">Cliente</div><div class="detail-value" style="color:${om.cliente_assinou ? "#1A8754" : "#dc3545"}">${om.cliente_assinou ? "✓ Assinou" : "✗ Pendente"}</div></div>`;
+    html += `<div class="detail-item"><div class="detail-label">Fiscal</div><div class="detail-value" style="color:${om.fiscal_assinou ? "#1A8754" : "#dc3545"}">${om.fiscal_assinou ? "✓ Assinou em " + new Date(om.data_assinatura_fiscal).toLocaleDateString("pt-BR") : "✗ Pendente"}</div></div>`;
+    if (om.has_relatorio) {
+      html += `<div style="margin-top:10px"><button onclick="dashboard.viewRelatorio('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px">📄 Ver Relatório</button></div>`;
+    }
+    if (om.has_checklist) {
+      html += `<div style="margin-top:6px"><button onclick="dashboard.viewChecklist('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px;background:#1565c0">📋 Ver Checklist</button></div>`;
+    }
+    if (om.has_nc) {
+      html += `<div style="margin-top:6px"><button onclick="dashboard.viewNC('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px;background:#7b1fa2">⚠️ Ver Não Conformidades</button></div>`;
+    }
+    html += '</div></div>';
+    if (!om.fiscal_assinou) {
+      html += '<div class="sign-box"><div class="sign-box-title">✍ Assinatura Fiscal</div><div class="sign-box-sub">Após assinar, a OM será arquivada e removida do painel</div><div style="display:flex;gap:10px;justify-content:center">';
+      if (om.admin_modificou_material) {
+        html += `<button onclick="dashboard.devolverAdmin('${esc(om.num)}'); closeModal();" class="btn-a btn-danger" style="padding:12px 20px">↩ Devolver ao Admin</button>`;
+      }
+      html += `<button onclick="dashboard.assinarOM('${esc(om.num)}'); closeModal();" class="btn-a btn-green" style="padding:12px 20px">✍ Assinar e Arquivar</button>`;
+      html += '</div></div>';
+    }
+    this.$("modalBody").innerHTML = html;
+    this.$("modalTitle").textContent = `OM ${om.num} — ${om.titulo || ""}`;
+    this.$("omModal").classList.add("show");
+  }
+
+  async viewRelatorio(num) {
+    try {
+      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/OM_" + num + ".pdf", 120);
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank");
+    } catch(e) {
+      this.fiscalToast("Erro ao abrir relatorio: " + e.message, "error");
+    }
+  }
+
+  async viewChecklist(num) {
+    try {
+      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/CK_" + num + ".pdf", 120);
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank");
+    } catch(e) {
+      this.fiscalToast("Erro ao abrir checklist: " + e.message, "error");
+    }
+  }
+
+  async viewNC(num) {
+    try {
+      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/NC_" + num + ".pdf", 120);
+      if (error) throw error;
+      window.open(data.signedUrl, "_blank");
+    } catch(e) {
+      this.fiscalToast("Erro ao abrir nao conformidade: " + e.message, "error");
+    }
+  }
+
+  fiscalToast(msg, type = "info") {
+    const ct = this.$("fiscal-toast");
+    if (!ct) return;
+    const colors = {
+      success: "linear-gradient(135deg,#1A5226,#2E8B57)",
+      error:   "linear-gradient(135deg,#dc3545,#e8575f)",
+      warn:    "linear-gradient(135deg,#e67e00,#f5a623)",
+      info:    "linear-gradient(135deg,#0f3328,#2a7a5a)"
+    };
+    const el = document.createElement("div");
+    el.className = "toast-item";
+    el.style.background = colors[type] || colors.info;
+    const txt = document.createElement("span");
+    txt.style.flex = "1";
+    txt.textContent = String(msg == null ? "" : msg);
+    const close = document.createElement("span");
+    close.style.opacity = ".6";
+    close.style.fontSize = "16px";
+    close.textContent = "×";
+    el.appendChild(txt);
+    el.appendChild(close);
+    el.onclick = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+    ct.appendChild(el);
+    setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 300); }, 3500);
+  }
+
+  doLogout() {
+    localStorage.removeItem(CONFIG.SESSION_KEY);
+    window.location.href = "PCM_MCR_v5.html";
+  }
+}
+
+try {
+  window.dashboard = new FiscalDashboard();
+} catch (err) {
+  console.error("Falha ao iniciar painel fiscal:", err);
+  alert("Falha ao iniciar o painel fiscal.");
+  window.location.href = "PCM_MCR_v5.html";
+}
+
+window.assinarLoteBloco1   = () => window.dashboard && window.dashboard.assinarLoteBloco1();
+window.assinarOM           = num => dashboard.assinarOM(num);
+window.confirmarAssinatura = () => dashboard.confirmarAssinatura();
+window.devolverAdmin       = num => window.dashboard && window.dashboard.devolverAdmin(num);
+window.confirmarDevolucao  = () => dashboard.confirmarDevolucao();
+window.abrirOMFiscal       = num => dashboard.abrirOMFiscal(num);
+window.doLogout            = () => dashboard.doLogout();
+window.closeModal          = () => document.getElementById("omModal").classList.remove("show");
+window.loadArquivadas      = async () => {
+  const { data, error } = await dashboard.sb.from("oms").select("num,titulo,equipe,cc,data_assinatura_fiscal,estado_fluxo")
+    .eq("estado_fluxo", "arquivada").order("data_assinatura_fiscal", { ascending: false });
+  const el = document.getElementById("arquivadasList");
+  document.getElementById("arquivadasCount").textContent = "0 ordens";
+  if (error || !data || !data.length) { el.innerHTML = '<div class="empty">Nenhuma OM arquivada.</div>'; return; }
+  document.getElementById("arquivadasCount").textContent = data.length + " ordens";
+  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<thead><tr style="background:var(--c6)">';
+  ["OM","Título","Equipe","CC","Assinado em","Status"].forEach(c => { html += `<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--c3);font-weight:800">${c}</th>`; });
+  html += '</tr></thead><tbody>';
+  data.forEach((om, i) => {
+    const bg = i % 2 === 0 ? "#fff" : "#fafafa";
+    const dt = om.data_assinatura_fiscal ? new Date(om.data_assinatura_fiscal).toLocaleDateString("pt-BR") : "—";
+    html += `<tr style="background:${bg};border-bottom:1px solid var(--c5)">`;
+    html += `<td style="padding:8px 10px"><span class="om-num">${esc(om.num || "—")}</span></td>`;
+    html += `<td style="padding:8px 10px;font-weight:700">${esc(om.titulo || "—")}</td>`;
+    html += `<td style="padding:8px 10px">${esc(om.equipe || "—")}</td>`;
+    html += `<td style="padding:8px 10px">${esc(om.cc || "—")}</td>`;
+    html += `<td style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:11px">${dt}</td>`;
+    html += '<td style="padding:8px 10px"><span class="badge-status" style="background:#d1e7dd;color:#1A8754">✓ Arquivada</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+};
+window.goPage = (pg, btn) => {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("pg-" + pg).classList.add("active");
+  document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (pg === "arquivadas") window.loadArquivadas();
+};
+</script>
+</body>
+</html>

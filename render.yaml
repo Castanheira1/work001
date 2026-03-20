@@ -1,0 +1,60 @@
+services:
+  - type: static_site
+    name: domo-ferro
+    staticPublishPath: ./
+    buildCommand: bash build-render.sh
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SENHA_FISCAL
+        sync: false
+      - key: SYNC_ENDPOINT
+        sync: false
+      - key: SYNC_SHARED_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+    headers:
+      - path: "/*"
+        headers:
+          - key: "X-Content-Type-Options"
+            value: "nosniff"
+          - key: "X-Frame-Options"
+            value: "SAMEORIGIN"
+          - key: "X-XSS-Protection"
+            value: "1; mode=block"
+          - key: "Referrer-Policy"
+            value: "strict-origin-when-cross-origin"
+          - key: "Permissions-Policy"
+            value: "geolocation=(), microphone=()"
+    routes:
+      - path: "/assets/vendor/*"
+        cacheControl: "public, max-age=86400, immutable"
+      - path: "/assets/*.js"
+        cacheControl: "public, max-age=0, must-revalidate"
+      - path: "/assets/*.css"
+        cacheControl: "public, max-age=0, must-revalidate"
+      - path: "/manifest.webmanifest"
+        cacheControl: "public, max-age=3600"
+      - path: "/config.js"
+        cacheControl: "public, max-age=0, must-revalidate"
+      - path: "/config.json"
+        cacheControl: "public, max-age=0, must-revalidate"
+      - path: "/*.html"
+        cacheControl: "public, max-age=0, must-revalidate"
+      - path: "/"
+        cacheControl: "public, max-age=0, must-revalidate"
+
+  - type: web
+    name: domo-ferro-sync-api
+    env: node
+    rootDir: sync-api
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SYNC_SHARED_SECRET
+        sync: false
