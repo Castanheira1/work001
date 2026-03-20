@@ -1,4 +1,4 @@
-﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderOperationalTimeline();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 
 function renderKPIs(){
   var all=dashboardData.oms;
@@ -110,35 +110,97 @@ function renderEscopoProd(){
   el.innerHTML=h;
 }
 
-function filterPipeSelect(){currentPipe=$("filterStatus").value||null;renderPipeline();renderList();}
-function filterPipe(k){currentPipe=currentPipe===k?null:k;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();}
 
-function populateEquipeFilter(){
-  var equipes=[...new Set(dashboardData.oms.map(function(o){return o.equipe||o.primeiro_executante;}).filter(Boolean))].sort();
-  var sel=$("filterEquipe"),cur=sel.value;
-  sel.innerHTML='<option value="">Todas as equipes</option>';
-  equipes.forEach(function(e){sel.innerHTML+='<option value="'+e+'"'+(e===cur?' selected':'')+'>'+e+'</option>';});
-}
-
-function renderList(){
-  var search=($("searchInput").value||"").toLowerCase();
-  var eq=$("filterEquipe").value;
+function getFilteredOms(){
+  var search=($("searchInput")&&$("searchInput").value||"").toLowerCase();
+  var eq=$("filterEquipe")?$("filterEquipe").value:"";
+  var fia=$("filterFIA")?$("filterFIA").value:"";
   var filtroEscopo=$("filterEscopo")?$("filterEscopo").value:"";
   var dtIni=$("filterDtInicio")?$("filterDtInicio").value:"";
   var dtFim=$("filterDtFim")?$("filterDtFim").value:"";
-  var maxQtd=parseInt(($("filterQtd")?$("filterQtd").value:"20"))||0;
-  var list=dashboardData.oms;
+  var list=dashboardData.oms||[];
   if(currentPipe)list=list.filter(function(o){return o.status===currentPipe;});
   if(eq)list=list.filter(function(o){return(o.equipe||o.primeiro_executante)===eq;});
+  if(fia)list=list.filter(function(o){return String(o.fia||o.fia_numero||"")===String(fia);});
   if(filtroEscopo)list=list.filter(function(o){return(o.escopo||'geral')===filtroEscopo;});
   if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search);});
   if(dtIni){var dIni=dtIni+"T00:00:00";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d>=dIni;});}
   if(dtFim){var dFim=dtFim+"T23:59:59";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d<=dFim;});}
+  return list;
+}
+
+function renderOperationalTimeline(){
+  var el=$("operationalTimeline");if(!el)return;
+  var list=getFilteredOms();
+  if(!list.length){el.innerHTML='<div class="empty">Nenhuma OM para o período selecionado.</div>';return;}
+  var grouped={};
+  list.forEach(function(om){
+    var raw=om.updated_at||om.created_at||"";
+    var d=raw?new Date(raw):null;
+    var key=d&&!isNaN(d.getTime())?d.toISOString().split("T")[0]:"sem-data";
+    if(!grouped[key])grouped[key]=[];
+    grouped[key].push(om);
+  });
+  var keys=Object.keys(grouped).sort().reverse().slice(0,14);
+  var h="";
+  keys.forEach(function(k){
+    var arr=grouped[k];
+    var label=k==="sem-data"?"Sem data":new Date(k+"T00:00:00").toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"});
+    h+='<div class="timeline-day"><div class="timeline-day-head"><div class="timeline-day-title">'+label+'</div><div class="timeline-day-count">'+arr.length+' OM(s)</div></div>';
+    arr.slice(0,6).forEach(function(om){
+      var cfg=(PIPE_CFG.find(function(p){return p.key===om.status;})||{});
+      h+='<div class="timeline-item" onclick="onOpenOM(\''+om.num+'\')">';
+      h+='<span class="timeline-dot" style="background:'+(cfg.bar||"#9CA3AF")+'"></span>';
+      h+='<div style="flex:1;min-width:0"><div class="timeline-label">'+esc(om.num+" • "+(om.titulo||"Sem título"))+'</div><div class="timeline-meta">'+esc((cfg.label||om.status||"Status")+" • "+(om.equipe||om.primeiro_executante||"Sem equipe"))+'</div></div></div>';
+    });
+    if(arr.length>6)h+='<div class="timeline-meta">+'+(arr.length-6)+' itens</div>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+function clearGlobalFilters(){
+  if($("searchInput"))$("searchInput").value="";
+  if($("filterEquipe"))$("filterEquipe").value="";
+  if($("filterFIA"))$("filterFIA").value="";
+  if($("filterEscopo"))$("filterEscopo").value="";
+  if($("filterStatus"))$("filterStatus").value="";
+  if($("filterDtInicio"))$("filterDtInicio").value="";
+  if($("filterDtFim"))$("filterDtFim").value="";
+  if($("filterQtd"))$("filterQtd").value="20";
+  currentPipe=null;
+  renderPipeline();
+  renderList();
+}
+function filterPipeSelect(){currentPipe=$("filterStatus").value||null;renderPipeline();renderList();renderOperationalTimeline();}
+function filterPipe(k){currentPipe=currentPipe===k?null:k;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();renderOperationalTimeline();}
+
+function populateEquipeFilter(){
+  var equipes=[...new Set(dashboardData.oms.map(function(o){return o.equipe||o.primeiro_executante;}).filter(Boolean))].sort();
+  var sel=$("filterEquipe");
+  if(sel){
+    var cur=sel.value;
+    sel.innerHTML='<option value="">Todas as equipes</option>';
+    equipes.forEach(function(e){sel.innerHTML+='<option value="'+e+'"'+(e===cur?' selected':'')+'>'+e+'</option>';});
+  }
+  var fiaSel=$("filterFIA");
+  if(fiaSel){
+    var curFia=fiaSel.value;
+    var fiasa=[...new Set((dashboardData.oms||[]).map(function(o){return o.fia||o.fia_numero;}).filter(Boolean))].sort(function(a,b){return String(a).localeCompare(String(b),"pt-BR",{numeric:true});});
+    fiaSel.innerHTML='<option value="">Todos os FIAs</option>';
+    fiasa.forEach(function(f){fiaSel.innerHTML+='<option value="'+f+'"'+(String(f)===String(curFia)?' selected':'')+'>FIA '+f+'</option>';});
+  }
+}
+
+function renderList(){
+  var maxQtd=parseInt(("filterQtd"&&$("filterQtd")?$("filterQtd").value:"20"))||0;
+  var list=getFilteredOms();
   var cfg=currentPipe?PIPE_CFG.find(function(p){return p.key===currentPipe;}):null;
   $("listTitle").textContent=cfg?cfg.icon+" "+cfg.label:"Todas as OMs";
   var totalFiltrado=list.length;
   var exibindo=maxQtd>0?Math.min(maxQtd,totalFiltrado):totalFiltrado;
   $("listCount").textContent=exibindo+" de "+totalFiltrado+" ordem(ns)";
+  renderOperationalTimeline();
   if(!list.length){$("omList").innerHTML='<div class="empty">Nenhuma OM encontrada.</div>';$("omPagination").style.display="none";return;}
   var listShow=maxQtd>0?list.slice(0,maxQtd):list;
   var h="";
@@ -155,6 +217,7 @@ function renderList(){
     h+='<div class="om-titulo">'+(isExec?'<span style="display:inline-block;width:7px;height:7px;background:var(--az);border-radius:50%;margin-right:5px;animation:dotLive 1.5s infinite;vertical-align:middle"></span>':'')+titulo+'</div>';
     h+='<div class="om-equipe">'+equipe+(dtLabel?' <span style="color:var(--c4);font-size:10px">'+dtLabel+'</span>':'')+'</div>';
     if(om.escopo&&_escopoMap[om.escopo])h+='<div style="font-size:10px;font-weight:800;color:var(--b1);background:var(--bc);display:inline-block;padding:1px 6px;border-radius:4px;">'+_escopoMap[om.escopo]+'</div>';
+    if(om.fia||om.fia_numero)h+='<div style="font-size:10px;font-weight:800;color:var(--c2);background:var(--c6);display:inline-block;padding:1px 6px;border-radius:4px;">FIA '+esc(String(om.fia||om.fia_numero))+'</div>';
     if(om.hh_total>0)h+='<div class="om-hh">'+Number(om.hh_total).toFixed(1)+'h</div>';
     if(om.materiais_total>0)h+='<div class="om-mat">R$'+Number(om.materiais_total).toFixed(0)+'</div>';
     if(isExec)h+='<button onclick="event.stopPropagation();showHabilitarDispositivo(\''+om.num+'\')" style="flex-shrink:0;padding:5px 10px;background:linear-gradient(135deg,#e67e00,#f5a623);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">📱 Habilitar</button>';

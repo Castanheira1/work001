@@ -38,21 +38,99 @@
   </nav>
   <div class="wrap">
     <div class="page active" id="pg-painel">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;padding:10px 14px;background:linear-gradient(135deg,#f8fafc,#eef2f7);border-radius:12px;border:1.5px solid var(--c5)">
-        <span style="font-size:12px;font-weight:900;color:var(--c1)">📅 Período:</span>
-        <select id="filterBM" class="filter-select" onchange="onBMFilterChange()" style="min-width:200px;font-weight:800">
-          <option value="">Atual (ao vivo)</option>
-        </select>
-        <span id="bmPeriodoLabel" style="font-size:11px;color:var(--c3);font-weight:600"></span>
-      </div>
-      <div class="kpi-grid">
-        <div class="kpi kpi-blue"><div class="kpi-label">Total de OMs</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">no sistema</div></div>
-        <div class="kpi kpi-orange"><div class="kpi-label">Em Execução</div><div class="kpi-val" id="kpiExec">—</div><div class="kpi-sub" id="kpiExecSub">ativas</div></div>
-        <div class="kpi kpi-green"><div class="kpi-label">HH Total</div><div class="kpi-val" id="kpiHH">—</div><div class="kpi-sub">horas executadas</div></div>
-        <div class="kpi kpi-purple"><div class="kpi-label">Custo Materiais</div><div class="kpi-val" id="kpiMat">—</div><div class="kpi-sub">no BM ativo</div></div>
-        <div class="kpi kpi-red"><div class="kpi-label">Desvios</div><div class="kpi-val" id="kpiDesvios">—</div><div class="kpi-sub">registrados</div></div>
-      </div>
-      <div class="pipeline" id="pipeline"></div>
+      <section class="painel-kpi-topbar">
+        <div class="kpi-grid">
+          <div class="kpi kpi-blue"><div class="kpi-label">Total de OMs</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">no sistema</div></div>
+          <div class="kpi kpi-orange"><div class="kpi-label">Em Execução</div><div class="kpi-val" id="kpiExec">—</div><div class="kpi-sub" id="kpiExecSub">ativas</div></div>
+          <div class="kpi kpi-green"><div class="kpi-label">HH Total</div><div class="kpi-val" id="kpiHH">—</div><div class="kpi-sub">horas executadas</div></div>
+          <div class="kpi kpi-purple"><div class="kpi-label">Custo Materiais</div><div class="kpi-val" id="kpiMat">—</div><div class="kpi-sub">no BM ativo</div></div>
+          <div class="kpi kpi-red"><div class="kpi-label">Desvios</div><div class="kpi-val" id="kpiDesvios">—</div><div class="kpi-sub">registrados</div></div>
+        </div>
+      </section>
+
+      <section class="card painel-global-filters">
+        <div class="card-head"><h3>🎛️ Filtros Globais</h3></div>
+        <div class="card-body">
+          <div class="global-filter-row">
+            <div class="filter-group bm-group">
+              <label class="field-label">Período BM</label>
+              <select id="filterBM" class="filter-select" onchange="onBMFilterChange()">
+                <option value="">Atual (ao vivo)</option>
+              </select>
+              <span id="bmPeriodoLabel" class="filter-help-text"></span>
+            </div>
+            <div class="filter-group">
+              <label class="field-label">Busca</label>
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Buscar OM, título, operador…" oninput="renderList()">
+              </div>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Status</label>
+              <select class="filter-select" id="filterStatus" onchange="filterPipeSelect()">
+                <option value="">Todos os status</option>
+                <option value="enviada">Enviadas</option>
+                <option value="em_execucao">Em Execução</option>
+                <option value="pendente_assinatura">Pendentes</option>
+                <option value="finalizada">Finalizadas</option>
+                <option value="cancelada">Canceladas</option>
+              </select>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Equipe (FIA/BM)</label>
+              <select class="filter-select" id="filterEquipe" onchange="renderList()"><option value="">Todas as equipes</option></select>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">FIA</label>
+              <select class="filter-select" id="filterFIA" onchange="renderList()"><option value="">Todos os FIAs</option></select>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Escopo</label>
+              <select class="filter-select" id="filterEscopo" onchange="renderList()">
+                <option value="">Todos os escopos</option>
+                <option value="geral">📋 Geral</option>
+                <option value="preventiva_usina">🏭 Prev. Usina</option>
+                <option value="preventiva_mina">⛏️ Prev. Mina</option>
+                <option value="preventiva_turno">🔄 Prev. Turno</option>
+                <option value="corretiva">🔧 Corretiva</option>
+              </select>
+            </div>
+          </div>
+          <div class="global-filter-row compact">
+            <div class="filter-group filter-group-date">
+              <label class="field-label">Janela de datas</label>
+              <div class="date-range-fields">
+                <input type="date" id="filterDtInicio" onchange="renderList()">
+                <span>até</span>
+                <input type="date" id="filterDtFim" onchange="renderList()">
+              </div>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Volume</label>
+              <select class="filter-select" id="filterQtd" onchange="renderList()" style="width:auto;min-width:90px">
+                <option value="20">20 OMs</option>
+                <option value="50">50 OMs</option>
+                <option value="100">100 OMs</option>
+                <option value="0">Todas</option>
+              </select>
+            </div>
+            <div class="filter-group filter-actions">
+              <button class="btn-a btn-ghost" onclick="clearGlobalFilters()">Limpar filtros</button>
+              <button class="btn-a btn-ghost" onclick="loadDashboard()">↻ Atualizar dados</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card timeline-card">
+        <div class="card-head"><h3>🗓️ Visão Operacional (Calendário / Linha do Tempo)</h3></div>
+        <div class="card-body">
+          <div class="pipeline" id="pipeline"></div>
+          <div id="operationalTimeline"><div class="empty">Aguardando dados…</div></div>
+        </div>
+      </section>
+
       <div class="grid2">
         <div class="card">
           <div class="card-head"><h3>📤 Enviar OMs para Campo</h3></div>
@@ -83,55 +161,20 @@
           <div class="card-body" id="resumo"><div class="empty">Aguardando dados…</div></div>
         </div>
       </div>
+
       <div class="card" style="margin-bottom:14px">
         <div class="card-head"><h3>📊 Produtividade por Escopo</h3></div>
         <div class="card-body" style="padding:16px" id="chartEscopoProd"><div class="empty">Aguardando dados…</div></div>
       </div>
+
       <div class="card">
         <div class="card-head">
           <h3 id="listTitle">Todas as OMs</h3>
           <div style="display:flex;gap:8px;align-items:center">
             <span style="font-size:10px;color:var(--c3);font-weight:600" id="listCount"></span>
-            <button class="btn-a btn-ghost" style="padding:6px 12px;font-size:10px" onclick="loadDashboard()">↻ Atualizar</button>
           </div>
         </div>
         <div class="card-body">
-          <div class="toolbar">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="searchInput" placeholder="Buscar OM, título, operador…" oninput="renderList()">
-            </div>
-            <select class="filter-select" id="filterEquipe" onchange="renderList()"><option value="">Todas as equipes</option></select>
-            <select class="filter-select" id="filterEscopo" onchange="renderList()">
-              <option value="">Todos os escopos</option>
-              <option value="geral">📋 Geral</option>
-              <option value="preventiva_usina">🏭 Prev. Usina</option>
-              <option value="preventiva_mina">⛏️ Prev. Mina</option>
-              <option value="preventiva_turno">🔄 Prev. Turno</option>
-              <option value="corretiva">🔧 Corretiva</option>
-            </select>
-            <select class="filter-select" id="filterStatus" onchange="filterPipeSelect()">
-              <option value="">Todos os status</option>
-              <option value="enviada">Enviadas</option>
-              <option value="em_execucao">Em Execução</option>
-              <option value="pendente_assinatura">Pendentes</option>
-              <option value="finalizada">Finalizadas</option>
-              <option value="cancelada">Canceladas</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-            <label style="font-size:10px;font-weight:800;color:var(--c3)">Período:</label>
-            <input type="date" id="filterDtInicio" onchange="renderList()" style="padding:6px 8px;border:1.5px solid var(--c5);border-radius:8px;font-size:11px;font-family:inherit">
-            <span style="font-size:10px;color:var(--c3)">a</span>
-            <input type="date" id="filterDtFim" onchange="renderList()" style="padding:6px 8px;border:1.5px solid var(--c5);border-radius:8px;font-size:11px;font-family:inherit">
-            <button class="btn-a btn-ghost" style="padding:5px 10px;font-size:10px" onclick="$('filterDtInicio').value='';$('filterDtFim').value='';renderList()">Limpar</button>
-            <select class="filter-select" id="filterQtd" onchange="renderList()" style="width:auto;min-width:80px">
-              <option value="20">20 OMs</option>
-              <option value="50">50 OMs</option>
-              <option value="100">100 OMs</option>
-              <option value="0">Todas</option>
-            </select>
-          </div>
           <div id="omList"><div class="empty">Nenhuma OM.</div></div>
           <div id="omPagination" style="display:none;text-align:center;padding:10px"></div>
         </div>
