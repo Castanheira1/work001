@@ -126,7 +126,6 @@
       <section class="card timeline-card">
         <div class="card-head"><h3>🗓️ Visão Operacional (Calendário / Linha do Tempo)</h3></div>
         <div class="card-body">
-          <div id="painelPeriodoInsights" class="periodo-insights"><div class="empty">Aguardando dados…</div></div>
           <div class="pipeline" id="pipeline"></div>
           <div id="operationalTimeline"><div class="empty">Aguardando dados…</div></div>
         </div>
@@ -173,8 +172,6 @@
           <h3 id="listTitle">Todas as OMs</h3>
           <div style="display:flex;gap:8px;align-items:center">
             <span style="font-size:10px;color:var(--c3);font-weight:600" id="listCount"></span>
-            <button class="btn-a btn-ghost" style="padding:5px 10px;font-size:10px" id="btnToggleConcluidas" onclick="toggleConcluidasPainel()">Mostrar concluídas</button>
-            <button class="btn-a btn-ghost" style="padding:5px 10px;font-size:10px" onclick="exportarCsvPainel()">⬇ CSV</button>
           </div>
         </div>
         <div class="card-body">
@@ -202,7 +199,6 @@
         <button class="btn-a btn-ghost" style="padding:6px 12px;font-size:10px" onclick="renderAnalytics()">↻ Atualizar</button>
       </div>
       <div id="analyticsMetrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
-      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>🧠 Insights Operacionais Avançados</h3></div><div class="card-body" style="padding:12px 16px" id="analyticsDeepInsights"></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow1">
         <div class="card" style="margin:0"><div class="card-head"><h3>Pipeline de Status</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutStatus"></div></div>
         <div class="card" style="margin:0"><div class="card-head"><h3>Distribuição por Escopo</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutEscopo"></div></div>

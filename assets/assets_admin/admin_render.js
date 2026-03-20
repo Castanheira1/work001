@@ -1,5 +1,4 @@
-﻿var _showConcluidasPainel=false;
-function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderOperationalTimeline();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderOperationalTimeline();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 
 function renderKPIs(){
   var all=dashboardData.oms;
