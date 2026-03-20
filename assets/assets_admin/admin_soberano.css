@@ -213,6 +213,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--c
 .filter-actions .btn-a{white-space:nowrap}
 .bm-group #filterBM{min-width:190px;font-weight:800}
 .timeline-card{margin-bottom:14px}
+#painelPeriodoInsights{background:var(--c6);border:1px solid var(--c5);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.periodo-insights-grid{display:grid;grid-template-columns:1.8fr repeat(4,minmax(0,1fr));gap:8px}
+.periodo-insight{background:var(--w);border:1px solid var(--c5);border-radius:8px;padding:8px}
+.periodo-insight .tt{font-size:9px;font-weight:800;color:var(--c3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.periodo-insight .vv{font-size:12px;font-weight:900;color:var(--c1)}
+.periodo-insight .ss{font-size:10px;color:var(--c3);font-weight:700;margin-top:2px}
 #operationalTimeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px}
 .timeline-day{border:1px solid var(--c5);border-radius:10px;background:var(--c6);padding:10px}
 .timeline-day-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
@@ -227,3 +233,4 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--c
 
 @media(max-width:1200px){.global-filter-row{grid-template-columns:repeat(3,minmax(0,1fr))}.global-filter-row.compact{grid-template-columns:1fr 140px 1fr}}
 @media(max-width:900px){.global-filter-row,.global-filter-row.compact{grid-template-columns:1fr}.filter-actions{justify-content:flex-start}.filter-group-date .date-range-fields{flex-wrap:wrap}}
+@media(max-width:900px){.periodo-insights-grid{grid-template-columns:1fr}}

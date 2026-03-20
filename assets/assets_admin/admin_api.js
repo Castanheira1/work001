@@ -42,6 +42,7 @@ async function carregarBMsPeriodo(){
 
 async function onBMFilterChange(){
   _selectedBM=$("filterBM").value;
+  if(typeof clearGlobalFilters==="function")clearGlobalFilters();
   if(!_selectedBM){
     $("bmPeriodoLabel").textContent="Dados ao vivo do Supabase";
     loadDashboard();

@@ -359,6 +359,20 @@ body {
     animation: slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Ajuste de usabilidade:
+   Na tela de detalhe, HH no topo e ações no rodapé estavam "espremendo"
+   o checklist em telas menores. Mantemos os botões funcionais sem congelar
+   o rodapé e liberamos área útil para leitura completa do checklist. */
+.detail-screen .hh-panel {
+    position: relative;
+    top: auto;
+}
+
+.detail-screen > .controls {
+    position: relative;
+    bottom: auto;
+}
+
 .detail-header {
     background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;

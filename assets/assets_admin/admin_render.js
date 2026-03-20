@@ -126,7 +126,18 @@ function getFilteredOms(){
   if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search);});
   if(dtIni){var dIni=dtIni+"T00:00:00";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d>=dIni;});}
   if(dtFim){var dFim=dtFim+"T23:59:59";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d<=dFim;});}
+  var statusManual=$("filterStatus")?$("filterStatus").value:"";
+  if(!_showConcluidasPainel&&!currentPipe&&!statusManual){
+    list=list.filter(function(o){return o.status!=="finalizada"&&o.status!=="cancelada";});
+  }
   return list;
+}
+
+function toggleConcluidasPainel(){
+  _showConcluidasPainel=!_showConcluidasPainel;
+  var btn=$("btnToggleConcluidas");
+  if(btn)btn.textContent=_showConcluidasPainel?"Ocultar concluídas":"Mostrar concluídas";
+  renderList();
 }
 
 function renderOperationalTimeline(){
@@ -159,6 +170,38 @@ function renderOperationalTimeline(){
   el.innerHTML=h;
 }
 
+function renderPeriodoInsights(){
+  var el=$("painelPeriodoInsights");if(!el)return;
+  var list=getFilteredOms();
+  if(!list.length){el.innerHTML='<div class="empty" style="padding:10px">Sem dados para o período selecionado.</div>';return;}
+  function _pickDate(o){
+    var cands=[o.data_upload,o.uploaded_at,o.created_at,o.updated_at,o.data_finalizacao,o.data_execucao];
+    for(var i=0;i<cands.length;i++){if(cands[i]){var d=new Date(cands[i]);if(!isNaN(d.getTime()))return d;}}
+    return null;
+  }
+  var datas=list.map(_pickDate).filter(Boolean).sort(function(a,b){return a-b;});
+  var ini=datas[0]?datas[0].toLocaleDateString("pt-BR"):"—";
+  var fim=datas[datas.length-1]?datas[datas.length-1].toLocaleDateString("pt-BR"):"—";
+  var hh=list.reduce(function(s,o){return s+Number(o.hh_total||0);},0);
+  var mat=list.reduce(function(s,o){return s+Number(o.materiais_total||0);},0);
+  var ccMap={},eqMap={},stMap={};
+  list.forEach(function(o){
+    var cc=o.cc||"Sem CC";ccMap[cc]=(ccMap[cc]||0)+1;
+    var eq=o.equipe||o.primeiro_executante||"Sem equipe";eqMap[eq]=(eqMap[eq]||0)+1;
+    var st=o.status||"sem_status";stMap[st]=(stMap[st]||0)+1;
+  });
+  function top(map){var keys=Object.keys(map);if(!keys.length)return["—",0];keys.sort(function(a,b){return map[b]-map[a];});return[keys[0],map[keys[0]]];}
+  var tEq=top(eqMap),tCc=top(ccMap),tSt=top(stMap);
+  var h='<div class="periodo-insights-grid">';
+  h+='<div class="periodo-insight"><div class="tt">Contexto do período</div><div class="vv">'+ini+' → '+fim+'</div><div class="ss">'+list.length+' OMs filtradas</div></div>';
+  h+='<div class="periodo-insight"><div class="tt">HH Total</div><div class="vv">'+hh.toFixed(1)+'h</div><div class="ss">Executado no recorte</div></div>';
+  h+='<div class="periodo-insight"><div class="tt">Material</div><div class="vv">R$ '+mat.toFixed(2)+'</div><div class="ss">Custo no recorte</div></div>';
+  h+='<div class="periodo-insight"><div class="tt">Equipe destaque</div><div class="vv">'+esc(tEq[0])+'</div><div class="ss">'+tEq[1]+' OMs</div></div>';
+  h+='<div class="periodo-insight"><div class="tt">Centro de custo foco</div><div class="vv">'+esc(tCc[0])+'</div><div class="ss">'+tCc[1]+' OMs • '+esc(String(tSt[0]))+'</div></div>';
+  h+='</div>';
+  el.innerHTML=h;
+}
+
 function clearGlobalFilters(){
   if($("searchInput"))$("searchInput").value="";
   if($("filterEquipe"))$("filterEquipe").value="";
@@ -168,6 +211,8 @@ function clearGlobalFilters(){
   if($("filterDtInicio"))$("filterDtInicio").value="";
   if($("filterDtFim"))$("filterDtFim").value="";
   if($("filterQtd"))$("filterQtd").value="20";
+  _showConcluidasPainel=false;
+  if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent="Mostrar concluídas";
   currentPipe=null;
   renderPipeline();
   renderList();
@@ -195,12 +240,14 @@ function populateEquipeFilter(){
 function renderList(){
   var maxQtd=parseInt(("filterQtd"&&$("filterQtd")?$("filterQtd").value:"20"))||0;
   var list=getFilteredOms();
+  if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent=_showConcluidasPainel?"Ocultar concluídas":"Mostrar concluídas";
   var cfg=currentPipe?PIPE_CFG.find(function(p){return p.key===currentPipe;}):null;
   $("listTitle").textContent=cfg?cfg.icon+" "+cfg.label:"Todas as OMs";
   var totalFiltrado=list.length;
   var exibindo=maxQtd>0?Math.min(maxQtd,totalFiltrado):totalFiltrado;
   $("listCount").textContent=exibindo+" de "+totalFiltrado+" ordem(ns)";
   renderOperationalTimeline();
+  renderPeriodoInsights();
   if(!list.length){$("omList").innerHTML='<div class="empty">Nenhuma OM encontrada.</div>';$("omPagination").style.display="none";return;}
   var listShow=maxQtd>0?list.slice(0,maxQtd):list;
   var h="";
@@ -216,6 +263,7 @@ function renderList(){
     h+='<div class="om-num">'+om.num+'</div>';
     h+='<div class="om-titulo">'+(isExec?'<span style="display:inline-block;width:7px;height:7px;background:var(--az);border-radius:50%;margin-right:5px;animation:dotLive 1.5s infinite;vertical-align:middle"></span>':'')+titulo+'</div>';
     h+='<div class="om-equipe">'+equipe+(dtLabel?' <span style="color:var(--c4);font-size:10px">'+dtLabel+'</span>':'')+'</div>';
+    if((om.escopo==="preventiva_turno")||om.motivo_reprogramacao)h+='<div style="font-size:10px;font-weight:800;color:#6D28D9;background:#F3E8FF;display:inline-block;padding:1px 6px;border-radius:4px;">↔ Passada turno</div>';
     if(om.escopo&&_escopoMap[om.escopo])h+='<div style="font-size:10px;font-weight:800;color:var(--b1);background:var(--bc);display:inline-block;padding:1px 6px;border-radius:4px;">'+_escopoMap[om.escopo]+'</div>';
     if(om.fia||om.fia_numero)h+='<div style="font-size:10px;font-weight:800;color:var(--c2);background:var(--c6);display:inline-block;padding:1px 6px;border-radius:4px;">FIA '+esc(String(om.fia||om.fia_numero))+'</div>';
     if(om.hh_total>0)h+='<div class="om-hh">'+Number(om.hh_total).toFixed(1)+'h</div>';
@@ -232,6 +280,43 @@ function renderList(){
     $("omPagination").style.display="block";
     $("omPagination").innerHTML='<span style="font-size:11px;color:var(--c3);font-weight:700">Mostrando '+exibindo+' de '+totalFiltrado+' — aumente o limite ou filtre por período</span>';
   }else{$("omPagination").style.display="none";}
+}
+
+function exportarCsvPainel(){
+  try{
+    var list=getFilteredOms();
+    if(!list.length){adminToast("Sem dados para exportar no período atual","warn");return;}
+    function fmt(v){
+      if(v==null)return "";
+      var s=String(v).replace(/\r?\n/g," ").trim();
+      if(/[;\"\n]/.test(s))s='"'+s.replace(/\"/g,'""')+'"';
+      return s;
+    }
+    function fmtDate(v){
+      if(!v)return "";
+      var d=new Date(v);
+      return isNaN(d.getTime())?String(v):d.toLocaleString("pt-BR");
+    }
+    var head=["OM","Título","Status","Escopo","Equipe","FIA","CC","HH Total","Materiais Total","Upload","Execução","Finalização","Desvio","Checklist","Fotos","Relatório"];
+    var rows=[head.join(";")];
+    list.forEach(function(o){
+      rows.push([
+        o.num,o.titulo,o.status,o.escopo||"geral",o.equipe||o.primeiro_executante||"",
+        o.fia||o.fia_numero||"",o.cc||"",Number(o.hh_total||0).toFixed(2),Number(o.materiais_total||0).toFixed(2),
+        fmtDate(o.created_at||o.uploaded_at||o.data_upload),fmtDate(o.data_execucao||o.updated_at),fmtDate(o.data_finalizacao),
+        o.desvio?"SIM":"NÃO",o.has_checklist?"SIM":"NÃO",o.has_fotos?"SIM":"NÃO",o.has_relatorio?"SIM":"NÃO"
+      ].map(fmt).join(";"));
+    });
+    var csv="\uFEFF"+rows.join("\n");
+    var ini=$("filterDtInicio")&&$("filterDtInicio").value||"inicio";
+    var fim=$("filterDtFim")&&$("filterDtFim").value||"fim";
+    var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    forceDownloadBlob(blob,"painel_oms_"+ini+"_"+fim+".csv");
+    adminToast("CSV exportado com "+list.length+" OMs","success");
+  }catch(e){
+    console.error("Erro ao exportar CSV:",e);
+    adminToast("Falha ao gerar CSV: "+(e.message||e),"error");
+  }
 }
 
 function renderEquipes(){
@@ -343,9 +428,73 @@ function renderAnalytics(){
     mh+='<div style="font-size:22px;font-weight:900;color:'+m.color+';font-family:\'JetBrains Mono\',monospace">'+m.val+'</div></div>';
   });
   $("analyticsMetrics").innerHTML=mh;
+  _renderDeepOperationalInsights(all);
   _renderDonutStatus(all);_renderDonutEscopo(all);_renderTimeline(all);
   _renderLeadTime(leads,fin,noPrazo,atrasadas,semPrazo);
   _renderBarHH(all);_renderBarMat(all);_renderProdutividade(all);_renderCustoCC();
+}
+
+function _renderDeepOperationalInsights(all){
+  var el=$("analyticsDeepInsights");if(!el)return;
+  if(!all||!all.length){el.innerHTML='<div class="empty">Sem dados para análise avançada.</div>';return;}
+  function _hist(om){
+    try{return Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}
+    catch(e){return[];}
+  }
+  var finalizadas=all.filter(function(o){return o.status==="finalizada"&&o.created_at&&o.data_finalizacao;});
+  var tempos=finalizadas.map(function(o){return(new Date(o.data_finalizacao)-new Date(o.created_at))/3600000;}).filter(function(v){return v>=0;});
+  var tempoMedio=tempos.length?tempos.reduce(function(s,v){return s+v;},0)/tempos.length:0;
+  var deslocPorOM=[],horaPicoMap={},prodHoraMap={},horaExtraMin=0,passadasTurno=0;
+  all.forEach(function(om){
+    if(om.escopo==="preventiva_turno"||om.motivo_reprogramacao)passadasTurno++;
+    var hist=_hist(om),deslocOm=0;
+    hist.forEach(function(h){
+      var dSeg=Number(h.deslocamentoSegundos!=null?h.deslocamentoSegundos:(Number(h.deslocamentoMinutos||0)*60))||0;
+      deslocOm+=dSeg;
+      var dIni=h.deslocamentoHoraInicio?new Date(h.deslocamentoHoraInicio):null;
+      if(dIni&&!isNaN(dIni.getTime())){
+        var hr=dIni.getHours();
+        horaPicoMap[hr]=(horaPicoMap[hr]||0)+(dSeg/60);
+      }
+      var aIni=h.dataInicio?new Date(h.dataInicio):null,aFim=h.dataFim?new Date(h.dataFim):null;
+      if(aIni&&aFim&&!isNaN(aIni.getTime())&&!isNaN(aFim.getTime())&&aFim>aIni){
+        var mins=(aFim-aIni)/60000;
+        var hrA=aIni.getHours();
+        prodHoraMap[hrA]=(prodHoraMap[hrA]||0)+mins;
+        var isExtra=(hrA<6||hrA>=18);
+        if(isExtra)horaExtraMin+=mins;
+      }
+    });
+    if(deslocOm>0)deslocPorOM.push({num:om.num,min:deslocOm/60});
+  });
+  deslocPorOM.sort(function(a,b){return b.min-a.min;});
+  function topHour(map,pickMin){
+    var keys=Object.keys(map).map(Number);
+    if(!keys.length)return null;
+    keys.sort(function(a,b){return pickMin?(map[a]-map[b]):(map[b]-map[a]);});
+    return{h:keys[0],v:map[keys[0]]};
+  }
+  var picoDesloc=topHour(horaPicoMap,false);
+  var hrProdMais=topHour(prodHoraMap,false);
+  var hrProdMenos=topHour(prodHoraMap,true);
+  var modoBM=_selectedBM?("BM "+_selectedBM):"Ao vivo";
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:10px">';
+  h+='<div style="background:var(--bc);padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">ÂNCORA TEMPORAL</div><div style="font-size:13px;font-weight:900;color:var(--b1)">Upload (created_at)</div><div style="font-size:10px;color:var(--c3)">Modo: '+modoBM+'</div></div>';
+  h+='<div style="background:var(--c6);padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">Tempo médio atendimento</div><div style="font-size:18px;font-weight:900;color:var(--b1)">'+(tempoMedio?tempoMedio.toFixed(1)+'h':'—')+'</div><div style="font-size:10px;color:var(--c3)">Upload → finalização</div></div>';
+  h+='<div style="background:var(--lc);padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">Hora extra estimada</div><div style="font-size:18px;font-weight:900;color:var(--lr)">'+(horaExtraMin/60).toFixed(1)+'h</div><div style="font-size:10px;color:var(--c3)">Atividade fora 06h–18h</div></div>';
+  h+='<div style="background:#F3E8FF;padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">Passadas de turno</div><div style="font-size:18px;font-weight:900;color:#6D28D9">'+passadasTurno+'</div><div style="font-size:10px;color:var(--c3)">Escopo turno/reprogramação</div></div>';
+  h+='</div>';
+  h+='<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px">';
+  h+='<div style="background:var(--w);border:1px solid var(--c5);border-radius:8px;padding:10px"><div style="font-size:10px;font-weight:800;color:var(--c3);margin-bottom:6px">Top deslocamento por OM</div>';
+  if(deslocPorOM.length){deslocPorOM.slice(0,5).forEach(function(d,idx){h+='<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--c6)"><span style="font-weight:700;color:var(--c2)">'+(idx+1)+'. OM '+d.num+'</span><span style="font-weight:900;color:var(--b1)">'+d.min.toFixed(0)+' min</span></div>';});}
+  else h+='<div class="empty" style="padding:8px">Sem deslocamentos</div>';
+  h+='</div>';
+  h+='<div style="background:var(--w);border:1px solid var(--c5);border-radius:8px;padding:10px"><div style="font-size:10px;font-weight:800;color:var(--c3);margin-bottom:6px">Picos por horário</div>';
+  h+='<div style="font-size:11px;margin-bottom:5px"><strong>Deslocamento:</strong> '+(picoDesloc?String(picoDesloc.h).padStart(2,"0")+":00 ("+picoDesloc.v.toFixed(0)+" min)":"—")+'</div>';
+  h+='<div style="font-size:11px;margin-bottom:5px"><strong>Mais produtivo:</strong> '+(hrProdMais?String(hrProdMais.h).padStart(2,"0")+":00 ("+(hrProdMais.v/60).toFixed(1)+"h)":"—")+'</div>';
+  h+='<div style="font-size:11px"><strong>Menos produtivo:</strong> '+(hrProdMenos?String(hrProdMenos.h).padStart(2,"0")+":00 ("+(hrProdMenos.v/60).toFixed(1)+"h)":"—")+'</div>';
+  h+='</div></div>';
+  el.innerHTML=h;
 }
 
 function _renderDonutStatus(all){
