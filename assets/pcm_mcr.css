@@ -721,6 +721,29 @@ body {
     letter-spacing: 0.3px;
 }
 
+.escopo-btn {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    background: #f8f9fa;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.escopo-btn-cancel {
+    margin-top: 12px;
+    width: 100%;
+    padding: 10px;
+    background: #eee;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #666;
+}
+
 input,
 textarea,
 select {

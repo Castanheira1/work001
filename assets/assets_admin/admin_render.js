@@ -1,4 +1,5 @@
-﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderOperationalTimeline();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+﻿var _showConcluidasPainel=false;
+function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 
 function renderKPIs(){
   var all=dashboardData.oms;
@@ -217,8 +218,8 @@ function clearGlobalFilters(){
   renderPipeline();
   renderList();
 }
-function filterPipeSelect(){currentPipe=$("filterStatus").value||null;renderPipeline();renderList();renderOperationalTimeline();}
-function filterPipe(k){currentPipe=currentPipe===k?null:k;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();renderOperationalTimeline();}
+function filterPipeSelect(){currentPipe=$("filterStatus").value||null;renderPipeline();renderList();}
+function filterPipe(k){currentPipe=currentPipe===k?null:k;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();}
 
 function populateEquipeFilter(){
   var equipes=[...new Set(dashboardData.oms.map(function(o){return o.equipe||o.primeiro_executante;}).filter(Boolean))].sort();
@@ -238,7 +239,7 @@ function populateEquipeFilter(){
 }
 
 function renderList(){
-  var maxQtd=parseInt(("filterQtd"&&$("filterQtd")?$("filterQtd").value:"20"))||0;
+  var maxQtd=parseInt(($("filterQtd")?$("filterQtd").value:"20"))||0;
   var list=getFilteredOms();
   if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent=_showConcluidasPainel?"Ocultar concluídas":"Mostrar concluídas";
   var cfg=currentPipe?PIPE_CFG.find(function(p){return p.key===currentPipe;}):null;
