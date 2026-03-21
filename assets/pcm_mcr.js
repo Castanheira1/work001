@@ -4428,17 +4428,18 @@ function capturarFoto(name, tipo) {
                     var execs = hist.executantes || [];
                     var numExec = execs.length || 1;
                     var deslSeg = (hist.deslocamentoSegundos !== undefined) ? hist.deslocamentoSegundos : ((hist.deslocamentoMinutos || 0) * 60);
+                    if((hist.tag === 'OFICINA') || deslSeg <= 0) continue;
                     var dIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio) : null;
                     var dFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim) : null;
                     var dataIniStr = dIni ? dIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr = dFim ? dFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr = dIni ? dIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr = dFim ? dFim.toLocaleTimeString('pt-BR') : '--:--:--';
-                    var tempoStr = (hist.tag === 'OFICINA' && deslSeg === 0) ? 'OFICINA' : _formatarTempo(deslSeg);
-                    var causaStr = (hist.tag === 'OFICINA') ? 'OFICINA' : '002';
+                    var tempoStr = _formatarTempo(deslSeg);
+                    var causaStr = '002';
                     for (var e = 0; e < numExec; e++) {
                         pessoalN++;
-                        if(!(hist.tag === 'OFICINA' && deslSeg === 0)) totalDeslSeg += deslSeg;
+                        totalDeslSeg += deslSeg;
                         deslBody.push([
                             { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
                             { content: String(pessoalN), styles: { halign: 'center', fontSize: 6 } },
@@ -4450,6 +4451,18 @@ function capturarFoto(name, tipo) {
                             { content: causaStr, styles: { halign: 'center', fontSize: 6 } }
                         ]);
                     }
+                }
+                if(deslBody.length === 0) {
+                    deslBody.push([
+                        { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
+                        { content: '-', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--:--:--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--:--:--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: 'SEM DESLOCAMENTO', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+                        { content: '-', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
                 }
                 var stlTot = { halign: 'center', fontStyle: 'bold', fontSize: 7, fillColor: [90,90,90], textColor: [255,255,255] };
                 deslBody.push([
@@ -4465,6 +4478,40 @@ function capturarFoto(name, tipo) {
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
@@ -4558,6 +4605,21 @@ function capturarFoto(name, tipo) {
             }
 
             var mats = currentOM.materiaisUsados || materiaisUsados || [];
+            if(!mats || mats.length === 0) {
+                var histM = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+                var agg = {};
+                for (var hm = 0; hm < histM.length; hm++) {
+                    var arrM = Array.isArray(histM[hm].materiaisUsados) ? histM[hm].materiaisUsados : [];
+                    for (var mm = 0; mm < arrM.length; mm++) {
+                        var im = arrM[mm] || {};
+                        var kM = [im.codigo || '', im.nome || '', im.unidade || '', im.precoUnit || 0, im.tipo || ''].join('|');
+                        if(!agg[kM]) agg[kM] = { codigo: im.codigo || '', nome: im.nome || '', unidade: im.unidade || '', precoUnit: Number(im.precoUnit || 0), qtd: 0, total: 0, tipo: im.tipo || 'Pricelist', bdiPercentual: Number(im.bdiPercentual || 0), bdiValor: Number(im.bdiValor || 0) };
+                        agg[kM].qtd += Number(im.qtd || 0);
+                        agg[kM].total += Number(im.total || 0);
+                    }
+                }
+                mats = Object.keys(agg).map(function(k){ return agg[k]; });
+            }
             if (mats.length > 0 || true) {
                 y = _pdfSection(pdf, y, 'MATERIAIS UTILIZADOS', 18);
                 var tituloMat = currentOM.titulo || '';
