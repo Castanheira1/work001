@@ -93,7 +93,7 @@ function verificarDependencias() {
             }
         }
 
-        function _uiAtividade() {
+        function _uiAtividade(skipChecklistAuto) {
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:'flex',
                 btnRowExecOficina:'flex', btnFinalizar:1,
@@ -101,7 +101,7 @@ function verificarDependencias() {
                 timerAtividade:1
             });
             _btnOficinaCk();
-            if (currentOM.planoCod || currentOM.checklistCorretiva) _mostrarChecklistUI(false);
+            if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva)) _mostrarChecklistUI(false);
         }
 
 
@@ -2896,18 +2896,23 @@ function verificarDependencias() {
             $('checklistSection').textContent = '📋 Checklist Salvo ✅';
 
             var fluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina));
-            var fluxoChecklistPlano = !!(currentOM && currentOM.planoCod && !currentOM.emOficina && !currentOM.retornouOficina);
-            if (fluxoOficina || fluxoChecklistPlano) {
+            var fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !currentOM.emOficina && !currentOM.retornouOficina);
+            if (fluxoOficina || fluxoChecklistAtivo) {
                 _aplicarModoChecklistFoco(false);
-                $('checklistSection').style.display = 'none';
-                $('checklistActions').style.display = 'none';
                 if (fluxoOficina) {
+                    $('checklistSection').style.display = 'none';
+                    $('checklistActions').style.display = 'none';
                     _aplicarModoOficinaMinimal(true);
                     $('btnIniciar').style.display = 'block';
                     $('btnIniciar').disabled = false;
                     _btnOficinaCk();
                 } else {
                     _aplicarModoOficinaMinimal(false);
+                    $('checklistSection').style.display = 'block';
+                    $('checklistActions').style.display = 'block';
+                    $('btnEditarChecklist').style.display = 'block';
+                    $('btnSalvarChecklist').style.display = 'none';
+                    _uiAtividade(true);
                 }
             }
 
