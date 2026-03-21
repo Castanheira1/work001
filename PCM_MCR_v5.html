@@ -8,7 +8,20 @@
     <!-- Carregador de variáveis de ambiente -->
     <script src="config.js"></script>
     <script src="assets/env-loader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+        (function () {
+            if (location.protocol === 'file:') {
+                console.warn('[SUPABASE] Script CDN desativado em file:// para evitar bloqueios de Tracking Prevention/CORS.');
+                return;
+            }
+            var supaScript = document.createElement('script');
+            supaScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+            supaScript.onerror = function () {
+                console.warn('[SUPABASE] Falha ao carregar CDN jsdelivr.');
+            };
+            document.head.appendChild(supaScript);
+        })();
+    </script>
     
     <script src="assets/vendor/pdf.min.js" onerror="console.error('FALHA ao carregar pdf.js')"></script>
     
@@ -24,7 +37,18 @@
 
     <link rel="stylesheet" href="assets/pcm_mcr.css">
 
-    <link rel="manifest" href="manifest.webmanifest">
+    <script>
+        (function () {
+            if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+                console.warn('[PWA] Manifest desativado fora de http/https.');
+                return;
+            }
+            var manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = 'manifest.webmanifest';
+            document.head.appendChild(manifestLink);
+        })();
+    </script>
     <meta name="theme-color" content="#1A5276">
     <link rel="icon" sizes="192x192" href="assets/icons/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
@@ -365,7 +389,13 @@
             <h3 style="color:#333;font-size:clamp(16px,4vw,20px);margin-bottom:4px;">⏸️ Pausar / Desvio</h3>
             <p style="font-size:clamp(11px,3vw,13px);color:#666;margin-bottom:14px;text-align:center;">Selecione o motivo</p>
             <p style="font-size:11px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Operacional</p>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#546e7a;" onclick="selecionarDesvio('3.1')">3.1 — Local Fechado</button>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#546e7a;" onclick="selecionarDesvio('3.2')">3.2 — Local Obstruído por Móvel</button>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#546e7a;" onclick="selecionarDesvio('3.3')">3.3 — Sala em Reforma</button>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#546e7a;" onclick="selecionarDesvio('3.4')">3.4 — Sala utilizada para Reunião/Treinamento</button>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#546e7a;" onclick="selecionarDesvio('3.5')">3.5 — Sem Acesso à Área</button>
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('0018')">0018 — Troca de Turno</button>
+            <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#1565c0;" onclick="selecionarDesvio('reprogramar')">🔄 Reprogramar OM</button>
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('desativar')">Desativar Equipamento</button>
             <button class="btn btn-secondary" onclick="hideMenuDesvios()" style="width:100%;margin-top:8px;font-size:clamp(13px,3.5vw,15px);">Cancelar</button>
         </div>
