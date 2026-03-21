@@ -3,6 +3,7 @@
   var SYNC_INTERVAL_MS = 30000;
   var MAX_ITEMS_PER_BATCH = 2;
   var MAX_PDF_PAYLOAD_BYTES = 3 * 1024 * 1024;
+  var IDB_OPEN_TIMEOUT_MS = 5000;
 
   var syncing = false;
 
@@ -42,6 +43,10 @@
   }
 
   function buildLocalOm(r) {
+    var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
+    var statusRaw = String(r.status || '').toLowerCase();
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    var lockRemoto = r.lock_device_id || null;
     return {
       num: r.num,
       titulo: r.titulo || '',
@@ -62,16 +67,17 @@
       tagIdentificacao: r.tag_identificacao || '',
       status: r.status_sistema || r.status || '',
       statusAtual: 'programada',
-      finalizada: false,
-      cancelada: false,
-      pendenteAssinatura: false,
+      finalizada: !!(r.finalizada || statusRaw === 'finalizada'),
+      cancelada: !!(r.cancelada || statusRaw === 'cancelada'),
+      pendenteAssinatura: !!(r.pendente_assinatura || statusRaw === 'pendente_assinatura'),
+      emOficina: emOficina,
       historicoExecucao: r.historico_execucao || [],
       materiaisUsados: r.materiais_usados || [],
       executantes: r.executantes || [],
       primeiroExecutante: r.primeiro_executante || null,
       hh_total: r.hh_total || 0,
       materiais_total: r.materiais_total || 0,
-      lockDeviceId: null,
+      lockDeviceId: lockRemoto,
       _fromSync: true
     };
   }
@@ -86,6 +92,20 @@
         om[key] = value;
         changed = true;
       }
+    }
+
+    var lockRemoto = r.lock_device_id || null;
+    if ((om.lockDeviceId || null) !== lockRemoto) {
+      om.lockDeviceId = lockRemoto;
+      changed = true;
+    }
+
+    var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
+    var statusRaw = String(r.status || '').toLowerCase();
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    if (!!om.emOficina !== emOficina) {
+      om.emOficina = emOficina;
+      changed = true;
     }
 
     setIfEmpty('titulo', r.titulo || '');
@@ -136,15 +156,18 @@
 
   function omNeedsExtraction(om) {
     if (!om) return false;
+    function vazio(v) {
+      return !v || v === '---' || v === '-' || v === '--' || v === '—';
+    }
     return (
-      !om.descLocal || om.descLocal === '---' ||
-      !om.descLocalSup || om.descLocalSup === '---' ||
-      !om.caracteristicas || om.caracteristicas === '---' ||
-      !om.criticidade ||
-      !om.tipoManut ||
-      !om.tagIdentificacao ||
-      !om.local || om.local === '---' ||
-      !om.descricao
+      vazio(om.descLocal) ||
+      vazio(om.descLocalSup) ||
+      vazio(om.caracteristicas) ||
+      vazio(om.criticidade) ||
+      vazio(om.tipoManut) ||
+      vazio(om.tagIdentificacao) ||
+      vazio(om.local) ||
+      vazio(om.descricao)
     );
   }
 
@@ -157,6 +180,7 @@
       var val = (typeof value === 'string') ? value.trim() : value;
       if (val === '') return;
       invalids = invalids || [];
+      if (val === '-' || val === '--' || val === '—') return;
       if (invalids.indexOf(val) !== -1) return;
       if (om[key] !== val) {
         om[key] = val;
@@ -295,10 +319,18 @@
     if (_dbInst) return Promise.resolve(_dbInst);
     if (_dbProm) return _dbProm;
 
-    _dbProm = new Promise(function (resolve, reject) {
+    _dbProm = new Promise(function (resolve) {
       if (!('indexedDB' in self)) return resolve(null);
 
       var req = indexedDB.open('pcm_mcr_db', 3);
+      var resolved = false;
+      var timer = setTimeout(function () {
+        if (resolved) return;
+        resolved = true;
+        _dbProm = null;
+        log('IndexedDB timeout ao abrir banco; seguindo sem persistência offline.');
+        resolve(null);
+      }, IDB_OPEN_TIMEOUT_MS);
 
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
@@ -308,6 +340,9 @@
       };
 
       req.onsuccess = function () {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         _dbInst = req.result;
         _dbInst.onclose = function () {
           _dbInst = null;
@@ -317,8 +352,15 @@
       };
 
       req.onerror = function () {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         _dbProm = null;
-        reject(req.error);
+        log('IndexedDB indisponível; sincronização offline ficará limitada.', req.error || null);
+        resolve(null);
+      };
+      req.onblocked = function () {
+        log('IndexedDB bloqueado por outra aba/processo.');
       };
     });
 
@@ -470,15 +512,22 @@
     var headers = { 'Content-Type': 'application/json' };
     var sharedSecret = (window.ENV && window.ENV.SYNC_SHARED_SECRET) || '';
     if (sharedSecret) headers['X-Sync-Secret'] = sharedSecret;
-    return fetch(getSyncEndpoint(), {
+    var useAbort = (typeof AbortController !== 'undefined');
+    var ctrl = useAbort ? new AbortController() : null;
+    var timer = useAbort ? setTimeout(function () { ctrl.abort(); }, 12000) : null;
+    var req = {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(bodyObj)
-    }).then(function (resp) {
+    };
+    if (ctrl) req.signal = ctrl.signal;
+    return fetch(getSyncEndpoint(), req).then(function (resp) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       return resp.text().then(function (t) {
         try { return JSON.parse(t || '{}'); } catch (e) { return { ok: true }; }
       });
+    }).finally(function () {
+      if (timer) clearTimeout(timer);
     });
   }
 
@@ -630,6 +679,15 @@
 
   function puxarOMs(escopoFiltro) {
     if (!isOnline() || !window.PdfDB) return Promise.resolve();
+    var escopoValido = escopoFiltro === 'preventiva_usina'
+      || escopoFiltro === 'preventiva_mina'
+      || escopoFiltro === 'preventiva_turno'
+      || escopoFiltro === 'corretiva';
+    if (!escopoValido) {
+      log('puxarOMs ignorado: escopo obrigatório inválido ->', escopoFiltro);
+      if (window.showToast) window.showToast('Selecione um escopo específico para puxar OMs', 'warn');
+      return Promise.resolve();
+    }
 
     var SUPABASE_ANON = getSupabaseAnon();
     var token = (window.PCMAuth && window.PCMAuth.getToken && window.PCMAuth.getToken()) || SUPABASE_ANON;
@@ -639,7 +697,7 @@
       'Content-Type': 'application/json'
     };
 
-    log('Buscando OMs pela pasta originais. Escopo:', escopoFiltro || 'todos');
+    log('Buscando OMs pela pasta originais. Escopo:', escopoFiltro);
 
     return listOriginais(hdrs)
       .then(function (arquivos) {
@@ -655,10 +713,7 @@
           var elegiveis = arquivos.filter(function (file) {
             var row = metaMap[file.num] || null;
             if (!isRowOperational(row)) return false;
-            if (escopoFiltro && escopoFiltro !== 'todos') {
-              return row && row.escopo === escopoFiltro;
-            }
-            return true;
+            return row && row.escopo === escopoFiltro;
           }).map(function (file) {
             return metaMap[file.num];
           }).filter(Boolean);
