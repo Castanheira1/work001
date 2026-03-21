@@ -295,7 +295,10 @@ function verificarDependencias() {
             localStorage.setItem(STORAGE_KEY_HISTORICO, JSON.stringify(historicoManter));
         }
 
-        window.addEventListener('load', async function() {
+        var __pcmAppStarted = false;
+        async function _inicializarAppComEnv() {
+            if(__pcmAppStarted) return;
+            __pcmAppStarted = true;
             if(!verificarDependencias()) return;
             limparHistoricoAntigo();
             initDeviceId();
@@ -305,6 +308,21 @@ function verificarDependencias() {
             carregarOMs();
             carregarOMAtual();
             if(navigator.onLine) _rtConectar();
+        }
+
+        window.addEventListener('load', function() {
+            if (window.__PCM_ENV_READY__) {
+                _inicializarAppComEnv();
+                return;
+            }
+            var fallbackTimer = setTimeout(function(){
+                console.warn('[MCR] Timeout aguardando evento pcm:env-ready; inicializando com ENV atual.');
+                _inicializarAppComEnv();
+            }, 4000);
+            window.addEventListener('pcm:env-ready', function() {
+                clearTimeout(fallbackTimer);
+                _inicializarAppComEnv();
+            }, { once: true });
         });
 
         function initDeviceId() {

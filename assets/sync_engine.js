@@ -3,6 +3,7 @@
   var SYNC_INTERVAL_MS = 30000;
   var MAX_ITEMS_PER_BATCH = 2;
   var MAX_PDF_PAYLOAD_BYTES = 3 * 1024 * 1024;
+  var IDB_OPEN_TIMEOUT_MS = 5000;
 
   var syncing = false;
 
@@ -295,10 +296,18 @@
     if (_dbInst) return Promise.resolve(_dbInst);
     if (_dbProm) return _dbProm;
 
-    _dbProm = new Promise(function (resolve, reject) {
+    _dbProm = new Promise(function (resolve) {
       if (!('indexedDB' in self)) return resolve(null);
 
       var req = indexedDB.open('pcm_mcr_db', 3);
+      var resolved = false;
+      var timer = setTimeout(function () {
+        if (resolved) return;
+        resolved = true;
+        _dbProm = null;
+        log('IndexedDB timeout ao abrir banco; seguindo sem persistência offline.');
+        resolve(null);
+      }, IDB_OPEN_TIMEOUT_MS);
 
       req.onupgradeneeded = function (e) {
         var db = e.target.result;
@@ -308,6 +317,9 @@
       };
 
       req.onsuccess = function () {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         _dbInst = req.result;
         _dbInst.onclose = function () {
           _dbInst = null;
@@ -317,8 +329,15 @@
       };
 
       req.onerror = function () {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         _dbProm = null;
-        reject(req.error);
+        log('IndexedDB indisponível; sincronização offline ficará limitada.', req.error || null);
+        resolve(null);
+      };
+      req.onblocked = function () {
+        log('IndexedDB bloqueado por outra aba/processo.');
       };
     });
 

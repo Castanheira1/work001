@@ -328,6 +328,7 @@
     <script src="assets/app_bootstrap.js"></script>
     <script>
     (function(){
+      var badgeTimer = null;
       function updateBadge(){
         var badge = document.getElementById('pcm-user-badge');
         var nameEl = document.getElementById('pcm-user-name');
@@ -339,7 +340,21 @@
           badge.style.display = 'none';
         }
       }
-      setInterval(updateBadge, 1000);
+      function startBadgeTimer(){
+        if (badgeTimer) return;
+        badgeTimer = setInterval(updateBadge, 5000);
+      }
+      function stopBadgeTimer(){
+        if (!badgeTimer) return;
+        clearInterval(badgeTimer);
+        badgeTimer = null;
+      }
+      document.addEventListener('visibilitychange', function(){
+        if (document.hidden) stopBadgeTimer();
+        else { updateBadge(); startBadgeTimer(); }
+      });
+      window.addEventListener('beforeunload', stopBadgeTimer);
+      startBadgeTimer();
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', updateBadge);
       else updateBadge();
     })();

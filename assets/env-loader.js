@@ -23,6 +23,7 @@
 
   function fireReady() {
     try {
+      w.__PCM_ENV_READY__ = true;
       w.dispatchEvent(new CustomEvent('pcm:env-ready', { detail: w.ENV }));
     } catch (e) {}
   }
