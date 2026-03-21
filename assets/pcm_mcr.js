@@ -1830,6 +1830,11 @@ function verificarDependencias() {
         function iniciarDeslocamento() {
             currentOM.lockDeviceId = deviceId;
             currentOM.statusAtual = 'em_deslocamento';
+            $('checklistSection').style.display = 'none';
+            $('checklistContent').style.display = 'none';
+            $('checklistActions').style.display = 'none';
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             salvarOMs();
             filtrarOMs();
             
@@ -3696,43 +3701,31 @@ function capturarFoto(name, tipo) {
             var secao = $('checklistSection');
             if(!secao || secao.style.display === 'none') return [];
 
-            var tipo = _detectarTipoChecklist();
-
-            if(tipo === 'MISTO') {
-                var totalT = checklistItens.trimestral.length;
-                var preenchidosT = 0;
-                for(var i = 0; i < totalT; i++) {
-                    if(document.querySelector('input[name="t' + (i + 1) + '"]:checked')) preenchidosT++;
-                }
-                return ['⚠️ CHECKLIST INVÁLIDO: ' + preenchidosT + ' de ' + totalT + ' itens TRIMESTRAIS preenchidos. Preencha todos os trimestrais ou remova as marcações (use ✅ Conforme MENSAL para reiniciar).'];
+            var nomesMensais = [];
+            var nomesTodos = [];
+            for(var i = 0; i < checklistItens.mensal.length; i++) {
+                nomesMensais.push('m' + (i + 1));
+                nomesTodos.push('m' + (i + 1));
             }
+            for(var j = 0; j < checklistItens.trimestral.length; j++) nomesTodos.push('t' + (j + 1));
 
-            var nomesValidar = [];
-            for(var i = 0; i < checklistItens.mensal.length; i++) nomesValidar.push('m' + (i + 1));
-            if(tipo === 'TRIMESTRAL') {
-                for(var i = 0; i < checklistItens.trimestral.length; i++) nomesValidar.push('t' + (i + 1));
+            var naoMarcados = [], semFoto = [];
+            for(var n = 0; n < nomesMensais.length; n++) {
+                var selM = document.querySelector('input[name="' + nomesMensais[n] + '"]:checked');
+                if(!selM) naoMarcados.push(nomesMensais[n]);
             }
-
-            var naoMarcados = [], semFoto = [], semComentario = [];
-            for(var n = 0; n < nomesValidar.length; n++) {
-                var name = nomesValidar[n];
+            for(var x = 0; x < nomesTodos.length; x++) {
+                var name = nomesTodos[x];
                 var sel = document.querySelector('input[name="' + name + '"]:checked');
-                if(!sel) { naoMarcados.push(name); continue; }
+                if(!sel) continue;
                 if(sel.value === 'anormal') {
                     var foto = checklistFotos[name] || {};
                     if(!foto.antes) semFoto.push(name);
-                    var explicacao = document.getElementById('explicacao_' + name);
-                    var obsEl = document.getElementById('chkItem_' + name);
-                    var obsInput = obsEl ? obsEl.querySelector('.checklist-obs') : null;
-                    var temExplicacao = explicacao && explicacao.value && explicacao.value.trim();
-                    var temObs = obsInput && obsInput.value && obsInput.value.trim();
-                    if(!temExplicacao && !temObs) semComentario.push(name);
                 }
             }
             var erros = [];
-            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) ' + tipo + ' sem marcação: ' + naoMarcados.join(', ').toUpperCase());
+            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) MENSAL sem marcação: ' + naoMarcados.join(', ').toUpperCase());
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
-            if(semComentario.length > 0) erros.push('📝 ' + semComentario.length + ' item(ns) ANORMAL sem comentário: ' + semComentario.join(', ').toUpperCase());
             return erros;
         }
 
