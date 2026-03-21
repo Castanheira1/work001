@@ -2894,6 +2894,23 @@ function verificarDependencias() {
             $('btnSalvarChecklist').style.display = 'none';
             $('btnEditarChecklist').style.display = 'block';
             $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+
+            var fluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina));
+            var fluxoChecklistPlano = !!(currentOM && currentOM.planoCod && !currentOM.emOficina && !currentOM.retornouOficina);
+            if (fluxoOficina || fluxoChecklistPlano) {
+                _aplicarModoChecklistFoco(false);
+                $('checklistSection').style.display = 'none';
+                $('checklistActions').style.display = 'none';
+                if (fluxoOficina) {
+                    _aplicarModoOficinaMinimal(true);
+                    $('btnIniciar').style.display = 'block';
+                    $('btnIniciar').disabled = false;
+                    _btnOficinaCk();
+                } else {
+                    _aplicarModoOficinaMinimal(false);
+                }
+            }
+
             if(window.showToast) window.showToast('✅ Checklist salvo', 'success', 2000);
         }
 
