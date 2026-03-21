@@ -26,6 +26,8 @@ const APP_SHELL = [
 
 const CACHEABLE_DESTINATIONS = ['script', 'style', 'image', 'font', 'manifest', 'worker'];
 const NON_CRITICAL_ASSETS = ['./assets/icons/icon-192.png', './assets/icons/icon-512.png'];
+const API_TIMEOUT_MS = 12000;
+const BG_SYNC_TAG = 'pcm-sync-pending';
 
 const APP_SHELL_PATHS = APP_SHELL.map(function (p) {
   return new URL(p, self.location.href).pathname;
@@ -52,6 +54,22 @@ function putInCache(request, response) {
   if (!response || !response.ok) return Promise.resolve();
   return caches.open(CACHE_VERSION).then(function (cache) {
     return cache.put(request, response.clone());
+  }).catch(function () {});
+}
+
+function fetchWithTimeout(request, timeoutMs) {
+  if (typeof AbortController === 'undefined') return fetch(request);
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || API_TIMEOUT_MS);
+  var req = new Request(request, { signal: ctrl.signal });
+  return fetch(req).finally(function () { clearTimeout(timer); });
+}
+
+function notifyClientsSyncNow() {
+  return self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(function (clients) {
+    clients.forEach(function (client) {
+      client.postMessage({ type: 'SW_SYNC_NOW', tag: BG_SYNC_TAG, ts: Date.now() });
+    });
   }).catch(function () {});
 }
 
@@ -94,6 +112,11 @@ self.addEventListener('activate', function (event) {
   );
 });
 
+self.addEventListener('sync', function (event) {
+  if (!event || event.tag !== BG_SYNC_TAG) return;
+  event.waitUntil(notifyClientsSyncNow());
+});
+
 self.addEventListener('fetch', function (event) {
   var request = event.request;
   var url = new URL(request.url);
@@ -107,7 +130,7 @@ self.addEventListener('fetch', function (event) {
 
   if (isAPI) {
     event.respondWith(
-      fetch(request).catch(function () {
+      fetchWithTimeout(request, API_TIMEOUT_MS).catch(function () {
         return new Response(JSON.stringify({ error: 'offline' }), {
           status: 503,
           headers: { 'Content-Type': 'application/json' }

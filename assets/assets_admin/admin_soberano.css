@@ -198,3 +198,39 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--c
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}}
 @media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.nav-center{display:none}.wrap{padding:12px}.grid2{grid-template-columns:1fr}#analyticsRow1,#analyticsRow3{grid-template-columns:1fr!important}}
 @media(max-width:400px){.kpi-grid{grid-template-columns:1fr}}
+.painel-kpi-topbar{margin-bottom:14px}
+.painel-global-filters{margin-bottom:14px}
+.global-filter-row{display:grid;grid-template-columns:2.2fr 2fr 1fr 1.2fr 1fr 1.2fr;gap:10px;align-items:end}
+.global-filter-row.compact{grid-template-columns:2fr 140px 1fr;margin-top:10px}
+.filter-group{display:flex;flex-direction:column;gap:5px;min-width:0}
+.filter-group .search-box{min-width:0}
+.filter-group-sm{min-width:130px}
+.filter-group-date .date-range-fields{display:flex;align-items:center;gap:6px}
+.filter-group-date input[type="date"]{padding:7px 8px;border:1px solid var(--c5);border-radius:6px;font-size:11px;font-family:inherit;outline:none;background:var(--w);color:var(--c2)}
+.filter-group-date input[type="date"]:focus{border-color:var(--b3)}
+.filter-help-text{font-size:10px;color:var(--c3);font-weight:600;line-height:1.4}
+.filter-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;align-self:end}
+.filter-actions .btn-a{white-space:nowrap}
+.bm-group #filterBM{min-width:190px;font-weight:800}
+.timeline-card{margin-bottom:14px}
+#painelPeriodoInsights{background:var(--c6);border:1px solid var(--c5);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.periodo-insights-grid{display:grid;grid-template-columns:1.8fr repeat(4,minmax(0,1fr));gap:8px}
+.periodo-insight{background:var(--w);border:1px solid var(--c5);border-radius:8px;padding:8px}
+.periodo-insight .tt{font-size:9px;font-weight:800;color:var(--c3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.periodo-insight .vv{font-size:12px;font-weight:900;color:var(--c1)}
+.periodo-insight .ss{font-size:10px;color:var(--c3);font-weight:700;margin-top:2px}
+#operationalTimeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px}
+.timeline-day{border:1px solid var(--c5);border-radius:10px;background:var(--c6);padding:10px}
+.timeline-day-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.timeline-day-title{font-size:11px;font-weight:800;color:var(--c1)}
+.timeline-day-count{font-size:10px;color:var(--c3);font-weight:700}
+.timeline-item{display:flex;align-items:center;gap:8px;background:var(--w);border:1px solid var(--c5);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:pointer;transition:.1s}
+.timeline-item:hover{border-color:var(--b3);box-shadow:var(--sh)}
+.timeline-item:last-child{margin-bottom:0}
+.timeline-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.timeline-label{font-size:11px;font-weight:700;color:var(--c1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timeline-meta{font-size:10px;color:var(--c3);font-weight:700}
+
+@media(max-width:1200px){.global-filter-row{grid-template-columns:repeat(3,minmax(0,1fr))}.global-filter-row.compact{grid-template-columns:1fr 140px 1fr}}
+@media(max-width:900px){.global-filter-row,.global-filter-row.compact{grid-template-columns:1fr}.filter-actions{justify-content:flex-start}.filter-group-date .date-range-fields{flex-wrap:wrap}}
+@media(max-width:900px){.periodo-insights-grid{grid-template-columns:1fr}}
