@@ -67,6 +67,20 @@ function verificarDependencias() {
             }
         }
 
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
         function _btnOficinaCk() {
             if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
@@ -138,6 +152,7 @@ function verificarDependencias() {
         let fotoAtualItem = '';
         let fotoAtualTipo = '';
         let atividadeSegundos = 0;
+        let _materiaisListaExpandida = false;
 
         // ==========================
         // REALTIME
@@ -663,7 +678,6 @@ function verificarDependencias() {
         }
 
         var _pushPendentes = [];
-        var _pushTimer = null;
 
         function _salvarPushPendentes() {
             try { localStorage.setItem('pcm_push_pendentes', JSON.stringify(_pushPendentes)); } catch(e) {}
@@ -1547,6 +1561,9 @@ function verificarDependencias() {
             $('checklistSection').style.display = 'none';
             $('checklistContent').innerHTML = '';
             $('checklistActions').style.display = 'none';
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
+            _materiaisListaExpandida = false;
             
             renderHistoricoExecucao();
             renderMateriaisUsados();
@@ -1595,6 +1612,7 @@ function verificarDependencias() {
             }
             
             if(currentOM.emOficina) {
+                _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
                 $('btnDeslocamento').style.display = 'none';
                 $('btnIniciar').style.display = 'block';
@@ -1657,79 +1675,55 @@ function verificarDependencias() {
 
         function renderHistoricoExecucao() {
             const historicoList = $('historicoList');
-            
-            if(!currentOM.historicoExecucao || currentOM.historicoExecucao.length === 0) {
+            if(!currentOM || !currentOM.emOficina) {
                 $('historicoSection').style.display = 'none';
                 historicoList.innerHTML = '';
                 return;
             }
-            
             $('historicoSection').style.display = 'block';
-            historicoList.innerHTML = '';
-            
-            var somaTotal = 0;
-            currentOM.historicoExecucao.forEach((hist, idx) => {
-                const div = document.createElement('div');
-                div.className = 'historico-dia';
-                var deslocIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var deslocFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativIni = hist.dataInicio ? new Date(hist.dataInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativFim = hist.dataFim ? new Date(hist.dataFim).toLocaleTimeString('pt-BR') : 'em andamento';
-                var numExec = hist.executantes ? hist.executantes.length : 1;
-                var hhDeslInd = hist.hhDeslocamento || 0;
-                var hhAtivInd = hist.hhAtividade || 0;
-                var hhIndiv = hhDeslInd + hhAtivInd;
-                
-                var classif = classificarHoras(hist.deslocamentoHoraInicio || hist.dataInicio, hist.dataFim);
-                
-                var html = '<div style="font-weight:800;color:#1A5276;margin-bottom:8px;font-size:15px;">📅 Dia ' + (idx + 1) + ' - ' + hist.data + '</div>';
-                html += '<div style="font-size:12px;color:#888;margin-bottom:6px;">🚗 Desloc: ' + deslocIni + ' → ' + deslocFim + ' | ⏱️ Ativid: ' + ativIni + ' → ' + ativFim + '</div>';
-                
-                var subTotal = 0;
-                for(var e = 0; e < numExec; e++) {
-                    var hhPessoa = hhIndiv;
-                    subTotal += hhPessoa;
-                    html += '<div style="padding:4px 8px;margin:3px 0;background:#f8f8f8;border-radius:6px;font-size:13px;">';
-                    html += '<strong>' + (hist.executantes[e] || '---') + '</strong>';
-                    html += '<div style="font-size:11px;color:#666;margin-top:2px;">';
-                    html += '🚗 ' + hhDeslInd.toFixed(2) + 'h + ⏱️ ' + hhAtivInd.toFixed(2) + 'h = <strong>' + hhPessoa.toFixed(2) + 'h</strong>';
-                    if(classif.normal > 0) html += ' | <span style="color:#2E86C1;">N:' + classif.normal + 'h</span>';
-                    if(classif.extra > 0) html += ' | <span style="color:#f0ad4e;">E:' + classif.extra + 'h</span>';
-                    if(classif.noturno > 0) html += ' | <span style="color:#d9534f;">Not:' + classif.noturno + 'h</span>';
-                    html += '</div></div>';
-                }
-                somaTotal += subTotal;
-                html += '<div style="font-size:13px;font-weight:800;color:#2E86C1;margin-top:6px;text-align:right;">Subtotal: ' + subTotal.toFixed(2) + 'h</div>';
-                
-                div.innerHTML = html;
-                historicoList.appendChild(div);
-            });
-            
-            if(currentOM.historicoExecucao.length > 0) {
-                var totalDiv = document.createElement('div');
-                totalDiv.className = 'historico-dia';
-                totalDiv.style.background = 'linear-gradient(135deg, #e3f2fd, #bbdefb)';
-                totalDiv.innerHTML = '<div style="text-align:center;font-weight:800;color:#1A5276;font-size:16px;">📊 TOTAL ACUMULADO: ' + somaTotal.toFixed(2) + 'h</div>';
-                historicoList.appendChild(totalDiv);
+            var histArr = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+            var execSet = {};
+            for(var i = 0; i < histArr.length; i++) {
+                var execs = Array.isArray(histArr[i].executantes) ? histArr[i].executantes : [];
+                for(var j = 0; j < execs.length; j++) if(execs[j]) execSet[execs[j]] = true;
             }
+            var execNames = Object.keys(execSet);
+            var dataOf = currentOM.dataEnvioOficina || null;
+            if(!dataOf) {
+                for(var k = histArr.length - 1; k >= 0; k--) {
+                    if(histArr[k] && histArr[k].tag === 'OFICINA') { dataOf = histArr[k].dataFim || histArr[k].dataInicio || null; break; }
+                }
+            }
+            var dataTxt = dataOf ? new Date(dataOf).toLocaleString('pt-BR') : '--';
+            var htmlMin = '<div class="historico-dia oficina-min-resumo">';
+            htmlMin += '<div style="font-weight:800;color:#1A5276;">📅 Enviada para oficina: ' + dataTxt + '</div>';
+            htmlMin += '<div style="margin-top:6px;font-size:13px;color:#234;">👷 Executantes: ' + (execNames.length ? execNames.join(', ') : '---') + '</div>';
+            htmlMin += '</div>';
+            historicoList.innerHTML = htmlMin;
         }
 
         function renderMateriaisUsados() {
             const materialList = $('materialList');
+            const materiaisSection = $('materiaisSection');
             
             if(materiaisUsados.length === 0) {
-                $('materiaisSection').style.display = 'none';
+                _materiaisListaExpandida = false;
+                materiaisSection.style.display = 'none';
+                materiaisSection.classList.remove('toggle-btn');
+                materiaisSection.onclick = null;
                 materialList.style.display = 'none';
                 materialList.innerHTML = '';
                 return;
             }
             
-            $('materiaisSection').style.display = 'block';
-            materialList.style.display = 'block';
-            materialList.innerHTML = '';
-            
-            materiaisUsados.forEach(m => {
-                materialList.innerHTML += `
+            materiaisSection.style.display = 'block';
+            materiaisSection.classList.add('toggle-btn');
+            materiaisSection.onclick = toggleMateriaisLista;
+            materiaisSection.textContent = _materiaisListaExpandida ? '💰 Materiais Utilizados ▲' : '💰 Materiais Utilizados ▼';
+            materialList.style.display = _materiaisListaExpandida ? 'block' : 'none';
+            var itensHtml = '';
+            materiaisUsados.forEach(function(m) {
+                itensHtml += `
                     <div class="material-item">
                         <div class="material-header">
                             <span class="material-name">[${m.codigo}] ${sc(m.nome)}</span>
@@ -1741,6 +1735,13 @@ function verificarDependencias() {
                     </div>
                 `;
             });
+            materialList.innerHTML = itensHtml;
+        }
+
+        function toggleMateriaisLista() {
+            if(!materiaisUsados || materiaisUsados.length === 0) return;
+            _materiaisListaExpandida = !_materiaisListaExpandida;
+            renderMateriaisUsados();
         }
 
         function retomarDoEstadoSalvo(historico) {
@@ -1770,6 +1771,7 @@ function verificarDependencias() {
             tempoPausadoTotal = 0;
             pausaInicio = null;
             materiaisUsados = [];
+            _materiaisListaExpandida = false;
             atividadeJaIniciada = false;
             
             $('timerDisplay').style.display = 'none';
@@ -1792,6 +1794,8 @@ function verificarDependencias() {
 
         function hideDetail() {
             $('detailScreen').classList.remove('active');
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             salvarOMAtual();
             salvarOMs();
             filtrarOMs();
@@ -1817,6 +1821,8 @@ function verificarDependencias() {
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
             salvarOMs();
             $('detailScreen').classList.remove('active');
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             filtrarOMs();
             alert('✅ OM ' + omNum + ' excluída.');
         }
@@ -1824,6 +1830,11 @@ function verificarDependencias() {
         function iniciarDeslocamento() {
             currentOM.lockDeviceId = deviceId;
             currentOM.statusAtual = 'em_deslocamento';
+            $('checklistSection').style.display = 'none';
+            $('checklistContent').style.display = 'none';
+            $('checklistActions').style.display = 'none';
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             salvarOMs();
             filtrarOMs();
             
@@ -2813,6 +2824,7 @@ function verificarDependencias() {
             var foto = checklistFotos[name] || {};
             var savedVal = '';
             var savedObs = '';
+            var podeEditar = _podeEditarChecklistAgora();
             if(currentOM && currentOM.checklistDados) {
                 var found = currentOM.checklistDados.find(function(c){ return c.titulo === titulo; });
                 if(found) { savedVal = found.valor; savedObs = found.obs || ''; }
@@ -2820,17 +2832,23 @@ function verificarDependencias() {
             var h = '<div class="checklist-item" id="chkItem_' + name + '">';
             h += '<div class="checklist-item-title">' + num + '. ' + titulo + '</div>';
             h += '<div class="checklist-radios">';
-            h += '<label><input type="radio" name="' + name + '" value="normal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'normal' ? ' checked' : '') + '> Normal</label>';
-            h += '<label><input type="radio" name="' + name + '" value="anormal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'anormal' ? ' checked' : '') + '> Anormal</label>';
+            h += '<label><input type="radio" name="' + name + '" value="normal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'normal' ? ' checked' : '') + (podeEditar ? '' : ' disabled') + '> Normal</label>';
+            h += '<label><input type="radio" name="' + name + '" value="anormal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'anormal' ? ' checked' : '') + (podeEditar ? '' : ' disabled') + '> Anormal</label>';
             h += '</div>';
             h += '<div class="checklist-foto-row" id="fotoRow_' + name + '" style="display:' + (savedVal === 'anormal' || foto.antes ? 'flex' : 'none') + ';">';
             h += '<button class="checklist-foto-btn' + (foto.antes ? ' ok' : '') + '" id="fotoAntesBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'antes\')">' + (foto.antes ? '📎 Foto Antes ✓' : '📷 Foto Antes *') + '</button>';
             h += '<button class="checklist-foto-btn depois' + (foto.depois ? ' ok' : '') + '" id="fotoDepoisBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'depois\')" style="display:' + (foto.antes ? 'inline-block' : 'none') + ';">' + (foto.depois ? '📎 Foto Depois ✓' : '📷 Foto Depois') + '</button>';
             h += '</div>';
-            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')">';
-            h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()">';
+            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
+            h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()"' + (podeEditar ? '' : ' readonly') + '>';
             h += '</div>';
             return h;
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
         function onChecklistChange(name) {
@@ -2870,6 +2888,7 @@ function verificarDependencias() {
         }
 
         function _mostrarChecklistUI(forcarAberto) {
+            _aplicarModoChecklistFoco(true);
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
             var isOficina = currentOM && (currentOM.emOficina || currentOM.retornouOficina);
@@ -2951,9 +2970,30 @@ function verificarDependencias() {
         }
 
 function capturarFoto(name, tipo) {
+            var fotoAtual = (checklistFotos[name] || {})[tipo];
+            if(!_podeEditarChecklistAgora()) {
+                if(fotoAtual) { visualizarFotoChecklist(fotoAtual); return; }
+                alert('⚠️ Inicie a atividade para preencher este item.');
+                return;
+            }
+            if(fotoAtual && !confirm('Já existe foto neste item.\n\nOK para substituir ou Cancelar para visualizar.')) {
+                visualizarFotoChecklist(fotoAtual);
+                return;
+            }
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function handleFotoCapture(event) {
@@ -3359,6 +3399,7 @@ function capturarFoto(name, tipo) {
             currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.dataEnvioOficina = new Date().toISOString();
             currentOM.lockDeviceId = null;
             currentOM._deslocSegundosSnapshot = deslocamentoSegundos;
             
@@ -3660,43 +3701,31 @@ function capturarFoto(name, tipo) {
             var secao = $('checklistSection');
             if(!secao || secao.style.display === 'none') return [];
 
-            var tipo = _detectarTipoChecklist();
-
-            if(tipo === 'MISTO') {
-                var totalT = checklistItens.trimestral.length;
-                var preenchidosT = 0;
-                for(var i = 0; i < totalT; i++) {
-                    if(document.querySelector('input[name="t' + (i + 1) + '"]:checked')) preenchidosT++;
-                }
-                return ['⚠️ CHECKLIST INVÁLIDO: ' + preenchidosT + ' de ' + totalT + ' itens TRIMESTRAIS preenchidos. Preencha todos os trimestrais ou remova as marcações (use ✅ Conforme MENSAL para reiniciar).'];
+            var nomesMensais = [];
+            var nomesTodos = [];
+            for(var i = 0; i < checklistItens.mensal.length; i++) {
+                nomesMensais.push('m' + (i + 1));
+                nomesTodos.push('m' + (i + 1));
             }
+            for(var j = 0; j < checklistItens.trimestral.length; j++) nomesTodos.push('t' + (j + 1));
 
-            var nomesValidar = [];
-            for(var i = 0; i < checklistItens.mensal.length; i++) nomesValidar.push('m' + (i + 1));
-            if(tipo === 'TRIMESTRAL') {
-                for(var i = 0; i < checklistItens.trimestral.length; i++) nomesValidar.push('t' + (i + 1));
+            var naoMarcados = [], semFoto = [];
+            for(var n = 0; n < nomesMensais.length; n++) {
+                var selM = document.querySelector('input[name="' + nomesMensais[n] + '"]:checked');
+                if(!selM) naoMarcados.push(nomesMensais[n]);
             }
-
-            var naoMarcados = [], semFoto = [], semComentario = [];
-            for(var n = 0; n < nomesValidar.length; n++) {
-                var name = nomesValidar[n];
+            for(var x = 0; x < nomesTodos.length; x++) {
+                var name = nomesTodos[x];
                 var sel = document.querySelector('input[name="' + name + '"]:checked');
-                if(!sel) { naoMarcados.push(name); continue; }
+                if(!sel) continue;
                 if(sel.value === 'anormal') {
                     var foto = checklistFotos[name] || {};
                     if(!foto.antes) semFoto.push(name);
-                    var explicacao = document.getElementById('explicacao_' + name);
-                    var obsEl = document.getElementById('chkItem_' + name);
-                    var obsInput = obsEl ? obsEl.querySelector('.checklist-obs') : null;
-                    var temExplicacao = explicacao && explicacao.value && explicacao.value.trim();
-                    var temObs = obsInput && obsInput.value && obsInput.value.trim();
-                    if(!temExplicacao && !temObs) semComentario.push(name);
                 }
             }
             var erros = [];
-            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) ' + tipo + ' sem marcação: ' + naoMarcados.join(', ').toUpperCase());
+            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) MENSAL sem marcação: ' + naoMarcados.join(', ').toUpperCase());
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
-            if(semComentario.length > 0) erros.push('📝 ' + semComentario.length + ' item(ns) ANORMAL sem comentário: ' + semComentario.join(', ').toUpperCase());
             return erros;
         }
 
@@ -4399,17 +4428,18 @@ function capturarFoto(name, tipo) {
                     var execs = hist.executantes || [];
                     var numExec = execs.length || 1;
                     var deslSeg = (hist.deslocamentoSegundos !== undefined) ? hist.deslocamentoSegundos : ((hist.deslocamentoMinutos || 0) * 60);
+                    if((hist.tag === 'OFICINA') || deslSeg <= 0) continue;
                     var dIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio) : null;
                     var dFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim) : null;
                     var dataIniStr = dIni ? dIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr = dFim ? dFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr = dIni ? dIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr = dFim ? dFim.toLocaleTimeString('pt-BR') : '--:--:--';
-                    var tempoStr = (hist.tag === 'OFICINA' && deslSeg === 0) ? 'OFICINA' : _formatarTempo(deslSeg);
-                    var causaStr = (hist.tag === 'OFICINA') ? 'OFICINA' : '002';
+                    var tempoStr = _formatarTempo(deslSeg);
+                    var causaStr = '002';
                     for (var e = 0; e < numExec; e++) {
                         pessoalN++;
-                        if(!(hist.tag === 'OFICINA' && deslSeg === 0)) totalDeslSeg += deslSeg;
+                        totalDeslSeg += deslSeg;
                         deslBody.push([
                             { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
                             { content: String(pessoalN), styles: { halign: 'center', fontSize: 6 } },
@@ -4421,6 +4451,18 @@ function capturarFoto(name, tipo) {
                             { content: causaStr, styles: { halign: 'center', fontSize: 6 } }
                         ]);
                     }
+                }
+                if(deslBody.length === 0) {
+                    deslBody.push([
+                        { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
+                        { content: '-', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--:--:--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '--:--:--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: 'SEM DESLOCAMENTO', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+                        { content: '-', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
                 }
                 var stlTot = { halign: 'center', fontStyle: 'bold', fontSize: 7, fillColor: [90,90,90], textColor: [255,255,255] };
                 deslBody.push([
@@ -4436,6 +4478,40 @@ function capturarFoto(name, tipo) {
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
@@ -4529,6 +4605,21 @@ function capturarFoto(name, tipo) {
             }
 
             var mats = currentOM.materiaisUsados || materiaisUsados || [];
+            if(!mats || mats.length === 0) {
+                var histM = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+                var agg = {};
+                for (var hm = 0; hm < histM.length; hm++) {
+                    var arrM = Array.isArray(histM[hm].materiaisUsados) ? histM[hm].materiaisUsados : [];
+                    for (var mm = 0; mm < arrM.length; mm++) {
+                        var im = arrM[mm] || {};
+                        var kM = [im.codigo || '', im.nome || '', im.unidade || '', im.precoUnit || 0, im.tipo || ''].join('|');
+                        if(!agg[kM]) agg[kM] = { codigo: im.codigo || '', nome: im.nome || '', unidade: im.unidade || '', precoUnit: Number(im.precoUnit || 0), qtd: 0, total: 0, tipo: im.tipo || 'Pricelist', bdiPercentual: Number(im.bdiPercentual || 0), bdiValor: Number(im.bdiValor || 0) };
+                        agg[kM].qtd += Number(im.qtd || 0);
+                        agg[kM].total += Number(im.total || 0);
+                    }
+                }
+                mats = Object.keys(agg).map(function(k){ return agg[k]; });
+            }
             if (mats.length > 0 || true) {
                 y = _pdfSection(pdf, y, 'MATERIAIS UTILIZADOS', 18);
                 var tituloMat = currentOM.titulo || '';

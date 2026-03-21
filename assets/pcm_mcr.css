@@ -373,6 +373,50 @@ body {
     bottom: auto;
 }
 
+/* Modo foco checklist:
+   deixa somente o checklist visível, mantendo o cabeçalho azul com Nº OM. */
+.detail-screen.checklist-focus .hh-panel,
+.detail-screen.checklist-focus .detail-content,
+.detail-screen.checklist-focus #materiaisSection,
+.detail-screen.checklist-focus #materialList,
+.detail-screen.checklist-focus #historicoSection,
+.detail-screen.checklist-focus #historicoList,
+.detail-screen.checklist-focus > .controls {
+    display: none !important;
+}
+
+.detail-screen.checklist-focus .detail-header h2 {
+    display: none;
+}
+
+.detail-screen.checklist-focus .detail-header {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.detail-screen.checklist-focus.oficina-minimal #historicoSection,
+.detail-screen.checklist-focus.oficina-minimal #historicoList {
+    display: block !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls {
+    display: block !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls > * {
+    display: none !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls #btnIniciar,
+.detail-screen.checklist-focus.oficina-minimal > .controls .btn-secondary {
+    display: block !important;
+}
+
+.oficina-min-resumo {
+    background: #eef6ff !important;
+    border-left: 4px solid #1A5276;
+}
+
 .detail-header {
     background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
@@ -504,6 +548,26 @@ body {
     background: var(--color-success);
     margin-right: 10px;
     border-radius: 2px;
+}
+
+.section-title.toggle-btn {
+    margin: var(--spacing-md);
+    padding: 12px 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #1A5276;
+    color: #fff;
+    cursor: pointer;
+    justify-content: center;
+    transition: filter .18s ease;
+}
+
+.section-title.toggle-btn:hover {
+    filter: brightness(1.05);
+}
+
+.section-title.toggle-btn::before {
+    display: none;
 }
 
 /* ========================================
