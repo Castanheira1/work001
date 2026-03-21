@@ -109,6 +109,20 @@ function verificarDependencias() {
             else tela.classList.remove('oficina-minimal');
         }
 
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
         function _btnOficinaCk() {
             if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
@@ -1048,6 +1062,29 @@ function verificarDependencias() {
                 if(!rows || !rows.length) return null;
                 return rows[0];
             } catch(e) { return null; }
+        }
+
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
         }
 
         async function _obterEstadoServidorOM(omNum) {
@@ -2962,6 +2999,12 @@ function verificarDependencias() {
             return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
         function onChecklistChange(name) {
             var sel = document.querySelector('input[name="' + name + '"]:checked');
             var fotoRow = document.getElementById('fotoRow_' + name);
@@ -3116,6 +3159,17 @@ function capturarFoto(name, tipo) {
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function visualizarFotoChecklist(base64) {
@@ -3508,19 +3562,37 @@ function capturarFoto(name, tipo) {
             hideMateriais();
         }
 
+        function _obterValorChecklistItem(nome) {
+            var sel = document.querySelector('input[name="' + nome + '"]:checked');
+            if (sel && sel.value) return sel.value;
+            if (!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
+            var idxNum = parseInt(String(nome).slice(1), 10) || 0;
+            var secao = nome.charAt(0) === 'm' ? 'MENSAL' : 'TRIMESTRAL EM CASO DE ANOMALIA';
+            for (var i = 0; i < currentOM.checklistDados.length; i++) {
+                var item = currentOM.checklistDados[i];
+                if (!item) continue;
+                if (item.secao === secao && Number(item.num || 0) === idxNum) {
+                    return item.valor || '';
+                }
+            }
+            return '';
+        }
+
+        var _nomesChecklist = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
+
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
                 return;
             }
             
-            var nomes = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
             var temAnormal = false;
-            for(var i = 0; i < nomes.length; i++) {
-                var sel = document.querySelector('input[name="' + nomes[i] + '"]:checked');
-                if(sel && sel.value === 'anormal') {
-                    if(!checklistFotos[nomes[i]] || !checklistFotos[nomes[i]].antes) {
-                        alert('⚠️ Item ' + nomes[i].toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
+            for(var i = 0; i < _nomesChecklist.length; i++) {
+                var nomeItem = _nomesChecklist[i];
+                var valorItem = _obterValorChecklistItem(nomeItem);
+                if(valorItem === 'anormal') {
+                    if(!checklistFotos[nomeItem] || !checklistFotos[nomeItem].antes) {
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
                         return;
                     }
                     temAnormal = true;
@@ -3551,7 +3623,7 @@ function capturarFoto(name, tipo) {
                 }
             }
             
-            currentOM.checklistDados = coletarChecklistDados();
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
             currentOM.dataEnvioOficina = new Date().toISOString();
@@ -3569,15 +3641,15 @@ function capturarFoto(name, tipo) {
         }
 
         function devolverEquipamento() {
-            var nomes = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
             var temAnormal = false;
-            for(var i = 0; i < nomes.length; i++) {
-                var sel = document.querySelector('input[name="' + nomes[i] + '"]:checked');
-                if(sel && sel.value === 'anormal') {
+            for(var i = 0; i < _nomesChecklist.length; i++) {
+                var nomeItem = _nomesChecklist[i];
+                var valorItem = _obterValorChecklistItem(nomeItem);
+                if(valorItem === 'anormal') {
                     temAnormal = true;
-                    var foto = checklistFotos[nomes[i]] || {};
+                    var foto = checklistFotos[nomeItem] || {};
                     if(!foto.antes) {
-                        alert('⚠️ Item ' + nomes[i].toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
                         return;
                     }
                 }
@@ -3602,7 +3674,7 @@ function capturarFoto(name, tipo) {
                 }
             }
             
-            currentOM.checklistDados = coletarChecklistDados();
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.retornouOficina = true;
             currentOM.devolvendoEquipamento = true;
@@ -3864,22 +3936,52 @@ function capturarFoto(name, tipo) {
             }
             for(var j = 0; j < checklistItens.trimestral.length; j++) nomesTodos.push('t' + (j + 1));
 
-            var naoMarcados = [], semFoto = [];
+            function _valorChecklist(nomeItem) {
+                var sel = document.querySelector('input[name="' + nomeItem + '"]:checked');
+                if(sel) return sel.value;
+                if(!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
+                var sec = nomeItem.charAt(0) === 'm' ? 'MENSAL' : 'TRIMESTRAL EM CASO DE ANOMALIA';
+                var idx = parseInt(nomeItem.slice(1), 10);
+                if(!idx) return '';
+                var num = String(idx).padStart(2, '0');
+                for(var c = 0; c < currentOM.checklistDados.length; c++) {
+                    var item = currentOM.checklistDados[c];
+                    if(item && item.secao === sec && String(item.num || '') === num) {
+                        return item.valor || '';
+                    }
+                }
+                return '';
+            }
+
+            var naoMarcadosMensal = [], naoMarcadosTri = [], semFoto = [];
+            var preenchidosMensal = 0, preenchidosTri = 0;
             for(var n = 0; n < nomesMensais.length; n++) {
-                var selM = document.querySelector('input[name="' + nomesMensais[n] + '"]:checked');
-                if(!selM) naoMarcados.push(nomesMensais[n]);
+                var valorM = _valorChecklist(nomesMensais[n]);
+                if(valorM) preenchidosMensal++;
+                else naoMarcadosMensal.push(nomesMensais[n]);
+            }
+            for(var t = 0; t < checklistItens.trimestral.length; t++) {
+                var nomeT = 't' + (t + 1);
+                var valorT = _valorChecklist(nomeT);
+                if(valorT) preenchidosTri++;
+                else naoMarcadosTri.push(nomeT);
             }
             for(var x = 0; x < nomesTodos.length; x++) {
                 var name = nomesTodos[x];
-                var sel = document.querySelector('input[name="' + name + '"]:checked');
-                if(!sel) continue;
-                if(sel.value === 'anormal') {
+                var valor = _valorChecklist(name);
+                if(!valor) continue;
+                if(valor === 'anormal') {
                     var foto = checklistFotos[name] || {};
                     if(!foto.antes) semFoto.push(name);
                 }
             }
             var erros = [];
-            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) MENSAL sem marcação: ' + naoMarcados.join(', ').toUpperCase());
+            if(preenchidosMensal === 0 && preenchidosTri === 0) {
+                erros.push('⚠️ ' + naoMarcadosMensal.length + ' item(ns) MENSAL sem marcação: ' + naoMarcadosMensal.join(', ').toUpperCase());
+            } else {
+                if(naoMarcadosMensal.length > 0) erros.push('⚠️ ' + naoMarcadosMensal.length + ' item(ns) MENSAL sem marcação: ' + naoMarcadosMensal.join(', ').toUpperCase());
+                if(preenchidosTri > 0 && naoMarcadosTri.length > 0) erros.push('⚠️ ' + naoMarcadosTri.length + ' item(ns) TRIMESTRAL sem marcação: ' + naoMarcadosTri.join(', ').toUpperCase());
+            }
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
             return erros;
         }
@@ -4633,6 +4735,40 @@ function capturarFoto(name, tipo) {
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;

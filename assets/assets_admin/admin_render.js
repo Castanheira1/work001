@@ -112,7 +112,7 @@ function renderEscopoProd(){
 }
 
 
-function getFilteredOms(){
+function getFilteredOms(includeConcluidas){
   var search=($("searchInput")&&$("searchInput").value||"").toLowerCase();
   var eq=$("filterEquipe")?$("filterEquipe").value:"";
   var fia=$("filterFIA")?$("filterFIA").value:"";
@@ -125,10 +125,35 @@ function getFilteredOms(){
   if(fia)list=list.filter(function(o){return String(o.fia||o.fia_numero||"")===String(fia);});
   if(filtroEscopo)list=list.filter(function(o){return(o.escopo||'geral')===filtroEscopo;});
   if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search);});
-  if(dtIni){var dIni=dtIni+"T00:00:00";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d>=dIni;});}
-  if(dtFim){var dFim=dtFim+"T23:59:59";list=list.filter(function(o){var d=o.updated_at||o.created_at||"";return d<=dFim;});}
+  function _parseDateSafe(v){
+    if(!v)return null;
+    if(v instanceof Date && !isNaN(v.getTime()))return v;
+    var d=new Date(v);
+    if(!isNaN(d.getTime()))return d;
+    if(typeof v==="string"){
+      var m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+      if(m){
+        var hh=parseInt(m[4]||"0",10),mm=parseInt(m[5]||"0",10),ss=parseInt(m[6]||"0",10);
+        var d2=new Date(parseInt(m[3],10),parseInt(m[2],10)-1,parseInt(m[1],10),hh,mm,ss);
+        if(!isNaN(d2.getTime()))return d2;
+      }
+    }
+    return null;
+  }
+  function _pickDateOm(o){
+    var base=o.updated_at||o.created_at||o.data_execucao||o.data_finalizacao||o.uploaded_at||o.data_upload||"";
+    return _parseDateSafe(base);
+  }
+  if(dtIni){
+    var dIni=_parseDateSafe(dtIni+"T00:00:00");
+    if(dIni)list=list.filter(function(o){var d=_pickDateOm(o);return !d||d>=dIni;});
+  }
+  if(dtFim){
+    var dFim=_parseDateSafe(dtFim+"T23:59:59");
+    if(dFim)list=list.filter(function(o){var d=_pickDateOm(o);return !d||d<=dFim;});
+  }
   var statusManual=$("filterStatus")?$("filterStatus").value:"";
-  if(!_showConcluidasPainel&&!currentPipe&&!statusManual){
+  if(!includeConcluidas&&!_showConcluidasPainel&&!currentPipe&&!statusManual){
     list=list.filter(function(o){return o.status!=="finalizada"&&o.status!=="cancelada";});
   }
   return list;
@@ -285,7 +310,7 @@ function renderList(){
 
 function exportarCsvPainel(){
   try{
-    var list=getFilteredOms();
+    var list=getFilteredOms(true);
     if(!list.length){adminToast("Sem dados para exportar no período atual","warn");return;}
     function fmt(v){
       if(v==null)return "";

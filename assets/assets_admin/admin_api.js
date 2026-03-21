@@ -172,8 +172,18 @@ async function exportarBmExcel(){
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
-    function parseHist(om){var hist=[];try{hist=Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}catch(e){hist=[];}return hist;}
-    function parseMats(om){var mats=[];try{mats=Array.isArray(om.materiais_usados)?om.materiais_usados:JSON.parse(om.materiais_usados||"[]");}catch(e){mats=[];}return mats;}
+    function parseHist(om){
+      var hist=[];
+      var raw=(om&&om.historico_execucao!=null)?om.historico_execucao:(om?om.historicoExecucao:null);
+      try{hist=Array.isArray(raw)?raw:JSON.parse(raw||"[]");}catch(e){hist=[];}
+      return Array.isArray(hist)?hist:[];
+    }
+    function parseMats(om){
+      var mats=[];
+      var raw=(om&&om.materiais_usados!=null)?om.materiais_usados:(om?om.materiaisUsados:null);
+      try{mats=Array.isArray(raw)?raw:JSON.parse(raw||"[]");}catch(e){mats=[];}
+      return Array.isArray(mats)?mats:[];
+    }
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -267,6 +277,10 @@ async function exportarBmExcel(){
     _styleSheet(wsMat,11,matCount);
     if(matCount>0)_styleTotalRow(wsMat,matCount+2);
     XLSX.utils.book_append_sheet(wb,wsMat,"Materiais");
+    if(pessoalN===0&&pessoalNA===0&&matCount===0){
+      console.warn("[BM_EXPORT] Arquivo sem linhas de dados. Verifique se as OMs possuem historico_execucao/materiais_usados (snake_case) ou historicoExecucao/materiaisUsados (camelCase).");
+      adminToast("Exportado sem linhas (somente cabeçalho). Verifique dados de histórico/materiais das OMs.","warn",4500);
+    }
     // SALVAR bm_materiais NO BANCO
     if(bmMatRows.length){
       try{
