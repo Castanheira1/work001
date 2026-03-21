@@ -347,9 +347,14 @@
     <script src="assets/toast.js"></script>
     <script src="assets/pcm_auth.js"></script>
     <script src="assets/pcm_mcr_utils.js"></script>
-    <script src="assets/pcm_mcr.js"></script>
-    <script src="assets/sync_engine.js"></script>
-    <script src="assets/app_bootstrap.js"></script>
+    <script src="assets/pcm_mcr.js?v=20260321d"></script>
+    <script src="assets/sync_engine.js?v=20260321d"></script>
+    <script src="assets/app_bootstrap.js?v=20260321d"></script>
+    <script>
+      window.mostrarEscopoPuxar = window.mostrarEscopoPuxar || function () {
+        alert('⚠️ O script principal não carregou corretamente.\n\nAtualize com Ctrl+F5. Se persistir, limpe o cache/site data.');
+      };
+    </script>
     <script>
     (function(){
       var badgeTimer = null;

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pcm-mcr-cache-';
-const CACHE_VERSION = CACHE_PREFIX + 'v6';
+const CACHE_VERSION = CACHE_PREFIX + 'v8';
 
 const APP_SHELL = [
   './',
@@ -180,6 +180,26 @@ self.addEventListener('fetch', function (event) {
   var shouldHandleAsset = isAppShellRequest(url) || CACHEABLE_DESTINATIONS.indexOf(request.destination) !== -1;
 
   if (!shouldHandleAsset) return;
+
+  var shouldPreferNetwork =
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    isAppShellRequest(url);
+
+  if (shouldPreferNetwork) {
+    event.respondWith(
+      fetch(request).then(function (resp) {
+        putInCache(request, resp);
+        return resp;
+      }).catch(function () {
+        return caches.match(request).then(function (cached) {
+          if (cached) return cached;
+          return new Response('', { status: 503 });
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then(function (cached) {

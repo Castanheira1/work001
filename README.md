@@ -157,6 +157,11 @@ Ambiente de execução. Use `production` em produção.
 - Não execute abrindo o arquivo HTML direto no Explorer (`file://`)
 - Em `file://` o app entra em modo degradado sem manifest/SW por segurança do navegador
 
+### "Unexpected token em pcm_mcr.js"
+- Faça hard refresh (`Ctrl+F5`) após atualizar branch
+- Se persistir, limpe dados do site / desregistre Service Worker e recarregue
+- Rode `node --check assets/pcm_mcr.js` para validar sintaxe do arquivo local
+
 ### "Dados não sincronizam"
 - Verificar conexão com Supabase
 - Verificar RLS policies no banco

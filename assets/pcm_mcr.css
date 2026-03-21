@@ -649,6 +649,64 @@ body {
     border-left: 4px solid #1A5276;
 }
 
+/* Ajuste de usabilidade:
+   Na tela de detalhe, HH no topo e ações no rodapé estavam "espremendo"
+   o checklist em telas menores. Mantemos os botões funcionais sem congelar
+   o rodapé e liberamos área útil para leitura completa do checklist. */
+.detail-screen .hh-panel {
+    position: relative;
+    top: auto;
+}
+
+.detail-screen > .controls {
+    position: relative;
+    bottom: auto;
+}
+
+/* Modo foco checklist:
+   deixa somente o checklist visível, mantendo o cabeçalho azul com Nº OM. */
+.detail-screen.checklist-focus .hh-panel,
+.detail-screen.checklist-focus .detail-content,
+.detail-screen.checklist-focus #materiaisSection,
+.detail-screen.checklist-focus #materialList,
+.detail-screen.checklist-focus #historicoSection,
+.detail-screen.checklist-focus #historicoList,
+.detail-screen.checklist-focus > .controls {
+    display: none !important;
+}
+
+.detail-screen.checklist-focus .detail-header h2 {
+    display: none;
+}
+
+.detail-screen.checklist-focus .detail-header {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.detail-screen.checklist-focus.oficina-minimal #historicoSection,
+.detail-screen.checklist-focus.oficina-minimal #historicoList {
+    display: block !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls {
+    display: block !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls > * {
+    display: none !important;
+}
+
+.detail-screen.checklist-focus.oficina-minimal > .controls #btnIniciar,
+.detail-screen.checklist-focus.oficina-minimal > .controls .btn-secondary {
+    display: block !important;
+}
+
+.oficina-min-resumo {
+    background: #eef6ff !important;
+    border-left: 4px solid #1A5276;
+}
+
 .detail-header {
     background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
@@ -780,6 +838,26 @@ body {
     background: var(--color-success);
     margin-right: 10px;
     border-radius: 2px;
+}
+
+.section-title.toggle-btn {
+    margin: var(--spacing-md);
+    padding: 12px 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #1A5276;
+    color: #fff;
+    cursor: pointer;
+    justify-content: center;
+    transition: filter .18s ease;
+}
+
+.section-title.toggle-btn:hover {
+    filter: brightness(1.05);
+}
+
+.section-title.toggle-btn::before {
+    display: none;
 }
 
 .section-title.toggle-btn {
@@ -1095,6 +1173,29 @@ body {
     font-size: 20px;
     font-weight: 800;
     letter-spacing: 0.3px;
+}
+
+.escopo-btn {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    background: #f8f9fa;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.escopo-btn-cancel {
+    margin-top: 12px;
+    width: 100%;
+    padding: 10px;
+    background: #eee;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #666;
 }
 
 .escopo-btn {
