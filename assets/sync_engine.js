@@ -470,15 +470,22 @@
     var headers = { 'Content-Type': 'application/json' };
     var sharedSecret = (window.ENV && window.ENV.SYNC_SHARED_SECRET) || '';
     if (sharedSecret) headers['X-Sync-Secret'] = sharedSecret;
-    return fetch(getSyncEndpoint(), {
+    var useAbort = (typeof AbortController !== 'undefined');
+    var ctrl = useAbort ? new AbortController() : null;
+    var timer = useAbort ? setTimeout(function () { ctrl.abort(); }, 12000) : null;
+    var req = {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(bodyObj)
-    }).then(function (resp) {
+    };
+    if (ctrl) req.signal = ctrl.signal;
+    return fetch(getSyncEndpoint(), req).then(function (resp) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       return resp.text().then(function (t) {
         try { return JSON.parse(t || '{}'); } catch (e) { return { ok: true }; }
       });
+    }).finally(function () {
+      if (timer) clearTimeout(timer);
     });
   }
 
@@ -630,6 +637,15 @@
 
   function puxarOMs(escopoFiltro) {
     if (!isOnline() || !window.PdfDB) return Promise.resolve();
+    var escopoValido = escopoFiltro === 'preventiva_usina'
+      || escopoFiltro === 'preventiva_mina'
+      || escopoFiltro === 'preventiva_turno'
+      || escopoFiltro === 'corretiva';
+    if (!escopoValido) {
+      log('puxarOMs ignorado: escopo obrigatório inválido ->', escopoFiltro);
+      if (window.showToast) window.showToast('Selecione um escopo específico para puxar OMs', 'warn');
+      return Promise.resolve();
+    }
 
     var SUPABASE_ANON = getSupabaseAnon();
     var token = (window.PCMAuth && window.PCMAuth.getToken && window.PCMAuth.getToken()) || SUPABASE_ANON;
@@ -639,7 +655,7 @@
       'Content-Type': 'application/json'
     };
 
-    log('Buscando OMs pela pasta originais. Escopo:', escopoFiltro || 'todos');
+    log('Buscando OMs pela pasta originais. Escopo:', escopoFiltro);
 
     return listOriginais(hdrs)
       .then(function (arquivos) {
@@ -655,10 +671,7 @@
           var elegiveis = arquivos.filter(function (file) {
             var row = metaMap[file.num] || null;
             if (!isRowOperational(row)) return false;
-            if (escopoFiltro && escopoFiltro !== 'todos') {
-              return row && row.escopo === escopoFiltro;
-            }
-            return true;
+            return row && row.escopo === escopoFiltro;
           }).map(function (file) {
             return metaMap[file.num];
           }).filter(Boolean);

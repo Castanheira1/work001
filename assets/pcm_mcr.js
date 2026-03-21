@@ -67,6 +67,20 @@ function verificarDependencias() {
             }
         }
 
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
         function _btnOficinaCk() {
             if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
@@ -138,6 +152,7 @@ function verificarDependencias() {
         let fotoAtualItem = '';
         let fotoAtualTipo = '';
         let atividadeSegundos = 0;
+        let _materiaisListaExpandida = false;
 
         // ==========================
         // REALTIME
@@ -151,7 +166,10 @@ function verificarDependencias() {
             clearTimeout(_rtDebounce);
             _rtDebounce = setTimeout(function() {
                 var escopo = _getEscopoSalvo();
-                if (window.PCMSync && window.PCMSync.puxarOMs) {
+                if (!_escopoValidoParaPuxar(escopo)) {
+                    if (currentOM && currentOM.num) _verificarAdminUnlock();
+                    carregarOMs();
+                } else if (window.PCMSync && window.PCMSync.puxarOMs) {
                     window.PCMSync.puxarOMs(escopo).then(function() {
                         if (currentOM && currentOM.num) _verificarAdminUnlock();
                         carregarOMs();
@@ -395,7 +413,6 @@ function verificarDependencias() {
 
 
         var _escopoLabels = {
-            'todos': '📋 Todos',
             'geral': '📋 Geral',
             'preventiva_usina': '🏭 Prev. Usina',
             'preventiva_mina': '⛏️ Prev. Mina',
@@ -403,14 +420,21 @@ function verificarDependencias() {
             'corretiva': '🔧 Corretiva'
         };
 
+        function _escopoValidoParaPuxar(escopo) {
+            return escopo === 'preventiva_usina'
+                || escopo === 'preventiva_mina'
+                || escopo === 'preventiva_turno'
+                || escopo === 'corretiva';
+        }
+
         function _getEscopoSalvo() {
-            return localStorage.getItem('pcm_escopo_filtro') || 'todos';
+            return localStorage.getItem('pcm_escopo_filtro') || '';
         }
 
         function _atualizarLabelEscopo(escopo) {
             var el = $('escopoAtualLabel');
             if(!el) return;
-            if(escopo === 'todos') { el.style.display = 'none'; return; }
+            if(!_escopoValidoParaPuxar(escopo)) { el.style.display = 'none'; return; }
             el.style.display = 'block';
             el.textContent = 'FILTRO: ' + (_escopoLabels[escopo] || escopo).toUpperCase();
         }
@@ -420,6 +444,10 @@ function verificarDependencias() {
         }
 
         async function executarPuxarOMs(escopo) {
+            if(!_escopoValidoParaPuxar(escopo)) {
+                alert('Selecione um escopo específico para puxar OMs.');
+                return;
+            }
             $('popupEscopo').style.display = 'none';
             localStorage.setItem('pcm_escopo_filtro', escopo);
             _atualizarLabelEscopo(escopo);
@@ -444,6 +472,10 @@ function verificarDependencias() {
 
         async function puxarOMsManual() {
             var escopo = _getEscopoSalvo();
+            if(!_escopoValidoParaPuxar(escopo)) {
+                mostrarEscopoPuxar();
+                return;
+            }
             await executarPuxarOMs(escopo);
         }
 
@@ -646,7 +678,6 @@ function verificarDependencias() {
         }
 
         var _pushPendentes = [];
-        var _pushTimer = null;
 
         function _salvarPushPendentes() {
             try { localStorage.setItem('pcm_push_pendentes', JSON.stringify(_pushPendentes)); } catch(e) {}
@@ -698,9 +729,10 @@ function verificarDependencias() {
                 'Content-Type': 'application/json',
                 'Prefer': 'return=representation,count=exact'
             };
-            var resp = await fetch(
+            var resp = await _fetchComTimeout(
                 SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS + '?num=eq.' + encodeURIComponent(payload.num),
-                { method: 'PATCH', headers: _hdrs, body: JSON.stringify(payload) }
+                { method: 'PATCH', headers: _hdrs, body: JSON.stringify(payload) },
+                12000
             );
             if(resp.ok) {
                 var contentRange = resp.headers.get('Content-Range') || '';
@@ -708,9 +740,10 @@ function verificarDependencias() {
                 if(matched === 0) {
                     console.warn('[PUSH] PATCH OM ' + payload.num + ' — 0 linhas afetadas, tentando upsert');
                     var _hdrsUpsert = Object.assign({}, _hdrs, { 'Prefer': 'resolution=merge-duplicates,return=minimal' });
-                    var upsertResp = await fetch(
+                    var upsertResp = await _fetchComTimeout(
                         SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS,
-                        { method: 'POST', headers: _hdrsUpsert, body: JSON.stringify(payload) }
+                        { method: 'POST', headers: _hdrsUpsert, body: JSON.stringify(payload) },
+                        12000
                     );
                     if(!upsertResp.ok) {
                         var upsertErr = await upsertResp.text().catch(function(){ return ''; });
@@ -868,10 +901,24 @@ function verificarDependencias() {
             }
         }
 
+        async function _fetchComTimeout(url, options, timeoutMs) {
+            timeoutMs = timeoutMs || 10000;
+            if(typeof AbortController === 'undefined') return fetch(url, options || {});
+            var ctrl = new AbortController();
+            var timer = setTimeout(function() { ctrl.abort(); }, timeoutMs);
+            var opts = options ? Object.assign({}, options) : {};
+            opts.signal = ctrl.signal;
+            try {
+                return await fetch(url, opts);
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
         async function _verificarAdminUnlock() {
             if(!currentOM || !currentOM.num) return;
             try {
-                var resp = await fetch(
+                var resp = await _fetchComTimeout(
                     SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
                     '?num=eq.' + currentOM.num + '&select=admin_unlock,admin_unlock_ts,lock_device_id',
                     {
@@ -879,7 +926,8 @@ function verificarDependencias() {
                             'apikey': SUPABASE_ANON_KEY,
                             'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
                         }
-                    }
+                    },
+                    8000
                 );
                 if(!resp.ok) return;
                 var rows = await resp.json();
@@ -938,7 +986,7 @@ function verificarDependencias() {
 
         async function _verificarAdminUnlockParaOM(omNum) {
             try {
-                var resp = await fetch(
+                var resp = await _fetchComTimeout(
                     SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
                     '?num=eq.' + omNum + '&select=admin_unlock,admin_unlock_ts,historico_execucao,deslocamento_segundos,desloc_hora_inicio,desloc_hora_fim,executantes,materiais_usados',
                     {
@@ -946,13 +994,37 @@ function verificarDependencias() {
                             'apikey': SUPABASE_ANON_KEY,
                             'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
                         }
-                    }
+                    },
+                    8000
                 );
                 if(!resp.ok) return null;
                 var rows = await resp.json();
                 if(!rows || !rows.length) return null;
                 return rows[0];
             } catch(e) { return null; }
+        }
+
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
         }
 
         $('fileInput').addEventListener('change', async function(e) {
@@ -1334,11 +1406,13 @@ function verificarDependencias() {
                 return;
             }
             
+            var frag = document.createDocumentFragment();
             oms.forEach((om, idx) => {
                 let statusClass = 'pendente', statusText = 'DISPONÍVEL';
                 let clickAction = () => showDetail(idx);
+                var bloqueadaOutraEquipe = !!(om.lockDeviceId && om.lockDeviceId !== deviceId);
                 
-                if(om.lockDeviceId && om.lockDeviceId !== deviceId) {
+                if(bloqueadaOutraEquipe) {
                     if(om.statusAtual === 'em_deslocamento') {
                         statusClass = 'bloqueada';
                         statusText = '🚗 EM DESLOCAMENTO';
@@ -1407,7 +1481,7 @@ function verificarDependencias() {
                     : om.emOficina ? '🔧'
                     : (om.statusAtual === 'em_deslocamento') ? '🚗'
                     : (om.statusAtual === 'iniciada') ? '⚡'
-                    : (om.lockDeviceId && om.lockDeviceId !== deviceId) ? '🔒'
+                    : bloqueadaOutraEquipe ? '🔒'
                     : '📄';
                 
                 var _escopoBadge = '';
@@ -1424,8 +1498,9 @@ function verificarDependencias() {
                         <span class="status ${statusClass}">${statusText}</span>
                     </div>
                 `;
-                lista.appendChild(div);
+                frag.appendChild(div);
             });
+            lista.appendChild(frag);
         }
 
         async function showDetail(idx) {
@@ -1434,7 +1509,19 @@ function verificarDependencias() {
                 return;
             }
 
-            currentOM = oms[idx];
+            var alvoOM = oms[idx];
+            if(!alvoOM) return;
+            if(navigator.onLine) {
+                var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
+                if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
+                    alvoOM.lockDeviceId = estadoServidor.lock_device_id;
+                    salvarOMs();
+                    filtrarOMs();
+                    alert('⚠️ OM em uso por outro operador!');
+                    return;
+                }
+            }
+            currentOM = alvoOM;
             
             if(currentOM.lockDeviceId && currentOM.lockDeviceId !== deviceId) {
                 var rec = await _verificarAdminUnlockParaOM(currentOM.num);
@@ -1450,6 +1537,10 @@ function verificarDependencias() {
                     alert('⚠️ OM em uso por outro operador!');
                     return;
                 }
+            }
+            if(!currentOM.lockDeviceId && navigator.onLine) {
+                currentOM.lockDeviceId = deviceId;
+                _pushOMStatusSupabase(currentOM);
             }
             
             omAssinada = false;
@@ -1470,6 +1561,9 @@ function verificarDependencias() {
             $('checklistSection').style.display = 'none';
             $('checklistContent').innerHTML = '';
             $('checklistActions').style.display = 'none';
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
+            _materiaisListaExpandida = false;
             
             renderHistoricoExecucao();
             renderMateriaisUsados();
@@ -1518,6 +1612,7 @@ function verificarDependencias() {
             }
             
             if(currentOM.emOficina) {
+                _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
                 $('btnDeslocamento').style.display = 'none';
                 $('btnIniciar').style.display = 'block';
@@ -1580,79 +1675,55 @@ function verificarDependencias() {
 
         function renderHistoricoExecucao() {
             const historicoList = $('historicoList');
-            
-            if(!currentOM.historicoExecucao || currentOM.historicoExecucao.length === 0) {
+            if(!currentOM || !currentOM.emOficina) {
                 $('historicoSection').style.display = 'none';
                 historicoList.innerHTML = '';
                 return;
             }
-            
             $('historicoSection').style.display = 'block';
-            historicoList.innerHTML = '';
-            
-            var somaTotal = 0;
-            currentOM.historicoExecucao.forEach((hist, idx) => {
-                const div = document.createElement('div');
-                div.className = 'historico-dia';
-                var deslocIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var deslocFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativIni = hist.dataInicio ? new Date(hist.dataInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativFim = hist.dataFim ? new Date(hist.dataFim).toLocaleTimeString('pt-BR') : 'em andamento';
-                var numExec = hist.executantes ? hist.executantes.length : 1;
-                var hhDeslInd = hist.hhDeslocamento || 0;
-                var hhAtivInd = hist.hhAtividade || 0;
-                var hhIndiv = hhDeslInd + hhAtivInd;
-                
-                var classif = classificarHoras(hist.deslocamentoHoraInicio || hist.dataInicio, hist.dataFim);
-                
-                var html = '<div style="font-weight:800;color:#1A5276;margin-bottom:8px;font-size:15px;">📅 Dia ' + (idx + 1) + ' - ' + hist.data + '</div>';
-                html += '<div style="font-size:12px;color:#888;margin-bottom:6px;">🚗 Desloc: ' + deslocIni + ' → ' + deslocFim + ' | ⏱️ Ativid: ' + ativIni + ' → ' + ativFim + '</div>';
-                
-                var subTotal = 0;
-                for(var e = 0; e < numExec; e++) {
-                    var hhPessoa = hhIndiv;
-                    subTotal += hhPessoa;
-                    html += '<div style="padding:4px 8px;margin:3px 0;background:#f8f8f8;border-radius:6px;font-size:13px;">';
-                    html += '<strong>' + (hist.executantes[e] || '---') + '</strong>';
-                    html += '<div style="font-size:11px;color:#666;margin-top:2px;">';
-                    html += '🚗 ' + hhDeslInd.toFixed(2) + 'h + ⏱️ ' + hhAtivInd.toFixed(2) + 'h = <strong>' + hhPessoa.toFixed(2) + 'h</strong>';
-                    if(classif.normal > 0) html += ' | <span style="color:#2E86C1;">N:' + classif.normal + 'h</span>';
-                    if(classif.extra > 0) html += ' | <span style="color:#f0ad4e;">E:' + classif.extra + 'h</span>';
-                    if(classif.noturno > 0) html += ' | <span style="color:#d9534f;">Not:' + classif.noturno + 'h</span>';
-                    html += '</div></div>';
-                }
-                somaTotal += subTotal;
-                html += '<div style="font-size:13px;font-weight:800;color:#2E86C1;margin-top:6px;text-align:right;">Subtotal: ' + subTotal.toFixed(2) + 'h</div>';
-                
-                div.innerHTML = html;
-                historicoList.appendChild(div);
-            });
-            
-            if(currentOM.historicoExecucao.length > 0) {
-                var totalDiv = document.createElement('div');
-                totalDiv.className = 'historico-dia';
-                totalDiv.style.background = 'linear-gradient(135deg, #e3f2fd, #bbdefb)';
-                totalDiv.innerHTML = '<div style="text-align:center;font-weight:800;color:#1A5276;font-size:16px;">📊 TOTAL ACUMULADO: ' + somaTotal.toFixed(2) + 'h</div>';
-                historicoList.appendChild(totalDiv);
+            var histArr = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+            var execSet = {};
+            for(var i = 0; i < histArr.length; i++) {
+                var execs = Array.isArray(histArr[i].executantes) ? histArr[i].executantes : [];
+                for(var j = 0; j < execs.length; j++) if(execs[j]) execSet[execs[j]] = true;
             }
+            var execNames = Object.keys(execSet);
+            var dataOf = currentOM.dataEnvioOficina || null;
+            if(!dataOf) {
+                for(var k = histArr.length - 1; k >= 0; k--) {
+                    if(histArr[k] && histArr[k].tag === 'OFICINA') { dataOf = histArr[k].dataFim || histArr[k].dataInicio || null; break; }
+                }
+            }
+            var dataTxt = dataOf ? new Date(dataOf).toLocaleString('pt-BR') : '--';
+            var htmlMin = '<div class="historico-dia oficina-min-resumo">';
+            htmlMin += '<div style="font-weight:800;color:#1A5276;">📅 Enviada para oficina: ' + dataTxt + '</div>';
+            htmlMin += '<div style="margin-top:6px;font-size:13px;color:#234;">👷 Executantes: ' + (execNames.length ? execNames.join(', ') : '---') + '</div>';
+            htmlMin += '</div>';
+            historicoList.innerHTML = htmlMin;
         }
 
         function renderMateriaisUsados() {
             const materialList = $('materialList');
+            const materiaisSection = $('materiaisSection');
             
             if(materiaisUsados.length === 0) {
-                $('materiaisSection').style.display = 'none';
+                _materiaisListaExpandida = false;
+                materiaisSection.style.display = 'none';
+                materiaisSection.classList.remove('toggle-btn');
+                materiaisSection.onclick = null;
                 materialList.style.display = 'none';
                 materialList.innerHTML = '';
                 return;
             }
             
-            $('materiaisSection').style.display = 'block';
-            materialList.style.display = 'block';
-            materialList.innerHTML = '';
-            
-            materiaisUsados.forEach(m => {
-                materialList.innerHTML += `
+            materiaisSection.style.display = 'block';
+            materiaisSection.classList.add('toggle-btn');
+            materiaisSection.onclick = toggleMateriaisLista;
+            materiaisSection.textContent = _materiaisListaExpandida ? '💰 Materiais Utilizados ▲' : '💰 Materiais Utilizados ▼';
+            materialList.style.display = _materiaisListaExpandida ? 'block' : 'none';
+            var itensHtml = '';
+            materiaisUsados.forEach(function(m) {
+                itensHtml += `
                     <div class="material-item">
                         <div class="material-header">
                             <span class="material-name">[${m.codigo}] ${sc(m.nome)}</span>
@@ -1664,6 +1735,13 @@ function verificarDependencias() {
                     </div>
                 `;
             });
+            materialList.innerHTML = itensHtml;
+        }
+
+        function toggleMateriaisLista() {
+            if(!materiaisUsados || materiaisUsados.length === 0) return;
+            _materiaisListaExpandida = !_materiaisListaExpandida;
+            renderMateriaisUsados();
         }
 
         function retomarDoEstadoSalvo(historico) {
@@ -1693,6 +1771,7 @@ function verificarDependencias() {
             tempoPausadoTotal = 0;
             pausaInicio = null;
             materiaisUsados = [];
+            _materiaisListaExpandida = false;
             atividadeJaIniciada = false;
             
             $('timerDisplay').style.display = 'none';
@@ -1715,6 +1794,8 @@ function verificarDependencias() {
 
         function hideDetail() {
             $('detailScreen').classList.remove('active');
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             salvarOMAtual();
             salvarOMs();
             filtrarOMs();
@@ -1740,6 +1821,8 @@ function verificarDependencias() {
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
             salvarOMs();
             $('detailScreen').classList.remove('active');
+            _aplicarModoChecklistFoco(false);
+            _aplicarModoOficinaMinimal(false);
             filtrarOMs();
             alert('✅ OM ' + omNum + ' excluída.');
         }
@@ -2183,8 +2266,6 @@ function verificarDependencias() {
             var tagEquip = currentOM.tagIdentificacao || currentOM.equipamento || '---';
             var obs = $('d3Obs').value.trim();
             var info = DESVIO_TIPOS[_desvioTipoAtual];
-
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
 
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
             if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
@@ -2738,6 +2819,7 @@ function verificarDependencias() {
             var foto = checklistFotos[name] || {};
             var savedVal = '';
             var savedObs = '';
+            var podeEditar = _podeEditarChecklistAgora();
             if(currentOM && currentOM.checklistDados) {
                 var found = currentOM.checklistDados.find(function(c){ return c.titulo === titulo; });
                 if(found) { savedVal = found.valor; savedObs = found.obs || ''; }
@@ -2745,17 +2827,23 @@ function verificarDependencias() {
             var h = '<div class="checklist-item" id="chkItem_' + name + '">';
             h += '<div class="checklist-item-title">' + num + '. ' + titulo + '</div>';
             h += '<div class="checklist-radios">';
-            h += '<label><input type="radio" name="' + name + '" value="normal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'normal' ? ' checked' : '') + '> Normal</label>';
-            h += '<label><input type="radio" name="' + name + '" value="anormal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'anormal' ? ' checked' : '') + '> Anormal</label>';
+            h += '<label><input type="radio" name="' + name + '" value="normal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'normal' ? ' checked' : '') + (podeEditar ? '' : ' disabled') + '> Normal</label>';
+            h += '<label><input type="radio" name="' + name + '" value="anormal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'anormal' ? ' checked' : '') + (podeEditar ? '' : ' disabled') + '> Anormal</label>';
             h += '</div>';
             h += '<div class="checklist-foto-row" id="fotoRow_' + name + '" style="display:' + (savedVal === 'anormal' || foto.antes ? 'flex' : 'none') + ';">';
             h += '<button class="checklist-foto-btn' + (foto.antes ? ' ok' : '') + '" id="fotoAntesBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'antes\')">' + (foto.antes ? '📎 Foto Antes ✓' : '📷 Foto Antes *') + '</button>';
             h += '<button class="checklist-foto-btn depois' + (foto.depois ? ' ok' : '') + '" id="fotoDepoisBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'depois\')" style="display:' + (foto.antes ? 'inline-block' : 'none') + ';">' + (foto.depois ? '📎 Foto Depois ✓' : '📷 Foto Depois') + '</button>';
             h += '</div>';
-            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')">';
-            h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()">';
+            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
+            h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()"' + (podeEditar ? '' : ' readonly') + '>';
             h += '</div>';
             return h;
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
         function onChecklistChange(name) {
@@ -2795,6 +2883,7 @@ function verificarDependencias() {
         }
 
         function _mostrarChecklistUI(forcarAberto) {
+            _aplicarModoChecklistFoco(true);
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
             var isOficina = currentOM && (currentOM.emOficina || currentOM.retornouOficina);
@@ -2876,9 +2965,30 @@ function verificarDependencias() {
         }
 
 function capturarFoto(name, tipo) {
+            var fotoAtual = (checklistFotos[name] || {})[tipo];
+            if(!_podeEditarChecklistAgora()) {
+                if(fotoAtual) { visualizarFotoChecklist(fotoAtual); return; }
+                alert('⚠️ Inicie a atividade para preencher este item.');
+                return;
+            }
+            if(fotoAtual && !confirm('Já existe foto neste item.\n\nOK para substituir ou Cancelar para visualizar.')) {
+                visualizarFotoChecklist(fotoAtual);
+                return;
+            }
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function handleFotoCapture(event) {
@@ -3284,6 +3394,7 @@ function capturarFoto(name, tipo) {
             currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.dataEnvioOficina = new Date().toISOString();
             currentOM.lockDeviceId = null;
             currentOM._deslocSegundosSnapshot = deslocamentoSegundos;
             
