@@ -10,6 +10,8 @@
   }
 
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  var MAX_OUTBOX_ITEMS = 500;
+  var BG_SYNC_TAG = 'pcm-sync-pending';
 
   var DEV_MODE = (lsGet('pcm_dev_mode') === '1') || readQueryFlag('dev');
 
@@ -39,7 +41,10 @@
         if (!db.objectStoreNames.contains('pdfs'))   db.createObjectStore('pdfs');
       };
       req.onsuccess = function () { resolve(req.result); };
-      req.onerror   = function () { reject(req.error); };
+      req.onerror   = function () {
+        console.error('[BOOT] IndexedDB indisponível. Eventos offline não serão persistidos.', req.error || null);
+        resolve(null);
+      };
     });
   }
 
@@ -59,20 +64,46 @@
     });
   }
 
+  function outboxTrim(db) {
+    return new Promise(function (res) {
+      try {
+        var tx = db.transaction(['outbox'], 'readonly');
+        var req = tx.objectStore('outbox').getAll();
+        req.onsuccess = function () {
+          var items = req.result || [];
+          if (items.length < MAX_OUTBOX_ITEMS) return res();
+          items.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+          var removeN = items.length - MAX_OUTBOX_ITEMS + 1;
+          var txDel = db.transaction(['outbox'], 'readwrite');
+          var storeDel = txDel.objectStore('outbox');
+          for (var i = 0; i < removeN; i++) storeDel.delete(items[i].id);
+          txDel.oncomplete = function () {
+            console.warn('[BOOT] Outbox atingiu limite; removidos', removeN, 'itens mais antigos.');
+            res();
+          };
+          txDel.onerror = function () { res(); };
+        };
+        req.onerror = function () { res(); };
+      } catch (e) { res(); }
+    });
+  }
+
   function outboxAdd(payload) {
     return DBP.then(function (db) {
       if (!db) return;
-      return new Promise(function (res, rej) {
-        var tx = db.transaction(['outbox'], 'readwrite');
-        tx.objectStore('outbox').put({
-          id:      uid(),
-          ts:      Date.now(),
-          payload: payload,
-          status:  'pending',
-          retries: 0
+      return outboxTrim(db).then(function () {
+        return new Promise(function (res, rej) {
+          var tx = db.transaction(['outbox'], 'readwrite');
+          tx.objectStore('outbox').put({
+            id:      uid(),
+            ts:      Date.now(),
+            payload: payload,
+            status:  'pending',
+            retries: 0
+          });
+          tx.oncomplete = function () { res(); };
+          tx.onerror    = function () { rej(tx.error); };
         });
-        tx.oncomplete = function () { res(); };
-        tx.onerror    = function () { rej(tx.error); };
       });
     });
   }
@@ -95,8 +126,28 @@
     try {
       return outboxAdd({ type: type, ts: Date.now(), ctx: getCtx(), data: data || {} }).catch(function (err) {
         console.warn('[BOOT] Falha ao enfileirar evento offline:', err && err.message ? err.message : err);
+      }).then(function () {
+        requestBackgroundSync();
       });
     } catch (e) {}
+  }
+
+  function requestBackgroundSync() {
+    try {
+      if (!('serviceWorker' in navigator)) return Promise.resolve(false);
+      return navigator.serviceWorker.ready.then(function (reg) {
+        if (!reg || !reg.sync || typeof reg.sync.register !== 'function') return false;
+        return reg.sync.register(BG_SYNC_TAG).then(function () {
+          console.log('[BOOT] Background Sync registrado:', BG_SYNC_TAG);
+          return true;
+        }).catch(function (err) {
+          console.warn('[BOOT] Falha ao registrar Background Sync:', err && err.message ? err.message : err);
+          return false;
+        });
+      }).catch(function () { return false; });
+    } catch (e) {
+      return Promise.resolve(false);
+    }
   }
 
   function getOMMetaFromHistorico(omNum) {
@@ -166,13 +217,27 @@
       if (!('serviceWorker' in navigator)) return;
       navigator.serviceWorker.register('./service-worker.js').then(function (reg) {
         console.log('[BOOT] SW registrado', reg.scope);
+        requestBackgroundSync();
       }).catch(function (e) {
         console.error('[BOOT] SW falhou', e);
       });
       navigator.serviceWorker.addEventListener('message', function (e) {
         if (e.data && e.data.type === 'SW_UPDATED') {
           location.reload();
+          return;
         }
+        if (e.data && e.data.type === 'SW_SYNC_NOW') {
+          try {
+            if (window.PCMSync && typeof window.PCMSync.sync === 'function') window.PCMSync.sync();
+            if (window.PCMSync && typeof window.PCMSync.flushDesvios === 'function') window.PCMSync.flushDesvios();
+            if (window.PCMSync && typeof window.PCMSync.flushOMs === 'function') window.PCMSync.flushOMs();
+          } catch (err) {
+            console.warn('[BOOT] Falha ao executar sync disparado pelo SW:', err && err.message ? err.message : err);
+          }
+        }
+      });
+      window.addEventListener('online', function () {
+        requestBackgroundSync();
       });
     } catch (e) {}
   }
