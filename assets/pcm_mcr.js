@@ -81,6 +81,48 @@ function verificarDependencias() {
             else tela.classList.remove('oficina-minimal');
         }
 
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
+        function _aplicarModoChecklistFoco(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('checklist-focus');
+            else tela.classList.remove('checklist-focus');
+        }
+
+        function _aplicarModoOficinaMinimal(ativo) {
+            var tela = $('detailScreen');
+            if(!tela) return;
+            if(ativo) tela.classList.add('oficina-minimal');
+            else tela.classList.remove('oficina-minimal');
+        }
+
         function _btnOficinaCk() {
             if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
@@ -1020,6 +1062,75 @@ function verificarDependencias() {
                 if(!rows || !rows.length) return null;
                 return rows[0];
             } catch(e) { return null; }
+        }
+
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
+        }
+
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
+        }
+
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
         }
 
         async function _obterEstadoServidorOM(omNum) {
@@ -2876,6 +2987,24 @@ function verificarDependencias() {
             return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
         function onChecklistChange(name) {
             var sel = document.querySelector('input[name="' + name + '"]:checked');
             var fotoRow = document.getElementById('fotoRow_' + name);
@@ -3030,6 +3159,39 @@ function capturarFoto(name, tipo) {
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function visualizarFotoChecklist(base64) {
@@ -4573,6 +4735,108 @@ function capturarFoto(name, tipo) {
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
+                    etapasBody.push([
+                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
+                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                        { content: execLabel, styles: { fontSize: 6 } },
+                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                    ]);
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
