@@ -152,6 +152,11 @@ Ambiente de execução. Use `production` em produção.
 - Limpar cache do navegador
 - Verificar console do navegador (F12)
 
+### "CORS/manifest/config.json no file://"
+- Abra o app por servidor local (`http://localhost`) ou deploy HTTPS
+- Não execute abrindo o arquivo HTML direto no Explorer (`file://`)
+- Em `file://` o app entra em modo degradado sem manifest/SW por segurança do navegador
+
 ### "Dados não sincronizam"
 - Verificar conexão com Supabase
 - Verificar RLS policies no banco
