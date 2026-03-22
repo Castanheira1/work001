@@ -2456,7 +2456,9 @@ function verificarDependencias() {
                 hLast.tag = info.cod + ' - ' + info.label;
                 hLast.desvio = true;
             }
-            var tempoTotalDesvio = 0;
+            var tempoTotalDesvio = (typeof hLast !== 'undefined' && hLast && hLast.dataInicio && hLast.dataFim)
+                ? Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (tempoPausadoTotal || 0))
+                : (atividadeSegundos || 0);
 
             var rec = {
                 omNum: currentOM.num, omTitulo: currentOM.titulo,
@@ -2483,7 +2485,6 @@ function verificarDependencias() {
 
             _enviarDesvioSupabase({
                 om_num: rec.omNum,
-                om_titulo: rec.omTitulo || '',
                 tipo: rec.tipo,
                 tipo_cod: rec.tipoCod,
                 tipo_label: rec.tipoLabel,
@@ -2492,11 +2493,7 @@ function verificarDependencias() {
                 desc_local: rec.descLocal || '',
                 observacao: rec.observacao || '',
                 executantes: rec.executantes || [],
-                cc: currentOM.cc || '',
-                equipe: currentOM.equipe || '',
-                data: rec.data,
                 mes_ref: rec.mesRef,
-                tem_foto: !!rec.foto,
                 tempo_segundos: rec.tempoSegundos || 0,
                 registrado_por: deviceId || '',
                 origem: 'campo'
@@ -5341,7 +5338,43 @@ function capturarFoto(name, tipo) {
             currentOM.pendenteAssinatura = true;
             currentOM.materiaisUsados = materiaisUsados.length > 0 ? [...materiaisUsados] : currentOM.materiaisUsados;
             isCancelamento = true;
-            
+
+            // Criar registro de desvio e salvar no banco
+            var dvParts = desvio.split(' - ');
+            var dvTempoSeg = (typeof hLast !== 'undefined' && hLast && hLast.hhAtividade)
+                ? Math.round(hLast.hhAtividade * 3600) : 0;
+            var dvRec = {
+                omNum: currentOM.num,
+                tipo: desvio,
+                tipoCod: dvParts[0] || desvio,
+                tipoLabel: dvParts.slice(1).join(' - ') || desvio,
+                tagEquipamento: currentOM.tagIdentificacao || currentOM.equipamento || '---',
+                localInstalacao: currentOM.local || '',
+                descLocal: currentOM.descLocal || '',
+                observacao: just || '',
+                executantes: executantesNomes.slice(),
+                data: new Date().toISOString(),
+                mesRef: new Date().toISOString().substring(0, 7),
+                tempoSegundos: dvTempoSeg
+            };
+            if (!currentOM.desviosRegistrados) currentOM.desviosRegistrados = [];
+            currentOM.desviosRegistrados.push(dvRec);
+            _enviarDesvioSupabase({
+                om_num: dvRec.omNum,
+                tipo: dvRec.tipo,
+                tipo_cod: dvRec.tipoCod,
+                tipo_label: dvRec.tipoLabel,
+                tag_equipamento: dvRec.tagEquipamento || '',
+                local_instalacao: dvRec.localInstalacao || '',
+                desc_local: dvRec.descLocal || '',
+                observacao: dvRec.observacao || '',
+                executantes: dvRec.executantes || [],
+                mes_ref: dvRec.mesRef,
+                tempo_segundos: dvRec.tempoSegundos || 0,
+                registrado_por: deviceId || '',
+                origem: 'campo'
+            });
+
             _gravarDashboardLog('CANCELADO', currentOM);
             salvarOMs();
             hideCancelar();
