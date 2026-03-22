@@ -1069,121 +1069,6 @@ function verificarDependencias() {
             }
         }
 
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
         $('fileInput').addEventListener('change', async function(e) {
             const files = Array.from(e.target.files);
             
@@ -4763,12 +4648,13 @@ function capturarFoto(name, tipo) {
                 var deslBody = [];
                 var totalDeslSeg = 0;
                 var pessoalN = 0;
+                var stlTot = { halign: 'center', fontStyle: 'bold', fontSize: 7, fillColor: [90,90,90], textColor: [255,255,255] };
                 for (var h = 0; h < currentOM.historicoExecucao.length; h++) {
                     var hist = currentOM.historicoExecucao[h];
                     var execs = hist.executantes || [];
                     var numExec = execs.length || 1;
                     var deslSeg = (hist.deslocamentoSegundos !== undefined) ? hist.deslocamentoSegundos : ((hist.deslocamentoMinutos || 0) * 60);
-                    if((hist.tag === 'OFICINA') || deslSeg <= 0) continue;
+                    if(deslSeg <= 0) continue;
                     var dIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio) : null;
                     var dFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim) : null;
                     var dataIniStr = dIni ? dIni.toLocaleDateString('pt-BR') : '--/--/--';
@@ -4776,26 +4662,28 @@ function capturarFoto(name, tipo) {
                     var horaIniStr = dIni ? dIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr = dFim ? dFim.toLocaleTimeString('pt-BR') : '--:--:--';
                     var tempoStr = _formatarTempo(deslSeg);
-                    var causaStr = '002';
+                    var faseDesl = hist.tag || 'ATIVIDADE';
                     for (var e = 0; e < numExec; e++) {
                         pessoalN++;
                         totalDeslSeg += deslSeg;
                         deslBody.push([
                             { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
-                            { content: String(pessoalN), styles: { halign: 'center', fontSize: 6 } },
+                            { content: execs[e] || String(pessoalN), styles: { fontSize: 6 } },
+                            { content: faseDesl, styles: { halign: 'center', fontSize: 5.5, fontStyle: 'bold' } },
                             { content: dataIniStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: horaIniStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: dataFimStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: horaFimStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: tempoStr, styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
-                            { content: causaStr, styles: { halign: 'center', fontSize: 6 } }
+                            { content: '002', styles: { halign: 'center', fontSize: 6 } }
                         ]);
                     }
                 }
                 if(deslBody.length === 0) {
                     deslBody.push([
                         { content: currentOM.num, styles: { fontSize: 5.5, halign: 'center' } },
-                        { content: '-', styles: { halign: 'center', fontSize: 6 } },
+                        { content: '-', styles: { fontSize: 6 } },
+                        { content: '-', styles: { halign: 'center', fontSize: 5.5 } },
                         { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
                         { content: '--:--:--', styles: { halign: 'center', fontSize: 6 } },
                         { content: '--/--/--', styles: { halign: 'center', fontSize: 6 } },
@@ -4804,239 +4692,20 @@ function capturarFoto(name, tipo) {
                         { content: '-', styles: { halign: 'center', fontSize: 6 } }
                     ]);
                 }
-                var stlTot = { halign: 'center', fontStyle: 'bold', fontSize: 7, fillColor: [90,90,90], textColor: [255,255,255] };
                 deslBody.push([
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: _formatarTempo(totalDeslSeg), styles: stlTot }, { content: '', styles: stlTot }
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
+                    { content: '', styles: stlTot }, { content: _formatarTempo(totalDeslSeg), styles: stlTot }, { content: '', styles: stlTot }
                 ]);
                 pdf.autoTable({
                     startY: y,
-                    head: [['OM', 'N\u00ba Pessoal', 'Inic. Exec', 'Inic. Exec', 'Fim Exec', 'Fim Exec', 'Tempo', 'Causa']],
+                    head: [['OM', 'Executante', 'Fase', 'Inic. Exec', 'Inic. Exec', 'Fim Exec', 'Fim Exec', 'Tempo', 'Causa']],
                     body: deslBody,
                     theme: 'grid',
                     tableWidth: 180,
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                var etapasHhAtivTotal = 0;
-                var etapasHhDeslTotal = 0;
-                var etapaRowSeq = 1;
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execsEt = (hx.executantes && hx.executantes.length) ? hx.executantes : ['---'];
-                    var hhAtivEt = Number(hx.hhAtividade || 0);
-                    var hhDeslEt = Number(hx.hhDeslocamento || 0);
-                    for (var ex = 0; ex < execsEt.length; ex++) {
-                        etapasHhAtivTotal += hhAtivEt;
-                        etapasHhDeslTotal += hhDeslEt;
-                        etapasBody.push([
-                            { content: String(etapaRowSeq++), styles: { halign: 'center', fontSize: 6 } },
-                            { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                            { content: String(execsEt[ex] || '---'), styles: { fontSize: 6 } },
-                            { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                            { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                            { content: hhAtivEt.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                            { content: hhDeslEt.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                        ]);
-                    }
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                } else {
-                    etapasBody.push([
-                        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
-                        { content: etapasHhAtivTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
-                        { content: etapasHhDeslTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } }
-                    ]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
-                    etapasBody.push([
-                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
-                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                        { content: execLabel, styles: { fontSize: 6 } },
-                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                    ]);
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
-                    etapasBody.push([
-                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
-                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                        { content: execLabel, styles: { fontSize: 6 } },
-                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                    ]);
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
-                    etapasBody.push([
-                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
-                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                        { content: execLabel, styles: { fontSize: 6 } },
-                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                    ]);
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
-                    etapasBody.push([
-                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
-                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                        { content: execLabel, styles: { fontSize: 6 } },
-                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                    ]);
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 6;
-
-                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
-                var etapasBody = [];
-                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
-                    var hx = currentOM.historicoExecucao[eh] || {};
-                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
-                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
-                    var tagEt = hx.tag || 'ATIVIDADE';
-                    var execLabel = (hx.executantes && hx.executantes.length) ? hx.executantes.join(', ') : '---';
-                    etapasBody.push([
-                        { content: String(eh + 1), styles: { halign: 'center', fontSize: 6 } },
-                        { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
-                        { content: execLabel, styles: { fontSize: 6 } },
-                        { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhAtividade || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
-                        { content: (Number(hx.hhDeslocamento || 0)).toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
-                    ]);
-                }
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                }
-                pdf.autoTable({
-                    startY: y,
-                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
-                    body: etapasBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
+                    columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 34 }, 2: { cellWidth: 16 }, 3: { cellWidth: 18 }, 4: { cellWidth: 16 }, 5: { cellWidth: 18 }, 6: { cellWidth: 16 }, 7: { cellWidth: 28 }, 8: { cellWidth: 14 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
@@ -5052,18 +4721,23 @@ function capturarFoto(name, tipo) {
                     var aIni = hist2.dataInicio ? new Date(hist2.dataInicio) : null;
                     var aFim = hist2.dataFim ? new Date(hist2.dataFim) : null;
                     var ativSeg = 0;
-                    if (aIni && aFim && !hist2.desvio) ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
+                    if (aIni && aFim && !hist2.desvio) {
+                        ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
+                        if(ativSeg < 0) ativSeg = 0;
+                    }
                     var dataIniStr2 = aIni ? aIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr2 = aFim ? aFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr2 = aIni ? aIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr2 = aFim ? aFim.toLocaleTimeString('pt-BR') : '--:--:--';
                     var tempoStr2 = _formatarTempo(ativSeg);
+                    var faseAtiv = hist2.tag || 'ATIVIDADE';
                     for (var e2 = 0; e2 < numExec2; e2++) {
                         pessoalNA++;
                         totalAtivSeg += ativSeg;
                         ativBody.push([
                             { content: currentOM.num, styles: { fontSize: 6, halign: 'center' } },
-                            { content: String(pessoalNA), styles: { halign: 'center', fontSize: 6 } },
+                            { content: execs2[e2] || String(pessoalNA), styles: { fontSize: 6 } },
+                            { content: faseAtiv, styles: { halign: 'center', fontSize: 5.5, fontStyle: 'bold' } },
                             { content: dataIniStr2, styles: { halign: 'center', fontSize: 6 } },
                             { content: horaIniStr2, styles: { halign: 'center', fontSize: 6 } },
                             { content: dataFimStr2, styles: { halign: 'center', fontSize: 6 } },
@@ -5073,18 +4747,19 @@ function capturarFoto(name, tipo) {
                     }
                 }
                 ativBody.push([
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: _formatarTempo(totalAtivSeg), styles: stlTot }
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
+                    { content: '', styles: stlTot }, { content: _formatarTempo(totalAtivSeg), styles: stlTot }
                 ]);
                 pdf.autoTable({
                     startY: y,
-                    head: [['OM', 'N\u00ba Pessoal', 'Inic. Exec', 'Inic. Exec', 'Fim Exec', 'Fim Exec', 'Tempo']],
+                    head: [['OM', 'Executante', 'Fase', 'Inic. Exec', 'Inic. Exec', 'Fim Exec', 'Fim Exec', 'Tempo']],
                     body: ativBody,
                     theme: 'grid',
                     tableWidth: 180,
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.2, cellPadding: 1.55, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 18 }, 2: { cellWidth: 26 }, 3: { cellWidth: 22 }, 4: { cellWidth: 26 }, 5: { cellWidth: 22 }, 6: { cellWidth: 40 } },
+                    columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 36 }, 2: { cellWidth: 16 }, 3: { cellWidth: 20 }, 4: { cellWidth: 16 }, 5: { cellWidth: 20 }, 6: { cellWidth: 16 }, 7: { cellWidth: 36 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
