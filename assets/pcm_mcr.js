@@ -525,7 +525,7 @@ function verificarDependencias() {
                         saved = JSON.stringify(backup);
                         console.log('Estado da OM recuperado do IndexedDB (localStorage estava vazio)');
                     }
-                } catch(e) {}
+                } catch(e) { console.warn('[PCM] Backup IndexedDB indisponível:', e); }
             }
 
             if(!saved) return;
@@ -769,7 +769,7 @@ function verificarDependencias() {
                     }
                 }
                 if(_ehStatusTerminalPayload(payload)) {
-                    try { await _removerOrigemOMServidor(payload.num); } catch(e) {}
+                    try { await _removerOrigemOMServidor(payload.num); } catch(e) { console.warn('[PCM] Falha ao remover origem OM do servidor:', e); }
                 }
                 return true;
             }
@@ -999,7 +999,7 @@ function verificarDependencias() {
                     salvarOMs();
                     filtrarOMs();
                 }
-            } catch(e) {}
+            } catch(e) { console.warn('[PCM] Falha ao verificar admin unlock:', e); }
         }
 
         async function _verificarAdminUnlockParaOM(omNum) {
@@ -1152,11 +1152,11 @@ function verificarDependencias() {
                                 try {
                                     var est = JSON.parse(savedCurrent);
                                     if(est.omNum === omNum) localStorage.removeItem(STORAGE_KEY_CURRENT);
-                                } catch(e) {}
+                                } catch(e) { console.warn('[PCM] Estado atual corrompido ao processar OM:', e); }
                             }
                         }
                     }
-                    
+
                     const om = {
                         num: omNum,
                         titulo: dados.tituloCurto,
@@ -1832,7 +1832,7 @@ function verificarDependencias() {
                 try {
                     var est = JSON.parse(savedCurrent);
                     if(est.omNum === omNum) localStorage.removeItem(STORAGE_KEY_CURRENT);
-                } catch(e) {}
+                } catch(e) { console.warn('[PCM] Estado inválido em excluirOM:', e); }
             }
             currentOM = null;
             if(timerInterval) clearInterval(timerInterval);
@@ -2771,29 +2771,39 @@ function verificarDependencias() {
             return todos.filter(function(d) { return d.omNum === omNum && d.tipoCod; });
         }
 
+        async function _renderizarPDFNoViewer(viewer, pdfBase64) {
+            try {
+                var raw = pdfBase64.indexOf(',') > -1 ? pdfBase64.split(',')[1] : pdfBase64;
+                var ab = base64ToArrayBuffer(raw);
+                var pdfDoc = await pdfjsLib.getDocument({data: ab}).promise;
+                viewer.innerHTML = '';
+                var containerW = viewer.clientWidth - 16;
+                for(var pg = 1; pg <= pdfDoc.numPages; pg++) {
+                    var page = await pdfDoc.getPage(pg);
+                    var vpOrig = page.getViewport({scale: 1});
+                    var scale = (containerW / vpOrig.width) * 2;
+                    var vp = page.getViewport({scale: scale});
+                    var cvs = document.createElement('canvas');
+                    cvs.width = vp.width;
+                    cvs.height = vp.height;
+                    cvs.style.cssText = 'width:100%;height:auto;display:block;margin-bottom:12px;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.4);background:#fff;';
+                    viewer.appendChild(cvs);
+                    await page.render({canvasContext: cvs.getContext('2d'), viewport: vp}).promise;
+                }
+            } catch(e) {
+                viewer.innerHTML = '<p style="text-align:center;color:#ff6b6b;padding:40px;">Erro ao carregar PDF: ' + (e.message || e) + '</p>';
+            }
+        }
+
         async function verPDFDesvio(omNum) {
             var b64 = await PdfDB.get('dev_'+omNum);
-            if(!b64){alert('PDF não encontrado!');return;}
+            if(!b64) { alert('PDF não encontrado!'); return; }
             $('popupHistorico').classList.remove('active');
             var viewer = $('pdfGeradoViewer');
-            viewer.innerHTML='<p style="text-align:center;padding:40px;color:#fff;">⏳ Carregando...</p>';
-            $('pdfGeradoTitle').textContent='⚠️ Relatório de Desvio';
+            viewer.innerHTML = '<p style="text-align:center;padding:40px;color:#fff;">⏳ Carregando...</p>';
+            $('pdfGeradoTitle').textContent = '⚠️ Relatório de Desvio';
             $('popupPDFGerado').classList.add('active');
-            try {
-                var ab=base64ToArrayBuffer((b64.split(',')[1]||b64));
-                var doc=await pdfjsLib.getDocument({data:ab}).promise;
-                viewer.innerHTML=''; var cW=viewer.clientWidth-16;
-                for(var pg=1;pg<=doc.numPages;pg++){
-                    var page=await doc.getPage(pg);
-                    var vpO=page.getViewport({scale:1});
-                    var vp=page.getViewport({scale:(cW/vpO.width)*2});
-                    var cvs=document.createElement('canvas');
-                    cvs.width=vp.width;cvs.height=vp.height;
-                    cvs.style.cssText='width:100%;height:auto;display:block;margin-bottom:12px;background:#fff;border-radius:4px;';
-                    viewer.appendChild(cvs);
-                    await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
-                }
-            }catch(e){viewer.innerHTML='<p style="color:#f00;text-align:center;padding:40px;">Erro: '+e.message+'</p>';}
+            await _renderizarPDFNoViewer(viewer, b64);
         }
 
         var checklistItens = {
@@ -2962,9 +2972,9 @@ function verificarDependencias() {
                         currentOM.checklistDados = coletarChecklistDados();
                         currentOM.checklistFotos = checklistFotos;
                         salvarOMAtual();
-                    } catch(e) {}
+                    } catch(e) { console.warn('[PCM] Falha no autosave do checklist:', e); }
                 }, 200);
-            } catch(e) {}
+            } catch(e) { console.warn('[PCM] Erro inesperado no autosave:', e); }
         }
 
         function _detectarTipoChecklist() {
@@ -5061,33 +5071,7 @@ function capturarFoto(name, tipo) {
             var viewer = $('pdfGeradoViewer');
             viewer.innerHTML = '<p style="text-align:center;padding:40px;color:#fff;font-size:16px;">⏳ Carregando PDF...</p>';
             $('popupPDFGerado').classList.add('active');
-            try {
-                var raw = pdfBase64.indexOf(',') > -1 ? pdfBase64.split(',')[1] : pdfBase64;
-                var ab = base64ToArrayBuffer(raw);
-                var pdfDoc = await pdfjsLib.getDocument({data: ab}).promise;
-                viewer.innerHTML = '';
-                var containerW = viewer.clientWidth - 16;
-                for(var pg = 1; pg <= pdfDoc.numPages; pg++) {
-                    var page = await pdfDoc.getPage(pg);
-                    var vpOrig = page.getViewport({scale: 1});
-                    var scale = (containerW / vpOrig.width) * 2;
-                    var vp = page.getViewport({scale: scale});
-                    var cvs = document.createElement('canvas');
-                    cvs.width = vp.width;
-                    cvs.height = vp.height;
-                    cvs.style.width = '100%';
-                    cvs.style.height = 'auto';
-                    cvs.style.display = 'block';
-                    cvs.style.marginBottom = '12px';
-                    cvs.style.borderRadius = '4px';
-                    cvs.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
-                    cvs.style.backgroundColor = '#fff';
-                    viewer.appendChild(cvs);
-                    await page.render({canvasContext: cvs.getContext('2d'), viewport: vp}).promise;
-                }
-            } catch(err) {
-                viewer.innerHTML = '<p style="text-align:center;color:#ff6b6b;padding:40px;">Erro ao carregar PDF</p>';
-            }
+            await _renderizarPDFNoViewer(viewer, pdfBase64);
         }
 
         function fecharPDFGerado() {
@@ -5117,7 +5101,7 @@ function capturarFoto(name, tipo) {
             });
 
             var allKeys = [];
-            try { allKeys = await PdfDB.keys(); } catch(e){}
+            try { allKeys = await PdfDB.keys(); } catch(e) { console.warn('[PCM] Falha ao listar PDFs:', e); }
             var lista = $('historicoOMsList');
 
             if(historicoHoje.length === 0 && historicoDesvios.length === 0) {
@@ -5198,33 +5182,7 @@ function capturarFoto(name, tipo) {
             var viewer = $('pdfGeradoViewer');
             viewer.innerHTML = '<p style="text-align:center;padding:40px;color:#fff;font-size:16px;">⏳ Carregando Checklist...</p>';
             $('popupPDFGerado').classList.add('active');
-            try {
-                var dataStr = pdfBase64.split(',')[1] || pdfBase64;
-                var ab = base64ToArrayBuffer(dataStr);
-                var pdfDoc = await pdfjsLib.getDocument({data: ab}).promise;
-                viewer.innerHTML = '';
-                var containerW = viewer.clientWidth - 16;
-                for(var pg = 1; pg <= pdfDoc.numPages; pg++) {
-                    var page = await pdfDoc.getPage(pg);
-                    var vpOrig = page.getViewport({scale: 1});
-                    var scale = (containerW / vpOrig.width) * 2;
-                    var vp = page.getViewport({scale: scale});
-                    var cvs = document.createElement('canvas');
-                    cvs.width = vp.width;
-                    cvs.height = vp.height;
-                    cvs.style.width = '100%';
-                    cvs.style.height = 'auto';
-                    cvs.style.display = 'block';
-                    cvs.style.marginBottom = '12px';
-                    cvs.style.borderRadius = '4px';
-                    cvs.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
-                    cvs.style.backgroundColor = '#fff';
-                    viewer.appendChild(cvs);
-                    await page.render({canvasContext: cvs.getContext('2d'), viewport: vp}).promise;
-                }
-            } catch(e) {
-                viewer.innerHTML = '<p style="color:#f00;text-align:center;padding:40px;">Erro ao carregar checklist: ' + e.message + '</p>';
-            }
+            await _renderizarPDFNoViewer(viewer, pdfBase64);
         }
 
         async function verPDFNC(omNum) {
@@ -5235,33 +5193,7 @@ function capturarFoto(name, tipo) {
             var viewer = $('pdfGeradoViewer');
             viewer.innerHTML = '<p style="text-align:center;padding:40px;color:#fff;font-size:16px;">⏳ Carregando NC...</p>';
             $('popupPDFGerado').classList.add('active');
-            try {
-                var dataStr = pdfBase64.split(',')[1] || pdfBase64;
-                var ab = base64ToArrayBuffer(dataStr);
-                var pdfDoc = await pdfjsLib.getDocument({data: ab}).promise;
-                viewer.innerHTML = '';
-                var containerW = viewer.clientWidth - 16;
-                for(var pg = 1; pg <= pdfDoc.numPages; pg++) {
-                    var page = await pdfDoc.getPage(pg);
-                    var vpOrig = page.getViewport({scale: 1});
-                    var scale = (containerW / vpOrig.width) * 2;
-                    var vp = page.getViewport({scale: scale});
-                    var cvs = document.createElement('canvas');
-                    cvs.width = vp.width;
-                    cvs.height = vp.height;
-                    cvs.style.width = '100%';
-                    cvs.style.height = 'auto';
-                    cvs.style.display = 'block';
-                    cvs.style.marginBottom = '12px';
-                    cvs.style.borderRadius = '4px';
-                    cvs.style.boxShadow = '0 2px 12px rgba(0,0,0,0.4)';
-                    cvs.style.backgroundColor = '#fff';
-                    viewer.appendChild(cvs);
-                    await page.render({canvasContext: cvs.getContext('2d'), viewport: vp}).promise;
-                }
-            } catch(e) {
-                viewer.innerHTML = '<p style="color:#f00;text-align:center;padding:40px;">Erro ao carregar NC: ' + e.message + '</p>';
-            }
+            await _renderizarPDFNoViewer(viewer, pdfBase64);
         }
 
         function fecharHistorico() {
@@ -5282,7 +5214,7 @@ function capturarFoto(name, tipo) {
                 for(var i=0;i<keys.length;i++){
                     if(keys[i].match(/^(rel_|ck_|nc_|dev_)/)) await PdfDB.del(keys[i]);
                 }
-            } catch(e){}
+            } catch(e) { console.warn('[PCM] Falha ao limpar PDFs:', e); }
             fecharHistorico();
             alert('✅ Histórico local resetado.');
         }

@@ -422,7 +422,7 @@ async function downloadAllPDFs(num,hasCK,hasNC){
       if(!resp.ok)continue;
       forceDownloadBlob(await resp.blob(),p+"_"+num+".pdf");
       if(i<prefixes.length-1)await new Promise(function(r){setTimeout(r,500);});
-    }catch(e){}
+    }catch(e){ console.warn('[ADMIN] Falha ao baixar arquivo:', e); }
   }
   adminToast("Downloads concluídos","success");
 }
