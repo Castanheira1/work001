@@ -1,16 +1,19 @@
 {
   "name": "domo-ferro-sync-api",
   "version": "1.0.0",
-  "description": "Inbox de sincronização para o PCM MCR — recebe lotes do sync_engine.js e persiste em data/sync.ndjson",
-  "main": "server.js",
+  "private": true,
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "npx --yes nodemon server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2"
+    "dev": "nodemon server.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }
