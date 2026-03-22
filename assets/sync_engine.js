@@ -874,7 +874,22 @@
       var chain = Promise.resolve();
       pending.forEach(function (item) {
         chain = chain.then(function () {
-          var payload = item.payload.data;
+          var raw = item.payload.data;
+          var payload = {
+            om_num: raw.om_num,
+            tipo: raw.tipo,
+            tipo_cod: raw.tipo_cod,
+            tipo_label: raw.tipo_label,
+            tag_equipamento: raw.tag_equipamento || '',
+            local_instalacao: raw.local_instalacao || '',
+            desc_local: raw.desc_local || '',
+            observacao: raw.observacao || '',
+            executantes: raw.executantes || [],
+            mes_ref: raw.mes_ref || '',
+            tempo_segundos: raw.tempo_segundos || 0,
+            registrado_por: raw.registrado_por || '',
+            origem: raw.origem || 'campo'
+          };
           return fetch(getSupabaseUrl() + '/rest/v1/desvios', {
             method: 'POST',
             headers: hdrs,
