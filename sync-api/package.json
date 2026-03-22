@@ -1,0 +1,16 @@
+{
+  "name": "domo-ferro-sync-api",
+  "version": "1.0.0",
+  "description": "Sync API backend for Domo de Ferro - handles PDF uploads and outbox processing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
