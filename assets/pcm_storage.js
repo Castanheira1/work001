@@ -67,8 +67,23 @@
     try {
       entry.lastAccessAt = Date.now();
       var tx = db.transaction(STORE_PDFS, 'readwrite');
-      tx.objectStore(STORE_PDFS).put(entry, key);
+      putStoreEntry(tx.objectStore(STORE_PDFS), entry, key);
     } catch (e) {}
+  }
+
+  function putStoreEntry(store, value, key) {
+    var keyPath = store && store.keyPath;
+    if (!keyPath) {
+      store.put(value, key);
+      return;
+    }
+    if (typeof keyPath === 'string' && keyPath) {
+      var withInlineKey = Object.assign({}, value);
+      withInlineKey[keyPath] = key;
+      store.put(withInlineKey);
+      return;
+    }
+    store.put(value);
   }
 
   function evictOldPdfs(db, incomingCount) {
@@ -121,7 +136,7 @@
       return evictOldPdfs(db, 1).then(function () {
         return new Promise(function (resolve, reject) {
           var tx = db.transaction(STORE_PDFS, 'readwrite');
-          tx.objectStore(STORE_PDFS).put(wrapPdfValue(storeValue), key);
+          putStoreEntry(tx.objectStore(STORE_PDFS), wrapPdfValue(storeValue), key);
           tx.oncomplete = function () { resolve(true); };
           tx.onerror = function () { reject(tx.error || new Error('Falha ao salvar: ' + key)); };
           tx.onabort = function () { reject(new Error('Abortado: ' + key)); };
