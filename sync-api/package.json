@@ -1,11 +1,11 @@
 {
   "name": "domo-ferro-sync-api",
   "version": "1.0.0",
-  "description": "Sync API backend for Domo de Ferro - handles PDF uploads and outbox processing",
+  "description": "Inbox de sincronização para o PCM MCR — recebe lotes do sync_engine.js e persiste em data/sync.ndjson",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "npx --yes nodemon server.js"
   },
   "dependencies": {
     "express": "^4.18.2"
