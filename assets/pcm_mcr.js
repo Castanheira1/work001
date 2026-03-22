@@ -81,64 +81,10 @@ function verificarDependencias() {
             else tela.classList.remove('oficina-minimal');
         }
 
-        function _aplicarModoChecklistFoco(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('checklist-focus');
-            else tela.classList.remove('checklist-focus');
-        }
-
-        function _aplicarModoOficinaMinimal(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('oficina-minimal');
-            else tela.classList.remove('oficina-minimal');
-        }
-
-        function _aplicarModoChecklistFoco(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('checklist-focus');
-            else tela.classList.remove('checklist-focus');
-        }
-
-        function _aplicarModoOficinaMinimal(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('oficina-minimal');
-            else tela.classList.remove('oficina-minimal');
-        }
-
-        function _aplicarModoChecklistFoco(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('checklist-focus');
-            else tela.classList.remove('checklist-focus');
-        }
-
-        function _aplicarModoOficinaMinimal(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('oficina-minimal');
-            else tela.classList.remove('oficina-minimal');
-        }
-
-        function _aplicarModoChecklistFoco(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('checklist-focus');
-            else tela.classList.remove('checklist-focus');
-        }
-
-        function _aplicarModoOficinaMinimal(ativo) {
-            var tela = $('detailScreen');
-            if(!tela) return;
-            if(ativo) tela.classList.add('oficina-minimal');
-            else tela.classList.remove('oficina-minimal');
-        }
-
         function _btnOficinaCk() {
-            if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
+            if (currentOM.emOficina && !currentOM.devolvendoEquipamento) {
+                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0 });
@@ -1215,6 +1161,29 @@ function verificarDependencias() {
             }
         }
 
+        async function _obterEstadoServidorOM(omNum) {
+            if(!omNum || !navigator.onLine) return null;
+            try {
+                var resp = await _fetchComTimeout(
+                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
+                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
+                        }
+                    },
+                    8000
+                );
+                if(!resp.ok) return null;
+                var rows = await resp.json();
+                if(!rows || !rows.length) return null;
+                return rows[0];
+            } catch(e) {
+                return null;
+            }
+        }
+
         $('fileInput').addEventListener('change', async function(e) {
             const files = Array.from(e.target.files);
             
@@ -1802,11 +1771,18 @@ function verificarDependencias() {
             if(currentOM.emOficina) {
                 _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
+                if(timerInterval) clearInterval(timerInterval);
+                if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
                 $('btnDeslocamento').style.display = 'none';
-                $('btnIniciar').style.display = 'block';
+                $('btnIniciar').style.display = 'none';
                 $('btnIniciar').disabled = false;
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
+                $('timerDisplay').style.display = 'none';
+                $('timerAtividade').style.display = 'none';
+                $('timerDateInfo').style.display = 'none';
+                $('timerAtivDateInfo').style.display = 'none';
+                _btnOficinaCk();
                 if(currentOM.planoCod || currentOM.checklistCorretiva) {
                     _mostrarChecklistUI(true);
                 }
@@ -3070,6 +3046,12 @@ function verificarDependencias() {
             return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
         function onChecklistChange(name) {
             var sel = document.querySelector('input[name="' + name + '"]:checked');
             var fotoRow = document.getElementById('fotoRow_' + name);
@@ -3225,6 +3207,17 @@ function capturarFoto(name, tipo) {
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function visualizarFotoChecklist(base64) {
@@ -3684,6 +3677,7 @@ function capturarFoto(name, tipo) {
             if(!confirm('🔧 ENVIAR PARA OFICINA?\n\nO HH e deslocamento serão salvos automaticamente.\nA OM ficará com status OFICINA.')) return;
             
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+            if(timerInterval) clearInterval(timerInterval);
             
             if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
                 var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
@@ -3703,6 +3697,8 @@ function capturarFoto(name, tipo) {
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.retornouOficina = false;
+            currentOM.devolvendoEquipamento = false;
             currentOM.dataEnvioOficina = new Date().toISOString();
             currentOM.lockDeviceId = null;
             currentOM._deslocSegundosSnapshot = deslocamentoSegundos;
@@ -3712,7 +3708,7 @@ function capturarFoto(name, tipo) {
             _pushOMStatusSupabase(currentOM);
             setTimeout(function() { _uploadPDFRelatorio(currentOM.num); }, 800);
             
-            alert('🔧 OM ENVIADA PARA OFICINA!\n\nHH e dados salvos com sucesso.');
+            alert('🔧 ATIVIDADE FINALIZADA NA OFICINA!\n\nHH pausado com sucesso. Status: aguardando devolução.');
             hideDetail();
             filtrarOMs();
         }
@@ -4812,6 +4808,55 @@ function capturarFoto(name, tipo) {
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
                     bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 16 }, 2: { cellWidth: 22 }, 3: { cellWidth: 20 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20 }, 6: { cellWidth: 42 }, 7: { cellWidth: 14 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 6;
+
+                y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
+                var etapasBody = [];
+                var etapasHhAtivTotal = 0;
+                var etapasHhDeslTotal = 0;
+                var etapaRowSeq = 1;
+                for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
+                    var hx = currentOM.historicoExecucao[eh] || {};
+                    var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
+                    var ef = hx.dataFim ? new Date(hx.dataFim) : null;
+                    var tagEt = hx.tag || 'ATIVIDADE';
+                    var execsEt = (hx.executantes && hx.executantes.length) ? hx.executantes : ['---'];
+                    var hhAtivEt = Number(hx.hhAtividade || 0);
+                    var hhDeslEt = Number(hx.hhDeslocamento || 0);
+                    for (var ex = 0; ex < execsEt.length; ex++) {
+                        etapasHhAtivTotal += hhAtivEt;
+                        etapasHhDeslTotal += hhDeslEt;
+                        etapasBody.push([
+                            { content: String(etapaRowSeq++), styles: { halign: 'center', fontSize: 6 } },
+                            { content: tagEt, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold' } },
+                            { content: String(execsEt[ex] || '---'), styles: { fontSize: 6 } },
+                            { content: ei ? ei.toLocaleDateString('pt-BR') + ' ' + ei.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                            { content: ef ? ef.toLocaleDateString('pt-BR') + ' ' + ef.toLocaleTimeString('pt-BR') : '--', styles: { halign: 'center', fontSize: 6 } },
+                            { content: hhAtivEt.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } },
+                            { content: hhDeslEt.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6 } }
+                        ]);
+                    }
+                }
+                if(etapasBody.length === 0) {
+                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
+                } else {
+                    etapasBody.push([
+                        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
+                        { content: etapasHhAtivTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
+                        { content: etapasHhDeslTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } }
+                    ]);
+                }
+                pdf.autoTable({
+                    startY: y,
+                    head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
+                    body: etapasBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                    bodyStyles: { fontSize: 6.1, cellPadding: 1.5, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 45 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 19.5 }, 6: { cellWidth: 19.5 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
