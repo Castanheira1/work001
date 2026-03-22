@@ -431,22 +431,61 @@ async function downloadAllPDFs(num,hasCK,hasNC){
   adminToast("Downloads concluídos","success");
 }
 
+async function _mergePDFsToBlob(blobs){
+  var jsPDF=window.jspdf&&window.jspdf.jsPDF;
+  if(!jsPDF||!blobs.length)return null;
+  var doc=new jsPDF({orientation:"p",unit:"mm",format:"a4",compress:true});
+  var firstPage=true;
+  for(var bi=0;bi<blobs.length;bi++){
+    var ab=await blobs[bi].arrayBuffer();
+    var pdfDoc=await pdfjsLib.getDocument({data:ab}).promise;
+    for(var pg=1;pg<=pdfDoc.numPages;pg++){
+      var page=await pdfDoc.getPage(pg);
+      var vp1=page.getViewport({scale:1});
+      var scale=Math.min(1.5,1400/vp1.width);
+      var vp=page.getViewport({scale:scale});
+      var cvs=document.createElement("canvas");
+      cvs.width=Math.floor(vp.width);cvs.height=Math.floor(vp.height);
+      await page.render({canvasContext:cvs.getContext("2d"),viewport:vp}).promise;
+      var imgData=cvs.toDataURL("image/jpeg",0.82);
+      var pW=210,pH=Math.round(cvs.height*(210/cvs.width));
+      if(!firstPage)doc.addPage("a4","p");
+      doc.addImage(imgData,"JPEG",0,0,pW,pH,undefined,"FAST");
+      firstPage=false;
+    }
+  }
+  return firstPage?null:doc.output("blob");
+}
+
 async function baixarZip(){
   var btn=$("btnZip");btn.disabled=true;btn.textContent="Gerando ZIP…";
   var reports=dashboardData.reports;
   if(!reports.length){adminToast("Nenhum relatório disponível","warn");btn.disabled=false;btn.textContent="⬇ Baixar Todos (.zip)";return;}
+  if(typeof pdfjsLib==="undefined"||!window.jspdf){adminToast("Bibliotecas PDF não carregadas","error");btn.disabled=false;btn.textContent="⬇ Baixar Todos (.zip)";return;}
   try{
     var zip=new JSZip();var folder=zip.folder("Relatorios_OMs");
     for(var i=0;i<reports.length;i++){
-      btn.textContent="Baixando "+(i+1)+"/"+reports.length+"…";
-      var{data,error}=await sb.storage.from("pcm-files").createSignedUrl("reports/OM_"+reports[i].num+".pdf",120);
-      if(error||!data||!data.signedUrl)continue;
-      var resp=await fetch(data.signedUrl);if(!resp.ok)continue;
-      folder.file("OM_"+reports[i].num+".pdf",await resp.blob());
+      var r=reports[i];
+      btn.textContent="Mesclando "+(i+1)+"/"+reports.length+" (OM "+r.num+")…";
+      var prefixes=["OM"];
+      if(r.has_checklist)prefixes.push("CK");
+      if(r.has_nc)prefixes.push("NC");
+      var blobs=[];
+      for(var pi=0;pi<prefixes.length;pi++){
+        try{
+          var{data,error}=await sb.storage.from("pcm-files").createSignedUrl("reports/"+prefixes[pi]+"_"+r.num+".pdf",120);
+          if(error||!data||!data.signedUrl)continue;
+          var resp=await fetch(data.signedUrl);if(!resp.ok)continue;
+          blobs.push(await resp.blob());
+        }catch(e){console.warn("[ZIP] falha ao buscar "+prefixes[pi]+"_"+r.num,e);}
+      }
+      if(!blobs.length)continue;
+      var merged=await _mergePDFsToBlob(blobs);
+      if(merged)folder.file("OM_"+r.num+"_completo.pdf",merged);
     }
     btn.textContent="Compactando…";
-    forceDownloadBlob(await zip.generateAsync({type:"blob"}),"Relatorios_OMs.zip");
-  }catch(e){adminToast("Erro ao gerar ZIP","error");}
+    forceDownloadBlob(await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}}),"Relatorios_OMs.zip");
+  }catch(e){adminToast("Erro ao gerar ZIP: "+e.message,"error");console.error(e);}
   btn.disabled=false;btn.textContent="⬇ Baixar Todos (.zip)";
 }
 
