@@ -82,7 +82,9 @@ function verificarDependencias() {
         }
 
         function _btnOficinaCk() {
-            if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
+            if (currentOM.emOficina && !currentOM.devolvendoEquipamento) {
+                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0 });
@@ -747,6 +749,14 @@ function verificarDependencias() {
                 'Content-Type': 'application/json',
                 'Prefer': 'return=representation,count=exact'
             };
+            function _payloadCompatEstadoFluxo(p){
+                if(!p) return p;
+                var out = Object.assign({}, p);
+                if(out.estado_fluxo === 'em_oficina') {
+                    out.estado_fluxo = 'executada';
+                }
+                return out;
+            }
             var resp = await _fetchComTimeout(
                 SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS + '?num=eq.' + encodeURIComponent(payload.num),
                 { method: 'PATCH', headers: _hdrs, body: JSON.stringify(payload) },
@@ -774,6 +784,20 @@ function verificarDependencias() {
                 return true;
             }
             var errBody = await resp.text().catch(function(){ return ''; });
+            if(resp.status === 400 && /oms_estado_fluxo_check/.test(errBody || '')) {
+                var payloadCompat = _payloadCompatEstadoFluxo(payload);
+                if(JSON.stringify(payloadCompat) !== JSON.stringify(payload)) {
+                    console.warn('[PUSH] estado_fluxo incompatível no servidor para OM ' + payload.num + ' — aplicando fallback compatível');
+                    var respCompat = await _fetchComTimeout(
+                        SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS + '?num=eq.' + encodeURIComponent(payload.num),
+                        { method: 'PATCH', headers: _hdrs, body: JSON.stringify(payloadCompat) },
+                        12000
+                    );
+                    if(respCompat.ok) return true;
+                    var errCompat = await respCompat.text().catch(function(){ return ''; });
+                    console.error('[PUSH] PATCH fallback falhou HTTP ' + respCompat.status + ':', errCompat);
+                }
+            }
             console.error('[PUSH] PATCH falhou HTTP ' + resp.status + ':', errBody);
             throw new Error('HTTP ' + resp.status + ' — ' + errBody.substring(0, 300));
         }
@@ -1632,11 +1656,18 @@ function verificarDependencias() {
             if(currentOM.emOficina) {
                 _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
+                if(timerInterval) clearInterval(timerInterval);
+                if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
                 $('btnDeslocamento').style.display = 'none';
-                $('btnIniciar').style.display = 'block';
+                $('btnIniciar').style.display = 'none';
                 $('btnIniciar').disabled = false;
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
+                $('timerDisplay').style.display = 'none';
+                $('timerAtividade').style.display = 'none';
+                $('timerDateInfo').style.display = 'none';
+                $('timerAtivDateInfo').style.display = 'none';
+                _btnOficinaCk();
                 if(currentOM.planoCod || currentOM.checklistCorretiva) {
                     _mostrarChecklistUI(true);
                 }
@@ -2069,7 +2100,14 @@ function verificarDependencias() {
             '3.5': { cod: '3.5', label: 'Sem Acesso à Área', icon: '🚫' }
         };
 
-        function showMenuDesvios() { $('popupMenuDesvios').classList.add('active'); }
+        function showMenuDesvios() {
+            var emOficina = !!(currentOM && currentOM.emOficina);
+            var itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
+            for(var i = 0; i < itensRestritos.length; i++) {
+                itensRestritos[i].style.display = emOficina ? 'none' : 'block';
+            }
+            $('popupMenuDesvios').classList.add('active');
+        }
         function hideMenuDesvios() { $('popupMenuDesvios').classList.remove('active'); }
         function selecionarDesvio(tipo) {
             hideMenuDesvios();
@@ -2879,6 +2917,36 @@ function verificarDependencias() {
             return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
+        function _podeEditarChecklistAgora() {
+            if(!currentOM) return false;
+            if(!currentOM.emOficina) return true;
+            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+        }
+
         function onChecklistChange(name) {
             var sel = document.querySelector('input[name="' + name + '"]:checked');
             var fotoRow = document.getElementById('fotoRow_' + name);
@@ -2938,21 +3006,22 @@ function verificarDependencias() {
         }
 
         function _mostrarChecklistUI(forcarAberto) {
-            _aplicarModoChecklistFoco(true);
+            var isOficina = currentOM && (currentOM.emOficina || currentOM.retornouOficina);
+            var ativarFoco = !isOficina && !!forcarAberto;
+            _aplicarModoChecklistFoco(ativarFoco);
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
-            var isOficina = currentOM && (currentOM.emOficina || currentOM.retornouOficina);
             if(isOficina || forcarAberto) {
                 $('checklistContent').style.display = 'block';
                 $('checklistContent').innerHTML = renderChecklist();
                 $('btnSalvarChecklist').style.display = isOficina ? 'none' : 'block';
                 $('btnEditarChecklist').style.display = 'none';
             } else if(currentOM.checklistDados && currentOM.checklistDados.length > 0) {
-                $('checklistContent').innerHTML = '';
-                $('checklistContent').style.display = 'none';
-                $('btnSalvarChecklist').style.display = 'none';
-                $('btnEditarChecklist').style.display = 'block';
-                $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+                $('checklistContent').style.display = 'block';
+                $('checklistContent').innerHTML = renderChecklist();
+                $('btnSalvarChecklist').style.display = _podeEditarChecklistAgora() ? 'block' : 'none';
+                $('btnEditarChecklist').style.display = _podeEditarChecklistAgora() ? 'none' : 'block';
+                $('checklistSection').textContent = '📋 Checklist de Manutenção (continuando...)';
             } else {
                 $('checklistContent').style.display = 'block';
                 $('checklistContent').innerHTML = renderChecklist();
@@ -3033,6 +3102,61 @@ function capturarFoto(name, tipo) {
             fotoAtualItem = name;
             fotoAtualTipo = tipo;
             $('inputFotoChecklist').click();
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
+        }
+
+        function visualizarFotoChecklist(base64) {
+            if(!base64) return;
+            $('fotoChecklistImg').src = base64;
+            $('popupFotoChecklist').classList.add('active');
+        }
+
+        function fecharFotoChecklist() {
+            $('popupFotoChecklist').classList.remove('active');
+            $('fotoChecklistImg').src = '';
         }
 
         function visualizarFotoChecklist(base64) {
@@ -3403,19 +3527,37 @@ function capturarFoto(name, tipo) {
             hideMateriais();
         }
 
+        function _obterValorChecklistItem(nome) {
+            var sel = document.querySelector('input[name="' + nome + '"]:checked');
+            if (sel && sel.value) return sel.value;
+            if (!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
+            var idxNum = parseInt(String(nome).slice(1), 10) || 0;
+            var secao = nome.charAt(0) === 'm' ? 'MENSAL' : 'TRIMESTRAL EM CASO DE ANOMALIA';
+            for (var i = 0; i < currentOM.checklistDados.length; i++) {
+                var item = currentOM.checklistDados[i];
+                if (!item) continue;
+                if (item.secao === secao && Number(item.num || 0) === idxNum) {
+                    return item.valor || '';
+                }
+            }
+            return '';
+        }
+
+        var _nomesChecklist = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
+
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
                 return;
             }
             
-            var nomes = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
             var temAnormal = false;
-            for(var i = 0; i < nomes.length; i++) {
-                var sel = document.querySelector('input[name="' + nomes[i] + '"]:checked');
-                if(sel && sel.value === 'anormal') {
-                    if(!checklistFotos[nomes[i]] || !checklistFotos[nomes[i]].antes) {
-                        alert('⚠️ Item ' + nomes[i].toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
+            for(var i = 0; i < _nomesChecklist.length; i++) {
+                var nomeItem = _nomesChecklist[i];
+                var valorItem = _obterValorChecklistItem(nomeItem);
+                if(valorItem === 'anormal') {
+                    if(!checklistFotos[nomeItem] || !checklistFotos[nomeItem].antes) {
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
                         return;
                     }
                     temAnormal = true;
@@ -3430,6 +3572,7 @@ function capturarFoto(name, tipo) {
             if(!confirm('🔧 ENVIAR PARA OFICINA?\n\nO HH e deslocamento serão salvos automaticamente.\nA OM ficará com status OFICINA.')) return;
             
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+            if(timerInterval) clearInterval(timerInterval);
             
             if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
                 var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
@@ -3446,9 +3589,11 @@ function capturarFoto(name, tipo) {
                 }
             }
             
-            currentOM.checklistDados = coletarChecklistDados();
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.retornouOficina = false;
+            currentOM.devolvendoEquipamento = false;
             currentOM.dataEnvioOficina = new Date().toISOString();
             currentOM.lockDeviceId = null;
             currentOM._deslocSegundosSnapshot = deslocamentoSegundos;
@@ -3458,21 +3603,21 @@ function capturarFoto(name, tipo) {
             _pushOMStatusSupabase(currentOM);
             setTimeout(function() { _uploadPDFRelatorio(currentOM.num); }, 800);
             
-            alert('🔧 OM ENVIADA PARA OFICINA!\n\nHH e dados salvos com sucesso.');
+            alert('🔧 ATIVIDADE FINALIZADA NA OFICINA!\n\nHH pausado com sucesso. Status: aguardando devolução.');
             hideDetail();
             filtrarOMs();
         }
 
         function devolverEquipamento() {
-            var nomes = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
             var temAnormal = false;
-            for(var i = 0; i < nomes.length; i++) {
-                var sel = document.querySelector('input[name="' + nomes[i] + '"]:checked');
-                if(sel && sel.value === 'anormal') {
+            for(var i = 0; i < _nomesChecklist.length; i++) {
+                var nomeItem = _nomesChecklist[i];
+                var valorItem = _obterValorChecklistItem(nomeItem);
+                if(valorItem === 'anormal') {
                     temAnormal = true;
-                    var foto = checklistFotos[nomes[i]] || {};
+                    var foto = checklistFotos[nomeItem] || {};
                     if(!foto.antes) {
-                        alert('⚠️ Item ' + nomes[i].toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
                         return;
                     }
                 }
@@ -3497,7 +3642,7 @@ function capturarFoto(name, tipo) {
                 }
             }
             
-            currentOM.checklistDados = coletarChecklistDados();
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.retornouOficina = true;
             currentOM.devolvendoEquipamento = true;
@@ -3759,22 +3904,52 @@ function capturarFoto(name, tipo) {
             }
             for(var j = 0; j < checklistItens.trimestral.length; j++) nomesTodos.push('t' + (j + 1));
 
-            var naoMarcados = [], semFoto = [];
+            function _valorChecklist(nomeItem) {
+                var sel = document.querySelector('input[name="' + nomeItem + '"]:checked');
+                if(sel) return sel.value;
+                if(!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
+                var sec = nomeItem.charAt(0) === 'm' ? 'MENSAL' : 'TRIMESTRAL EM CASO DE ANOMALIA';
+                var idx = parseInt(nomeItem.slice(1), 10);
+                if(!idx) return '';
+                var num = String(idx).padStart(2, '0');
+                for(var c = 0; c < currentOM.checklistDados.length; c++) {
+                    var item = currentOM.checklistDados[c];
+                    if(item && item.secao === sec && String(item.num || '') === num) {
+                        return item.valor || '';
+                    }
+                }
+                return '';
+            }
+
+            var naoMarcadosMensal = [], naoMarcadosTri = [], semFoto = [];
+            var preenchidosMensal = 0, preenchidosTri = 0;
             for(var n = 0; n < nomesMensais.length; n++) {
-                var selM = document.querySelector('input[name="' + nomesMensais[n] + '"]:checked');
-                if(!selM) naoMarcados.push(nomesMensais[n]);
+                var valorM = _valorChecklist(nomesMensais[n]);
+                if(valorM) preenchidosMensal++;
+                else naoMarcadosMensal.push(nomesMensais[n]);
+            }
+            for(var t = 0; t < checklistItens.trimestral.length; t++) {
+                var nomeT = 't' + (t + 1);
+                var valorT = _valorChecklist(nomeT);
+                if(valorT) preenchidosTri++;
+                else naoMarcadosTri.push(nomeT);
             }
             for(var x = 0; x < nomesTodos.length; x++) {
                 var name = nomesTodos[x];
-                var sel = document.querySelector('input[name="' + name + '"]:checked');
-                if(!sel) continue;
-                if(sel.value === 'anormal') {
+                var valor = _valorChecklist(name);
+                if(!valor) continue;
+                if(valor === 'anormal') {
                     var foto = checklistFotos[name] || {};
                     if(!foto.antes) semFoto.push(name);
                 }
             }
             var erros = [];
-            if(naoMarcados.length > 0) erros.push('⚠️ ' + naoMarcados.length + ' item(ns) MENSAL sem marcação: ' + naoMarcados.join(', ').toUpperCase());
+            if(preenchidosMensal === 0 && preenchidosTri === 0) {
+                erros.push('⚠️ ' + naoMarcadosMensal.length + ' item(ns) MENSAL sem marcação: ' + naoMarcadosMensal.join(', ').toUpperCase());
+            } else {
+                if(naoMarcadosMensal.length > 0) erros.push('⚠️ ' + naoMarcadosMensal.length + ' item(ns) MENSAL sem marcação: ' + naoMarcadosMensal.join(', ').toUpperCase());
+                if(preenchidosTri > 0 && naoMarcadosTri.length > 0) erros.push('⚠️ ' + naoMarcadosTri.length + ' item(ns) TRIMESTRAL sem marcação: ' + naoMarcadosTri.join(', ').toUpperCase());
+            }
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
             return erros;
         }

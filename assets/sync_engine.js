@@ -43,6 +43,10 @@
   }
 
   function buildLocalOm(r) {
+    var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
+    var statusRaw = String(r.status || '').toLowerCase();
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    var lockRemoto = r.lock_device_id || null;
     return {
       num: r.num,
       titulo: r.titulo || '',
@@ -63,16 +67,17 @@
       tagIdentificacao: r.tag_identificacao || '',
       status: r.status_sistema || r.status || '',
       statusAtual: 'programada',
-      finalizada: false,
-      cancelada: false,
-      pendenteAssinatura: false,
+      finalizada: !!(r.finalizada || statusRaw === 'finalizada'),
+      cancelada: !!(r.cancelada || statusRaw === 'cancelada'),
+      pendenteAssinatura: !!(r.pendente_assinatura || statusRaw === 'pendente_assinatura'),
+      emOficina: emOficina,
       historicoExecucao: r.historico_execucao || [],
       materiaisUsados: r.materiais_usados || [],
       executantes: r.executantes || [],
       primeiroExecutante: r.primeiro_executante || null,
       hh_total: r.hh_total || 0,
       materiais_total: r.materiais_total || 0,
-      lockDeviceId: null,
+      lockDeviceId: lockRemoto,
       _fromSync: true
     };
   }
@@ -87,6 +92,20 @@
         om[key] = value;
         changed = true;
       }
+    }
+
+    var lockRemoto = r.lock_device_id || null;
+    if ((om.lockDeviceId || null) !== lockRemoto) {
+      om.lockDeviceId = lockRemoto;
+      changed = true;
+    }
+
+    var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
+    var statusRaw = String(r.status || '').toLowerCase();
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    if (!!om.emOficina !== emOficina) {
+      om.emOficina = emOficina;
+      changed = true;
     }
 
     setIfEmpty('titulo', r.titulo || '');
@@ -137,15 +156,18 @@
 
   function omNeedsExtraction(om) {
     if (!om) return false;
+    function vazio(v) {
+      return !v || v === '---' || v === '-' || v === '--' || v === '—';
+    }
     return (
-      !om.descLocal || om.descLocal === '---' ||
-      !om.descLocalSup || om.descLocalSup === '---' ||
-      !om.caracteristicas || om.caracteristicas === '---' ||
-      !om.criticidade ||
-      !om.tipoManut ||
-      !om.tagIdentificacao ||
-      !om.local || om.local === '---' ||
-      !om.descricao
+      vazio(om.descLocal) ||
+      vazio(om.descLocalSup) ||
+      vazio(om.caracteristicas) ||
+      vazio(om.criticidade) ||
+      vazio(om.tipoManut) ||
+      vazio(om.tagIdentificacao) ||
+      vazio(om.local) ||
+      vazio(om.descricao)
     );
   }
 
@@ -158,6 +180,7 @@
       var val = (typeof value === 'string') ? value.trim() : value;
       if (val === '') return;
       invalids = invalids || [];
+      if (val === '-' || val === '--' || val === '—') return;
       if (invalids.indexOf(val) !== -1) return;
       if (om[key] !== val) {
         om[key] = val;
