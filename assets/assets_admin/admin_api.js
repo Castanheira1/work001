@@ -42,6 +42,7 @@ async function carregarBMsPeriodo(){
 
 async function onBMFilterChange(){
   _selectedBM=$("filterBM").value;
+  if(typeof clearGlobalFilters==="function")clearGlobalFilters();
   if(!_selectedBM){
     $("bmPeriodoLabel").textContent="Dados ao vivo do Supabase";
     loadDashboard();
@@ -171,6 +172,18 @@ async function exportarBmExcel(){
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
+    function parseHist(om){
+      var hist=[];
+      var raw=(om&&om.historico_execucao!=null)?om.historico_execucao:(om?om.historicoExecucao:null);
+      try{hist=Array.isArray(raw)?raw:JSON.parse(raw||"[]");}catch(e){hist=[];}
+      return Array.isArray(hist)?hist:[];
+    }
+    function parseMats(om){
+      var mats=[];
+      var raw=(om&&om.materiais_usados!=null)?om.materiais_usados:(om?om.materiaisUsados:null);
+      try{mats=Array.isArray(raw)?raw:JSON.parse(raw||"[]");}catch(e){mats=[];}
+      return Array.isArray(mats)?mats:[];
+    }
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -189,7 +202,7 @@ async function exportarBmExcel(){
     var deslData=[["OM","Nº Pessoal","Iníc. Exec","Iníc. Exec","Fim Exec","Fim Exec","Tempo","Causa"]];
     var totalDeslSeg=0,pessoalN=0;
     oms.forEach(function(om){
-      var hist=[];try{hist=Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}catch(e){hist=[];}
+      var hist=parseHist(om);
       hist.forEach(function(hx){
         var execs=Array.isArray(hx.executantes)?hx.executantes:[];
         var numExec=execs.length||1;
@@ -214,7 +227,7 @@ async function exportarBmExcel(){
     var ativData=[["OM","Nº Pessoal","Iníc. Exec","Iníc. Exec","Fim Exec","Fim Exec","Tempo"]];
     var totalAtivSeg=0,pessoalNA=0;
     oms.forEach(function(om){
-      var hist=[];try{hist=Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}catch(e){hist=[];}
+      var hist=parseHist(om);
       hist.forEach(function(hx){
         var execs=Array.isArray(hx.executantes)?hx.executantes:[];
         var numExec=execs.length||1;
@@ -242,7 +255,7 @@ async function exportarBmExcel(){
     var totalMat=0,matCount=0;
     var bmMatRows=[];
     oms.forEach(function(om){
-      var mats=[];try{mats=Array.isArray(om.materiais_usados)?om.materiais_usados:JSON.parse(om.materiais_usados||"[]");}catch(e){mats=[];}
+      var mats=parseMats(om);
       mats.forEach(function(m){
         var qtd=parseFloat(m.qtd||m.quantidade||0);
         var vUnit=parseFloat(m.precoUnit||m.preco||m.valor_unitario||0);
@@ -264,6 +277,10 @@ async function exportarBmExcel(){
     _styleSheet(wsMat,11,matCount);
     if(matCount>0)_styleTotalRow(wsMat,matCount+2);
     XLSX.utils.book_append_sheet(wb,wsMat,"Materiais");
+    if(pessoalN===0&&pessoalNA===0&&matCount===0){
+      console.warn("[BM_EXPORT] Arquivo sem linhas de dados. Verifique se as OMs possuem historico_execucao/materiais_usados (snake_case) ou historicoExecucao/materiaisUsados (camelCase).");
+      adminToast("Exportado sem linhas (somente cabeçalho). Verifique dados de histórico/materiais das OMs.","warn",4500);
+    }
     // SALVAR bm_materiais NO BANCO
     if(bmMatRows.length){
       try{
@@ -275,7 +292,7 @@ async function exportarBmExcel(){
     // SALVAR bm_hh NO BANCO
     var bmHHRows=[];
     oms.forEach(function(om){
-      var hist=[];try{hist=Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}catch(e){hist=[];}
+      var hist=parseHist(om);
       var pN=0;
       hist.forEach(function(hx){
         var execs=Array.isArray(hx.executantes)?hx.executantes:[];var numExec=execs.length||1;
@@ -339,6 +356,11 @@ async function limparTodosPDFs(){
 
 async function handleUploadFiles(files){
   var cli=ensureSupabaseClient();
+  var escopoSel=(($("uploadEscopo")||{}).value||"").trim();
+  if(!escopoSel||escopoSel==="geral"){
+    adminToast("Selecione um escopo obrigatório antes do upload (não é permitido Geral).","error",5000);
+    return;
+  }
   var zone=$("uploadZone");
   if(zone)zone.innerHTML='<div class="spinner"></div><small style="margin-top:4px;display:block">Enviando '+files.length+' arquivo(s)…</small>';
   var ok=0,fail=0,ignorados=[];
@@ -351,7 +373,7 @@ async function handleUploadFiles(files){
     var path="originais/"+num+".pdf";
     var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
     if(uploadRes.error){fail++;adminToast("Erro OM "+num+": "+uploadRes.error.message,"error");continue;}
-    var insertRes=await cli.from("oms").insert({num:num,titulo:"OM "+num,status:"enviada",estado_fluxo:"preliminar",escopo:($("uploadEscopo")||{}).value||"geral",cancelada:false,finalizada:false,pendente_assinatura:false,admin_unlock:false,admin_validou_material:false,admin_modificou_material:false,cliente_assinou:false,fiscal_assinou:false,has_checklist:false,has_nc:false,has_relatorio:false});
+    var insertRes=await cli.from("oms").insert({num:num,titulo:"OM "+num,status:"enviada",estado_fluxo:"preliminar",escopo:escopoSel,cancelada:false,finalizada:false,pendente_assinatura:false,admin_unlock:false,admin_validou_material:false,admin_modificou_material:false,cliente_assinou:false,fiscal_assinou:false,has_checklist:false,has_nc:false,has_relatorio:false});
     if(insertRes.error){fail++;try{await cli.storage.from("pcm-files").remove([path]);}catch(_){}adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");}
     else{ok++;adminToast("OM "+num+" enviada ✓","success");}
   }
