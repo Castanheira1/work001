@@ -267,6 +267,10 @@ async function exportarBmExcel(){
     _styleSheet(wsMat,11,matCount);
     if(matCount>0)_styleTotalRow(wsMat,matCount+2);
     XLSX.utils.book_append_sheet(wb,wsMat,"Materiais");
+    if(pessoalN===0&&pessoalNA===0&&matCount===0){
+      console.warn("[BM_EXPORT] Arquivo sem linhas de dados. Verifique se as OMs possuem historico_execucao/materiais_usados (snake_case) ou historicoExecucao/materiaisUsados (camelCase).");
+      adminToast("Exportado sem linhas (somente cabeçalho). Verifique dados de histórico/materiais das OMs.","warn",4500);
+    }
     // SALVAR bm_materiais NO BANCO
     if(bmMatRows.length){
       try{

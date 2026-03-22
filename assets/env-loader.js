@@ -29,6 +29,11 @@
   }
 
   function loadConfig() {
+    if (w.location && w.location.protocol === 'file:') {
+      console.warn('[ENV] Execução em file:// detectada. Pulando fetch de config.json para evitar erro de CORS.');
+      fireReady();
+      return Promise.resolve(w.ENV);
+    }
     var url = './config.json?v=' + Date.now();
     return fetch(url, {
       method: 'GET',
@@ -65,6 +70,7 @@
   if (typeof fetch === 'function') {
     loadConfig();
   } else {
+    console.warn('[ENV] fetch indisponível. Mantendo bootstrap síncrono.');
     fireReady();
   }
 })(window);
