@@ -555,7 +555,7 @@
       });
 
       if (changed) localStorage.setItem(getHistoricoStorageKey(), JSON.stringify(hist));
-    } catch (e) {}
+    } catch (e) { console.warn('[SYNC] Falha ao persistir estado PDF:', e); }
   }
 
   function parseOmNumFromPath(name) {

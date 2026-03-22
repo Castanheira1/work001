@@ -15,9 +15,8 @@ function doLogout(){localStorage.removeItem(SESSION_KEY);window.location.href="P
 async function verificarAdmin(){
   try{
     ensureSupabaseClient();
-    const raw=localStorage.getItem(SESSION_KEY);
-    if(!raw){window.location.href="PCM_MCR_v5.html";return;}
-    const sess=JSON.parse(raw);
+    const sess=getSession();
+    if(!sess){window.location.href="PCM_MCR_v5.html";return;}
     const res=await fetch(SUPABASE_URL+"/rest/v1/profiles?select=role,username&user_id=eq."+sess.user.id,{
       headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+sess.access_token}
     });

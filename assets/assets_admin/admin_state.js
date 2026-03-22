@@ -3,6 +3,16 @@
 const SESSION_KEY="pcm_auth_session";
 let SUPABASE_URL=(window.ENV&&window.ENV.SUPABASE_URL)||window.SUPABASE_URL||"";
 let SUPABASE_ANON_KEY=(window.ENV&&window.ENV.SUPABASE_ANON_KEY)||window.SUPABASE_ANON_KEY||"";
+
+function getSession() {
+  try {
+    var raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) {
+    console.warn('[ADMIN] Sessão inválida no storage:', e);
+    return null;
+  }
+}
 let sb=null;
 
 function hasSupabaseClient(){return!!(window.supabase&&typeof window.supabase.createClient==="function");}
