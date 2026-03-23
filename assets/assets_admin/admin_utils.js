@@ -1,9 +1,9 @@
 function esc(str){if(str==null)return"";return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
-function escAttr(str){return esc(str).replace(/`/g,"&#96;");}
 function safeNum(val){return val==null?"":String(val);}
 function safeStorageOriginalPath(num){return"originais/"+safeNum(num)+".pdf";}
 function safeMediaUrl(url){if(!url)return"";var s=String(url).trim();if(/^https?:\/\//i.test(s)||/^blob:/i.test(s)||/^data:image\//i.test(s))return s;return"";}
 function $(id){return document.getElementById(id);}
+function safeParseArray(val){try{return Array.isArray(val)?val:JSON.parse(val||"[]");}catch(e){return[];}}
 function _fmtNum(n){return n>=1000?(n/1000).toFixed(1)+"k":n.toFixed(0);}
 function adminToast(msg,type,dur){var ct=$("admin-toast");if(!ct)return;var colors={success:"linear-gradient(135deg,#1A5276,#2E86C1)",error:"linear-gradient(135deg,#dc3545,#e8575f)",warn:"linear-gradient(135deg,#e67e00,#f5a623)",info:"linear-gradient(135deg,#1565c0,#2196f3)"};var el=document.createElement("div");el.className="toast-item";el.style.background=colors[type]||colors.info;var txt=document.createElement("span");txt.style.flex="1";txt.textContent=String(msg==null?"":msg);var close=document.createElement("span");close.style.opacity=".6";close.style.fontSize="16px";close.textContent="×";el.appendChild(txt);el.appendChild(close);el.onclick=function(){el.classList.add("out");setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},300);};ct.appendChild(el);setTimeout(function(){el.classList.add("out");setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},300);},dur||3500);}
 function forceDownloadBlob(blob,filename){var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},800);}

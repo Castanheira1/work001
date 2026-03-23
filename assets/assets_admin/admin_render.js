@@ -146,11 +146,11 @@ function getFilteredOms(includeConcluidas){
   }
   if(dtIni){
     var dIni=_parseDateSafe(dtIni+"T00:00:00");
-    if(dIni)list=list.filter(function(o){var d=_pickDateOm(o);return !d||d>=dIni;});
+    if(dIni)list=list.filter(function(o){var d=_pickDateOm(o);return d&&d>=dIni;});
   }
   if(dtFim){
     var dFim=_parseDateSafe(dtFim+"T23:59:59");
-    if(dFim)list=list.filter(function(o){var d=_pickDateOm(o);return !d||d<=dFim;});
+    if(dFim)list=list.filter(function(o){var d=_pickDateOm(o);return d&&d<=dFim;});
   }
   var statusManual=$("filterStatus")?$("filterStatus").value:"";
   if(!includeConcluidas&&!_showConcluidasPainel&&!currentPipe&&!statusManual){
@@ -354,7 +354,7 @@ function renderEquipes(){
     equipeMap[eq].total++;
     if(o.status==="finalizada"){equipeMap[eq].fin++;equipeMap[eq].hh+=Number(o.hh_total||0);equipeMap[eq].mat+=Number(o.materiais_total||0);}
     if(o.status==="em_execucao")equipeMap[eq].exec++;
-    var execs=[];try{execs=Array.isArray(o.executantes)?o.executantes:JSON.parse(o.executantes||"[]");}catch(e){}
+    var execs=safeParseArray(o.executantes);
     execs.forEach(function(n){if(n)equipeMap[eq].membros[n]=true;});
     if(o.primeiro_executante)equipeMap[eq].membros[o.primeiro_executante]=true;
   });
@@ -463,10 +463,7 @@ function renderAnalytics(){
 function _renderDeepOperationalInsights(all){
   var el=$("analyticsDeepInsights");if(!el)return;
   if(!all||!all.length){el.innerHTML='<div class="empty">Sem dados para análise avançada.</div>';return;}
-  function _hist(om){
-    try{return Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}
-    catch(e){return[];}
-  }
+  function _hist(om){return safeParseArray(om.historico_execucao);}
   var finalizadas=all.filter(function(o){return o.status==="finalizada"&&o.created_at&&o.data_finalizacao;});
   var tempos=finalizadas.map(function(o){return(new Date(o.data_finalizacao)-new Date(o.created_at))/3600000;}).filter(function(v){return v>=0;});
   var tempoMedio=tempos.length?tempos.reduce(function(s,v){return s+v;},0)/tempos.length:0;
@@ -661,7 +658,7 @@ async function _renderCustoCC(){
     if(!oms||!oms.length){el.innerHTML='<div class="empty">Nenhum material no '+ (_selectedBM?"BM "+_selectedBM:"banco")+'</div>';return;}
     var ccMap={};
     oms.forEach(function(om){
-      var mats=[];try{mats=Array.isArray(om.materiais_usados)?om.materiais_usados:JSON.parse(om.materiais_usados||"[]");}catch(e){}
+      var mats=safeParseArray(om.materiais_usados);
       if(!mats.length)return;
       var cc=om.cc||"Sem CC";
       mats.forEach(function(m){
@@ -754,10 +751,8 @@ function showOmModal(om){
   var stMap={enviada:["Enviada","#888"],em_execucao:["Em Execução","var(--az)"],pendente_assinatura:["Pend. Assinatura","var(--lr)"],finalizada:["Finalizada","var(--vd)"],cancelada:["Cancelada","var(--vm)"],em_oficina:["🔧 Em Oficina","#e65100"]};
   var st=stMap[om.status]||[om.status,"#888"];
   var omNum=safeNum(om.num);
-  var executantes=Array.isArray(om.executantes)?om.executantes:[];
-  try{if(typeof om.executantes==="string")executantes=JSON.parse(om.executantes||"[]");}catch(e){}
-  var materiais=Array.isArray(om.materiais_usados)?om.materiais_usados:[];
-  try{if(typeof om.materiais_usados==="string")materiais=JSON.parse(om.materiais_usados||"[]");}catch(e){}
+  var executantes=safeParseArray(om.executantes);
+  var materiais=safeParseArray(om.materiais_usados);
   var desviosOM=dashboardData.desvios.filter(function(d){return d.om_num===om.num;});
   $("modalTitle").innerHTML='<span style="font-family:JetBrains Mono,monospace;color:var(--b1)">'+esc(omNum)+"</span> — "+esc(om.titulo||"—");
   $("modalBtnDelete").onclick=function(){deleteOM(omNum);};

@@ -68,7 +68,7 @@
       entry.lastAccessAt = Date.now();
       var tx = db.transaction(STORE_PDFS, 'readwrite');
       putStoreEntry(tx.objectStore(STORE_PDFS), entry, key);
-    } catch (e) {}
+    } catch (e) { console.warn('[PdfDB] touchPdfEntry falhou:', e); }
   }
 
   function putStoreEntry(store, value, key) {

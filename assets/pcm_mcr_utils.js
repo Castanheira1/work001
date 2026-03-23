@@ -19,10 +19,3 @@ function base64ToArrayBuffer(base64) {
   return bytes.buffer;
 }
 
-function base64ToBlob(base64, type) {
-  var binary = atob(base64);
-  var len = binary.length;
-  var bytes = new Uint8Array(len);
-  for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: type || 'application/octet-stream' });
-}
