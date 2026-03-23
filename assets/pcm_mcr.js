@@ -2447,12 +2447,15 @@ function verificarDependencias() {
             if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
                 var hLast = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
                 if(hLast.dataInicio && !hLast.dataFim) hLast.dataFim = new Date().toISOString();
-                hLast.deslocamentoSegundos = 0;
-                hLast.hhDeslocamento = 0;
+                hLast.tempoPausadoTotal = tempoPausadoTotal;
+                var _totalSeg = (hLast.dataInicio && hLast.dataFim) ? Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (tempoPausadoTotal || 0)) : 0;
+                var _deslOriginal = hLast.deslocamentoSegundos || 0;
+                hLast.deslocamentoSegundos = _deslOriginal + _totalSeg;
+                if(!hLast.deslocamentoHoraInicio) hLast.deslocamentoHoraInicio = hLast.dataInicio;
+                hLast.deslocamentoHoraFim = hLast.dataFim;
+                hLast.hhDeslocamento = hLast.deslocamentoSegundos / 3600;
                 hLast.hhAtividade = 0;
-                hLast.hhEquipe = 0;
-                hLast.hhTotal = 0;
-                hLast.tempoPausadoTotal = 0;
+                _calcHH(hLast);
                 hLast.tag = info.cod + ' - ' + info.label;
                 hLast.desvio = true;
             }
