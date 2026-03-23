@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pcm-mcr-cache-';
-const CACHE_VERSION = CACHE_PREFIX + 'v8';
+const CACHE_VERSION = CACHE_PREFIX + 'v9';
 
 const APP_SHELL = [
   './',
@@ -11,7 +11,18 @@ const APP_SHELL = [
   './assets/toast.js',
   './assets/pcm_auth.js',
   './assets/pcm_mcr_utils.js',
-  './assets/pcm_mcr.js',
+  './assets/pcm_mcr/pcm_globals.js',
+  './assets/pcm_mcr/pcm_realtime.js',
+  './assets/pcm_mcr/pcm_init.js',
+  './assets/pcm_mcr/pcm_sync_push.js',
+  './assets/pcm_mcr/pcm_pdf_import.js',
+  './assets/pcm_mcr/pcm_ui.js',
+  './assets/pcm_mcr/pcm_atividade.js',
+  './assets/pcm_mcr/pcm_desvios.js',
+  './assets/pcm_mcr/pcm_checklist.js',
+  './assets/pcm_mcr/pcm_materiais.js',
+  './assets/pcm_mcr/pcm_finalizar.js',
+  './assets/pcm_mcr/pcm_pdf_gerar.js',
   './assets/sync_engine.js',
   './assets/app_bootstrap.js',
   './assets/vendor/pdf.min.js',
