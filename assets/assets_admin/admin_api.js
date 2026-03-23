@@ -309,7 +309,8 @@ async function exportarBmExcel(){
     }
     adminToast("BM "+bmNum+" — "+bmHHRows.length+" HH + "+bmMatRows.length+" materiais salvos no banco","success",3000);
     var filename="BM_"+bmNum+"_"+new Date().toISOString().slice(0,10)+".xlsx";
-    XLSX.writeFile(wb,filename);
+    var wbOut=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+    forceDownloadBlob(new Blob([wbOut],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),filename);
     adminToast("BM "+bmNum+" — Desloc: "+pessoalN+" | Ativ: "+pessoalNA+" | Mat: "+matCount+" — Excel gerado","success",5000);
   }catch(e){adminToast("Erro: "+e.message,"error");}
 }
