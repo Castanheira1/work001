@@ -648,6 +648,7 @@ window.devolverAdmin       = num => window.dashboard && window.dashboard.devolve
 window.confirmarDevolucao  = () => dashboard.confirmarDevolucao();
 window.abrirOMFiscal       = num => dashboard.abrirOMFiscal(num);
 window.doLogout            = () => dashboard.doLogout();
+window.loadFiscal          = () => window.dashboard && window.dashboard.loadFiscal();
 window.closeModal          = () => document.getElementById("omModal").classList.remove("show");
 window.loadArquivadas      = async () => {
   const { data, error } = await dashboard.sb.from("oms").select("num,titulo,equipe,cc,data_assinatura_fiscal,estado_fluxo")

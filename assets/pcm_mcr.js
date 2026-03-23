@@ -118,7 +118,7 @@ function verificarDependencias() {
                 'STORAGE_KEY_DEVICE', 'STORAGE_KEY_HISTORICO', 'STORAGE_KEY_DESVIOS',
                 'STORAGE_KEY_DESVIOS_ACUM', 'STORAGE_KEY_DASHBOARD', 'STORAGE_KEY_CONFIG',
                 'SUPABASE_TABLE_OMS', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_TABLE_MATERIAIS',
-                'sc', 'arrayBufferToBase64', 'base64ToArrayBuffer', 'base64ToBlob'
+                'sc', 'arrayBufferToBase64', 'base64ToArrayBuffer'
             ];
             var faltando = required.filter(function (k) { return typeof window[k] === 'undefined'; });
             if (faltando.length) {
@@ -211,11 +211,12 @@ function verificarDependencias() {
             if (!window.supabase) return;
             try {
                 if (_rtClient) {
-                    try { _rtClient.removeAllChannels(); } catch(e) {}
+                    try { _rtClient.removeAllChannels(); } catch(e) { console.warn('[RT] removeAllChannels falhou:', e); }
+                } else {
+                    _rtClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                        realtime: { params: { eventsPerSecond: 2 } }
+                    });
                 }
-                _rtClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                    realtime: { params: { eventsPerSecond: 2 } }
-                });
                 _rtChannel = _rtClient.channel('campo_oms_rt_' + deviceId)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'oms' }, function(payload) {
                         var num = payload.new && payload.new.num;
@@ -244,7 +245,7 @@ function verificarDependencias() {
         function _rtDesconectar() {
             clearTimeout(_rtReconnectTimer);
             clearTimeout(_rtDebounce);
-            if (_rtClient) { try { _rtClient.removeAllChannels(); } catch(e) {} _rtClient = null; }
+            if (_rtClient) { try { _rtClient.removeAllChannels(); } catch(e) { console.warn('[RT] removeAllChannels falhou:', e); } _rtClient = null; }
             _rtSetStatus('offline');
         }
 
@@ -284,7 +285,7 @@ function verificarDependencias() {
                     });
                 }
             });
-            try { await Promise.all(delPromises); } catch(e){}
+            try { await Promise.all(delPromises); } catch(e){ console.warn('[PCM] Erro ao limpar PDFs antigos:', e); }
 
             var historicoManter = historico.filter(function(om) {
                 if(!om.dataFinalizacao) return false;
@@ -338,7 +339,7 @@ function verificarDependencias() {
         async function carregarMateriais() {
             const cached = localStorage.getItem(STORAGE_KEY_MATERIAIS);
             if(cached) {
-                try { priceList = JSON.parse(cached); } catch(e) {}
+                try { priceList = JSON.parse(cached); } catch(e) { console.warn('[PCM] Cache de pricelist corrompido:', e); }
             }
             await sincronizarMateriais();
         }
@@ -700,10 +701,10 @@ function verificarDependencias() {
         var _pushPendentes = [];
 
         function _salvarPushPendentes() {
-            try { localStorage.setItem('pcm_push_pendentes', JSON.stringify(_pushPendentes)); } catch(e) {}
+            try { localStorage.setItem('pcm_push_pendentes', JSON.stringify(_pushPendentes)); } catch(e) { console.warn('[PCM] Erro ao salvar push pendentes:', e); }
         }
         function _carregarPushPendentes() {
-            try { var r = localStorage.getItem('pcm_push_pendentes'); if(r) _pushPendentes = JSON.parse(r); } catch(e) {}
+            try { var r = localStorage.getItem('pcm_push_pendentes'); if(r) _pushPendentes = JSON.parse(r); } catch(e) { console.warn('[PCM] Erro ao ler push pendentes:', e); }
         }
 
         function _ehStatusTerminalPayload(payload) {
@@ -733,7 +734,7 @@ function verificarDependencias() {
                     var txt = await resp.text().catch(function(){ return ''; });
                     throw new Error('HTTP ' + resp.status + ' ' + txt.substring(0, 200));
                 }
-                try { await PdfDB.del('orig_' + omNum); } catch(e) {}
+                try { await PdfDB.del('orig_' + omNum); } catch(e) { console.warn('[PCM] Erro ao limpar PDF original:', e); }
                 return true;
             } catch(e) {
                 console.warn('Falha ao remover original da OM ' + omNum + ':', e.message);
@@ -1044,121 +1045,6 @@ function verificarDependencias() {
                 if(!rows || !rows.length) return null;
                 return rows[0];
             } catch(e) { return null; }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
-        }
-
-        async function _obterEstadoServidorOM(omNum) {
-            if(!omNum || !navigator.onLine) return null;
-            try {
-                var resp = await _fetchComTimeout(
-                    SUPABASE_URL + '/rest/v1/' + SUPABASE_TABLE_OMS +
-                    '?num=eq.' + omNum + '&select=num,lock_device_id,admin_unlock,status',
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': 'Bearer ' + ((window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY)
-                        }
-                    },
-                    8000
-                );
-                if(!resp.ok) return null;
-                var rows = await resp.json();
-                if(!rows || !rows.length) return null;
-                return rows[0];
-            } catch(e) {
-                return null;
-            }
         }
 
         async function _obterEstadoServidorOM(omNum) {
@@ -2893,7 +2779,7 @@ function verificarDependencias() {
                     pdf.setDrawColor(180,180,180);
                     pdf.setLineWidth(0.2);
                     pdf.rect(M, y, boxW, boxH, 'FD');
-                    try { pdf.addImage(rec.foto, 'JPEG', M + 0.5, y + 0.5, boxW - 1, boxH - 1); } catch(e) {}
+                    try { pdf.addImage(rec.foto, 'JPEG', M + 0.5, y + 0.5, boxW - 1, boxH - 1); } catch(e) { console.warn('[PCM] Falha ao inserir imagem no PDF:', e.message || e); }
 
                     var metaY = y + boxH + 6;
                     var metaList = [
@@ -3024,36 +2910,6 @@ function verificarDependencias() {
             h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()"' + (podeEditar ? '' : ' readonly') + '>';
             h += '</div>';
             return h;
-        }
-
-        function _podeEditarChecklistAgora() {
-            if(!currentOM) return false;
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
-        }
-
-        function _podeEditarChecklistAgora() {
-            if(!currentOM) return false;
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
-        }
-
-        function _podeEditarChecklistAgora() {
-            if(!currentOM) return false;
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
-        }
-
-        function _podeEditarChecklistAgora() {
-            if(!currentOM) return false;
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
-        }
-
-        function _podeEditarChecklistAgora() {
-            if(!currentOM) return false;
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
 
         function _podeEditarChecklistAgora() {
@@ -4362,7 +4218,7 @@ function capturarFoto(name, tipo) {
             pdf.rect(M, y, 82, signHeight, 'FD');
 
             if (opts.assinatura) {
-                try { pdf.addImage(opts.assinatura, 'PNG', M + 1, y + 1, 80, signHeight - 2); } catch(e) {}
+                try { pdf.addImage(opts.assinatura, 'PNG', M + 1, y + 1, 80, signHeight - 2); } catch(e) { console.warn('[PCM] Falha ao inserir imagem no PDF:', e.message || e); }
             }
 
             var xMeta = M + 88;
@@ -4557,11 +4413,11 @@ function capturarFoto(name, tipo) {
                 pdf.setFillColor(248, 248, 248);
                 pdf.rect(M, y, imgW, imgH, 'FD');
                 if (item.antes) {
-                    try { pdf.addImage(item.antes, 'JPEG', M + 0.5, y + 0.5, imgW - 1, imgH - 1); } catch(e) {}
+                    try { pdf.addImage(item.antes, 'JPEG', M + 0.5, y + 0.5, imgW - 1, imgH - 1); } catch(e) { console.warn('[PCM] Falha ao inserir imagem no PDF:', e.message || e); }
                 }
                 if (item.depois) {
                     pdf.rect(M + imgW + 8, y, imgW, imgH, 'FD');
-                    try { pdf.addImage(item.depois, 'JPEG', M + imgW + 8.5, y + 0.5, imgW - 1, imgH - 1); } catch(e) {}
+                    try { pdf.addImage(item.depois, 'JPEG', M + imgW + 8.5, y + 0.5, imgW - 1, imgH - 1); } catch(e) { console.warn('[PCM] Falha ao inserir imagem no PDF:', e.message || e); }
                 }
                 y += imgH + 14;
             }

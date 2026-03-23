@@ -451,19 +451,6 @@
     });
   }
 
-  function dataUrlPdfToArrayBuffer(dataUrl) {
-    if (!dataUrl || typeof dataUrl !== 'string') return null;
-    try {
-      var raw = dataUrl.indexOf(',') >= 0 ? dataUrl.split(',')[1] : dataUrl;
-      var bin = atob(raw);
-      var out = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out.buffer;
-    } catch (e) {
-      return null;
-    }
-  }
-
   function packItem(item) {
     var base = { id: item.id, ts: item.ts, payload: item.payload };
     var p = (item && item.payload) ? item.payload : null;

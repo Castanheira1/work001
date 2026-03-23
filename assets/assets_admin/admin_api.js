@@ -107,7 +107,7 @@ async function loadDashboard(silent){
     // Recalcular materiais_total se campo vazio mas materiais_usados tem dados
     dashboardData.oms.forEach(function(o){
       if(!o.materiais_total||Number(o.materiais_total)===0){
-        var mats=[];try{mats=Array.isArray(o.materiais_usados)?o.materiais_usados:JSON.parse(o.materiais_usados||"[]");}catch(e){}
+        var mats=safeParseArray(o.materiais_usados);
         if(mats.length>0){var t=0;mats.forEach(function(m){t+=Number(m.total||0);});o.materiais_total=t;}
       }
     });
@@ -172,8 +172,8 @@ async function exportarBmExcel(){
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
-    function parseHist(om){var hist=[];try{hist=Array.isArray(om.historico_execucao)?om.historico_execucao:JSON.parse(om.historico_execucao||"[]");}catch(e){hist=[];}return hist;}
-    function parseMats(om){var mats=[];try{mats=Array.isArray(om.materiais_usados)?om.materiais_usados:JSON.parse(om.materiais_usados||"[]");}catch(e){mats=[];}return mats;}
+    function parseHist(om){return safeParseArray(om.historico_execucao);}
+    function parseMats(om){return safeParseArray(om.materiais_usados);}
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -365,7 +365,7 @@ async function handleUploadFiles(files){
     var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
     if(uploadRes.error){fail++;adminToast("Erro OM "+num+": "+uploadRes.error.message,"error");continue;}
     var insertRes=await cli.from("oms").insert({num:num,titulo:"OM "+num,status:"enviada",estado_fluxo:"preliminar",escopo:escopoSel,cancelada:false,finalizada:false,pendente_assinatura:false,admin_unlock:false,admin_validou_material:false,admin_modificou_material:false,cliente_assinou:false,fiscal_assinou:false,has_checklist:false,has_nc:false,has_relatorio:false});
-    if(insertRes.error){fail++;try{await cli.storage.from("pcm-files").remove([path]);}catch(_){}adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");}
+    if(insertRes.error){fail++;try{await cli.storage.from("pcm-files").remove([path]);}catch(_e){console.warn('[ADMIN] Cleanup storage falhou:', _e);}adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");}
     else{ok++;adminToast("OM "+num+" enviada ✓","success");}
   }
   if(zone)zone.innerHTML='<div class="upload-icon">📁</div><small>Arraste PDFs aqui ou clique para selecionar</small>';
@@ -374,43 +374,10 @@ async function handleUploadFiles(files){
   loadDashboard();
 }
 
-async function viewPDF(num){
-  $("pdfViewerTitle").textContent="OM_"+num+".pdf";
-  $("pdfDlBtn").onclick=function(){if(lastPdfBlob)forceDownloadBlob(lastPdfBlob,"OM_"+num+".pdf");};
-  var viewer=$("pdfViewer");
-  viewer.innerHTML='<div class="pdf-loading">⏳ Baixando…</div>';
-  $("pdfOverlay").classList.add("show");document.body.style.overflow="hidden";
-  closeOmModal();
-  try{
-    var{data,error}=await sb.storage.from("pcm-files").createSignedUrl("reports/OM_"+num+".pdf",120);
-    if(error||!data||!data.signedUrl){viewer.innerHTML='<div class="pdf-loading">PDF não disponível.</div>';return;}
-    var resp=await fetch(data.signedUrl);
-    if(!resp.ok){viewer.innerHTML='<div class="pdf-loading">❌ PDF não disponível.</div>';return;}
-    var blob=await resp.blob();lastPdfBlob=blob;
-    var pdf=await pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise;
-    viewer.innerHTML="";
-    var W=Math.max(320,viewer.clientWidth-40);
-    for(var pg=1;pg<=pdf.numPages;pg++){
-      var page=await pdf.getPage(pg);var vp1=page.getViewport({scale:1});
-      var vp=page.getViewport({scale:(W/vp1.width)*2});
-      var cvs=document.createElement("canvas");cvs.width=vp.width;cvs.height=vp.height;cvs.style.cssText="width:100%;max-width:"+W+"px;height:auto";
-      viewer.appendChild(cvs);
-      await page.render({canvasContext:cvs.getContext("2d"),viewport:vp}).promise;
-    }
-  }catch(e){viewer.innerHTML='<div class="pdf-loading">❌ '+e.message+'</div>';}
-}
+function viewPDF(num){closeOmModal();return verPDFOficina("OM",num);}
 
 function closePdfViewer(){$("pdfOverlay").classList.remove("show");document.body.style.overflow="";$("pdfViewer").innerHTML="";lastPdfBlob=null;}
 
-async function downloadPDF(num){
-  try{
-    var{data,error}=await sb.storage.from("pcm-files").createSignedUrl("reports/OM_"+num+".pdf",120);
-    if(error||!data||!data.signedUrl){adminToast("PDF não disponível","warn");return;}
-    var resp=await fetch(data.signedUrl);
-    if(!resp.ok){adminToast("PDF não disponível","warn");return;}
-    forceDownloadBlob(await resp.blob(),"OM_"+num+".pdf");
-  }catch(e){adminToast("Falha ao baixar","error");}
-}
 
 async function downloadAllPDFs(num,hasCK,hasNC){
   var prefixes=["OM"];
@@ -603,15 +570,12 @@ async function validarMaterial(num){
   }catch(e){adminToast("Erro: "+e.message,"error");}
 }
 
-async function enviarParaFiscalSingle(num){
-  try{var{error}=await sb.from("oms").update({estado_fluxo:"pendente_fiscal",updated_at:new Date().toISOString()}).eq("num",num);if(error)throw error;adminToast("OM "+num+" enviada ao fiscal","success");loadFluxo();}
+async function enviarParaFiscalSingle(num,reenvio){
+  try{var{error}=await sb.from("oms").update({estado_fluxo:"pendente_fiscal",updated_at:new Date().toISOString()}).eq("num",num);if(error)throw error;adminToast("OM "+num+(reenvio?" reenviada":" enviada")+" ao fiscal","success");loadFluxo();}
   catch(e){adminToast("Erro: "+e.message,"error");}
 }
 
-async function reenviarParaFiscal(num){
-  try{var{error}=await sb.from("oms").update({estado_fluxo:"pendente_fiscal",updated_at:new Date().toISOString()}).eq("num",num);if(error)throw error;adminToast("OM "+num+" reenviada ao fiscal","success");loadFluxo();}
-  catch(e){adminToast("Erro: "+e.message,"error");}
-}
+function reenviarParaFiscal(num){return enviarParaFiscalSingle(num,true);}
 
 async function enviarLoteFiscal(){
   var nums=Object.keys(b4Selected);
