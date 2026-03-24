@@ -112,6 +112,8 @@
             };
             var statusFinal = statusMap[om.statusAtual] || om.statusAtual || 'enviada';
             if(om.emOficina) statusFinal = 'em_oficina';
+            if(om.statusOficina === 'aguardando_devolucao') statusFinal = 'aguardando_devolucao';
+            if(om.oficinaPausada) statusFinal = 'oficina_pausada';
             if(om.pendenteAssinatura) statusFinal = 'pendente_assinatura';
             if(om.finalizada) statusFinal = 'finalizada';
             if(om.cancelada) statusFinal = 'cancelada';
@@ -129,7 +131,11 @@
             var _estadoFluxo;
             if(om.cancelada) {
                 _estadoFluxo = 'cancelada';
+            } else if(om.statusOficina === 'aguardando_devolucao') {
+                _estadoFluxo = 'aguardando_devolucao';
             } else if(om.emOficina) {
+                _estadoFluxo = 'em_oficina';
+            } else if(om.oficinaPausada) {
                 _estadoFluxo = 'em_oficina';
             } else if(om.pendenteAssinatura || om.finalizada) {
                 _estadoFluxo = _temMaterial ? 'executada' : 'pendente_fiscal';
@@ -174,6 +180,16 @@
                 escopo: om.escopo || 'geral',
                 data_inicio_prevista: _parseBRDate(om.inicio) || om.data_inicio_prevista || null,
                 data_fim_prevista: _parseBRDate(om.fim) || om.data_fim_prevista || null,
+                status_oficina: om.statusOficina || null,
+                etapa_oficina: om.etapaOficina || null,
+                hh_snapshot_oficina: om.hhSnapshotOficina || null,
+                oficina_pausada: !!om.oficinaPausada,
+                oficina_pausa_inicio: om.oficinaPausaInicio || null,
+                oficina_pausa_executantes: om.oficinaPausaExecutantes || null,
+                oficina_troca_turno: !!om.oficinaTrocaTurno,
+                data_inicio_oficina: om.dataInicioOficina || null,
+                data_fim_oficina: om.dataFimOficina || null,
+                data_inicio_montagem: om.dataInicioMontagem || null,
                 updated_at: new Date().toISOString()
             };
         }

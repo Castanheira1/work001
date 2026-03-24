@@ -69,13 +69,110 @@
             currentOM.dataEnvioOficina = new Date().toISOString();
             currentOM.lockDeviceId = null;
             currentOM._deslocSegundosSnapshot = deslocamentoSegundos;
-            
+
+            // Fluxo v2: status de oficina e snapshot
+            currentOM.statusOficina = STATUS_OFICINA.EM_OFICINA;
+            currentOM.etapaOficina = ETAPA_OFICINA.CAMPO;
+            currentOM.hhSnapshotOficina = {
+                hh: currentOM.historicoExecucao ? currentOM.historicoExecucao.slice() : [],
+                efetivo: executantesNomes.slice(),
+                deslocamento: deslocamentoSegundos
+            };
+
             localStorage.removeItem(STORAGE_KEY_CURRENT);
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
             setTimeout(function() { _uploadPDFRelatorio(currentOM.num); }, 800);
-            
-            alert('🔧 ATIVIDADE FINALIZADA NA OFICINA!\n\nHH pausado com sucesso. Status: aguardando devolução.');
+
+            alert('🔧 ENVIADO PARA OFICINA!\n\nHH pausado. OM disponível para qualquer equipe iniciar na oficina.');
+            hideDetail();
+            filtrarOMs();
+        }
+
+        // --- Fluxo v2: Finalizar atividade na oficina ---
+        function finalizarOficina() {
+            if(!confirm('🔧 FINALIZAR ATIVIDADE NA OFICINA?\n\nO HH será pausado.\nA OM ficará com status AGUARDANDO DEVOLUÇÃO.')) return;
+
+            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+            if(timerInterval) clearInterval(timerInterval);
+
+            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
+                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
+                if(historicoAtual.dataInicio && !historicoAtual.dataFim) {
+                    var diff = Math.floor((new Date() - new Date(historicoAtual.dataInicio)) / 1000) - tempoPausadoTotal;
+                    historicoAtual.dataFim = new Date().toISOString();
+                    historicoAtual.hhAtividade = diff / 3600;
+                    historicoAtual.hhDeslocamento = 0;
+                    _calcHH(historicoAtual);
+                    historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
+                    historicoAtual.materiaisUsados = materiaisUsados.slice();
+                    historicoAtual.tag = 'OFICINA_FIM';
+                }
+            }
+
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
+            currentOM.checklistFotos = checklistFotos;
+
+            // Mudar para aguardando devolucao
+            currentOM.statusOficina = STATUS_OFICINA.AGUARDANDO_DEVOLUCAO;
+            currentOM.etapaOficina = ETAPA_OFICINA.OFICINA;
+            currentOM.dataFimOficina = new Date().toISOString();
+            currentOM.lockDeviceId = null;
+            currentOM.statusAtual = null;
+
+            deslocamentoSegundos = 0;
+            tempoPausadoTotal = 0;
+            executantesNomes = [];
+            atividadeJaIniciada = false;
+            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            salvarOMs();
+            _pushOMStatusSupabase(currentOM);
+
+            alert('🔧 OFICINA FINALIZADA!\n\nHH pausado. Status: AGUARDANDO DEVOLUÇÃO.\nQualquer equipe pode iniciar a montagem.');
+            hideDetail();
+            filtrarOMs();
+        }
+
+        // --- Troca de turno na oficina ---
+        function confirmarTrocaTurnoOficina() {
+            if(!confirm('🔄 TROCA DE TURNO NA OFICINA\n\nA OM será pausada e ficará disponível para a próxima equipe na oficina.\n\nConfirmar?')) return;
+
+            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+
+            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
+                var hExec = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
+                if(hExec.dataInicio && !hExec.dataFim) {
+                    var atividadeSeg = Math.floor((new Date() - new Date(hExec.dataInicio)) / 1000) - tempoPausadoTotal;
+                    if(atividadeSeg < 0) atividadeSeg = 0;
+                    hExec.dataFim = new Date().toISOString();
+                    hExec.hhAtividade = atividadeSeg / 3600;
+                    hExec.hhDeslocamento = 0;
+                    _calcHH(hExec);
+                    hExec.tempoPausadoTotal = tempoPausadoTotal;
+                    hExec.tag = 'OFICINA_TROCA_TURNO';
+                }
+            }
+
+            if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
+            currentOM.checklistFotos = checklistFotos;
+
+            currentOM.oficinaPausada = true;
+            currentOM.oficinaTrocaTurno = true;
+            currentOM.oficinaPausaInicio = new Date().toISOString();
+            currentOM.oficinaPausaExecutantes = executantesNomes.slice();
+            currentOM.oficinaPausaMateriaisUsados = materiaisUsados.slice();
+            currentOM.lockDeviceId = null;
+            currentOM.statusAtual = null;
+
+            deslocamentoSegundos = 0;
+            tempoPausadoTotal = 0;
+            executantesNomes = [];
+            atividadeJaIniciada = false;
+            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            salvarOMs();
+            _pushOMStatusSupabase(currentOM);
+
+            alert('🔄 TROCA DE TURNO registrada na oficina.\n\nOM disponível para a próxima equipe.');
             hideDetail();
             filtrarOMs();
         }
@@ -247,14 +344,48 @@
         }
 
         function renderResumoHistorico() {
-            const div = $('resumoHistorico');
-            
+            var div = $('resumoHistorico');
+
             if(!currentOM.historicoExecucao || currentOM.historicoExecucao.length === 0) {
                 div.innerHTML = '';
                 return;
             }
-            
-            let html = '<div style="margin-bottom:20px;"><h4 style="color:#1A5276;margin-bottom:12px;font-size:16px;font-weight:800;">📅 Histórico por Colaborador</h4>';
+
+            var temOficina = !!(currentOM.hhSnapshotOficina || currentOM.dataEnvioOficina || currentOM.etapaOficina);
+
+            // Se tem oficina, mostrar timeline resumida
+            var htmlTimeline = '';
+            if(temOficina) {
+                var etapas = { CAMPO: [], OFICINA: [], MONTAGEM: [] };
+                for(var tli = 0; tli < currentOM.historicoExecucao.length; tli++) {
+                    var tlH = currentOM.historicoExecucao[tli];
+                    var tlTag = tlH.tag || 'ATIVIDADE';
+                    var etapa = 'CAMPO';
+                    if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
+                    else if(tlTag === 'MONTAGEM') etapa = 'MONTAGEM';
+                    etapas[etapa].push(tlH);
+                }
+                var cores = { CAMPO: '#1A5276', OFICINA: '#e65100', MONTAGEM: '#2e7d32' };
+                var icones = { CAMPO: '📍', OFICINA: '🔧', MONTAGEM: '🔩' };
+                htmlTimeline = '<div style="margin-bottom:16px;padding:12px;background:linear-gradient(135deg,#f0f4f8,#e3ecf5);border-radius:12px;border:1px solid #c5d5e4;">';
+                htmlTimeline += '<div style="font-size:15px;font-weight:800;color:#1A5276;margin-bottom:10px;">📊 Timeline do Fluxo</div>';
+                var ordemEt = ['CAMPO', 'OFICINA', 'MONTAGEM'];
+                for(var oi = 0; oi < ordemEt.length; oi++) {
+                    var eNome = ordemEt[oi];
+                    var eArr = etapas[eNome];
+                    if(!eArr || eArr.length === 0) continue;
+                    var eHH = 0;
+                    for(var j = 0; j < eArr.length; j++) eHH += (eArr[j].hhAtividade || 0);
+                    htmlTimeline += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #d0dce8;">';
+                    htmlTimeline += '<span style="font-size:18px;">' + icones[eNome] + '</span>';
+                    htmlTimeline += '<span style="font-weight:800;color:' + cores[eNome] + ';font-size:13px;min-width:70px;">' + eNome + '</span>';
+                    htmlTimeline += '<span style="font-size:12px;color:#555;">HH: <strong>' + eHH.toFixed(2) + 'h</strong></span>';
+                    htmlTimeline += '</div>';
+                }
+                htmlTimeline += '</div>';
+            }
+
+            var html = htmlTimeline + '<div style="margin-bottom:20px;"><h4 style="color:#1A5276;margin-bottom:12px;font-size:16px;font-weight:800;">📅 Histórico por Colaborador</h4>';
             
             let hhTotalGeral = 0;
             let hhNormalGeral = 0, hhExtraGeral = 0, hhNoturnoGeral = 0;

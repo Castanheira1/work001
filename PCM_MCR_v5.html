@@ -165,6 +165,8 @@
                 <button class="btn btn-danger" id="btnOficina" onclick="enviarParaOficina()">🔧 OFICINA</button>
             </div>
             <button class="btn btn-primary" id="btnDevolverEquip" onclick="devolverEquipamento()" style="display:none;">🔧 DEVOLVER EQUIPAMENTO</button>
+            <button class="btn btn-warning" id="btnFinalizarOficina" onclick="finalizarOficina()" style="display:none;">🔧 FINALIZAR OFICINA</button>
+            <button class="btn btn-success" id="btnIniciarMontagem" onclick="showExecutantesMontagem()" style="display:none;">🔧 INICIAR MONTAGEM</button>
             <button class="btn btn-success" id="btnFinalizar" onclick="showFinalizar()" style="display:none;">✅ FINALIZAR</button>
             <button class="btn btn-danger" id="btnCancelarDesvio" onclick="cancelarComDesvio()" style="display:none;">❌ CANCELAR (Desvio)</button>
             <button class="btn btn-danger" id="btnCancelar" onclick="showCancelar()">❌ CANCELAR OM</button>
@@ -347,18 +349,18 @@
     <script src="assets/toast.js"></script>
     <script src="assets/pcm_auth.js"></script>
     <script src="assets/pcm_mcr_utils.js"></script>
-    <script src="assets/pcm_mcr/pcm_globals.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_realtime.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_init.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_sync_push.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_pdf_import.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_ui.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_atividade.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_desvios.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_checklist.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_materiais.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_finalizar.js?v=20260323"></script>
-    <script src="assets/pcm_mcr/pcm_pdf_gerar.js?v=20260323"></script>
+    <script src="assets/pcm_mcr/pcm_globals.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_realtime.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_init.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_sync_push.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_pdf_import.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_ui.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_atividade.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_desvios.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_checklist.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_materiais.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_finalizar.js?v=20260324"></script>
+    <script src="assets/pcm_mcr/pcm_pdf_gerar.js?v=20260324"></script>
     <script src="assets/sync_engine.js?v=20260322c"></script>
     <script src="assets/app_bootstrap.js?v=20260321d"></script>
     <script>
@@ -413,6 +415,7 @@
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('0018')">0018 — Troca de Turno</button>
             <button class="btn-desvio btn-desvio-oficina-restrito" style="background:#1565c0;" onclick="selecionarDesvio('reprogramar')">🔄 Reprogramar OM</button>
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('desativar')">Desativar Equipamento</button>
+            <button class="btn-desvio" id="btnFinalizarOficinaMenu" style="background:#1A5276;display:none;" onclick="selecionarDesvio('finalizar_oficina')">🔧 Finalizar Atividade na Oficina</button>
             <button class="btn btn-secondary" onclick="hideMenuDesvios()" style="width:100%;margin-top:8px;font-size:clamp(13px,3.5vw,15px);">Cancelar</button>
         </div>
     </div>

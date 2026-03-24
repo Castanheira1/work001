@@ -82,25 +82,34 @@ function verificarDependencias() {
         }
 
         function _btnOficinaCk() {
+            // Fluxo v2: aguardando devolucao - mostrar botao de iniciar montagem
+            if (currentOM.statusOficina === STATUS_OFICINA.AGUARDANDO_DEVOLUCAO) {
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:1 });
+                return;
+            }
+            // Fluxo v2: em oficina sem atividade iniciada - mostrar botoes oficina
             if (currentOM.emOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:1, btnIniciarMontagem:0 });
             } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0 });
+                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0 });
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.planoCod || currentOM.checklistCorretiva) {
-                _setBtns({ btnOficina:1, btnDevolverEquip:0, btnChecklist:0 });
+                _setBtns({ btnOficina:1, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else {
-                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:1 });
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:1, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             }
         }
 
         function _uiAtividade(skipChecklistAuto) {
+            var naOficina = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:'flex',
-                btnRowExecOficina:'flex', btnFinalizar:1,
+                btnRowExecOficina:'flex', btnFinalizar: naOficina ? 0 : 1,
                 btnCancelar:0, btnExcluir:0, btnCancelarDesvio:0,
-                timerAtividade:1
+                timerAtividade:1,
+                btnFinalizarOficina: naOficina ? 1 : 0,
+                btnIniciarMontagem:0
             });
             _btnOficinaCk();
             if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva)) _mostrarChecklistUI(false);
@@ -155,3 +164,15 @@ function verificarDependencias() {
         let fotoAtualTipo = '';
         let atividadeSegundos = 0;
         let _materiaisListaExpandida = false;
+
+        // --- Fluxo Oficina v2 ---
+        // Etapas do fluxo de oficina
+        var ETAPA_OFICINA = {
+            CAMPO: 'CAMPO',
+            OFICINA: 'OFICINA',
+            MONTAGEM: 'MONTAGEM'
+        };
+        var STATUS_OFICINA = {
+            EM_OFICINA: 'em_oficina',
+            AGUARDANDO_DEVOLUCAO: 'aguardando_devolucao'
+        };

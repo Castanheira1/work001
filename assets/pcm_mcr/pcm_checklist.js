@@ -67,6 +67,10 @@
 
         function _podeEditarChecklistAgora() {
             if(!currentOM) return false;
+            // Fluxo v2 oficina: permitir edicao quando atividade esta iniciada na oficina
+            if(currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
+            }
             if(!currentOM.emOficina) return true;
             return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
         }
@@ -98,8 +102,18 @@
             $('checklistSection').textContent = '📋 Checklist Salvo ✅';
 
             var fluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina));
+            var fluxoOficinaAtiva = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && atividadeJaIniciada);
             var fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !currentOM.emOficina && !currentOM.retornouOficina);
-            if (fluxoOficina || fluxoChecklistAtivo) {
+            if (fluxoOficinaAtiva) {
+                // Na oficina com atividade ja iniciada - manter controles de atividade
+                _aplicarModoChecklistFoco(false);
+                $('checklistSection').style.display = 'block';
+                $('checklistActions').style.display = 'block';
+                $('btnEditarChecklist').style.display = 'block';
+                $('btnSalvarChecklist').style.display = 'none';
+                _uiAtividade(true);
+                _setBtns({ btnFinalizarOficina:1, btnOficina:0, btnDevolverEquip:0, btnIniciarMontagem:0 });
+            } else if (fluxoOficina || fluxoChecklistAtivo) {
                 _aplicarModoChecklistFoco(false);
                 if (fluxoOficina) {
                     $('checklistSection').style.display = 'none';
