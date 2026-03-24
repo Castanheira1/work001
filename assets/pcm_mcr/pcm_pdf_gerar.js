@@ -755,6 +755,48 @@
                 y = pdf.lastAutoTable.finalY + 6;
 
 
+                // --- Timeline Oficina (se OM passou pela oficina) ---
+                if(currentOM.hhSnapshotOficina || currentOM.dataEnvioOficina || currentOM.etapaOficina) {
+                    y = _pdfSection(pdf, y, 'TIMELINE OFICINA', 18);
+                    var tlBody = [];
+                    var tlEtapas = [];
+                    // Agrupar historico por etapa
+                    for(var tl = 0; tl < currentOM.historicoExecucao.length; tl++) {
+                        var tlH = currentOM.historicoExecucao[tl];
+                        var tlTag = tlH.tag || 'ATIVIDADE';
+                        var tlEtapa = 'CAMPO';
+                        if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO') tlEtapa = 'OFICINA';
+                        else if(tlTag === 'MONTAGEM') tlEtapa = 'MONTAGEM';
+                        else if(currentOM.etapaOficina === 'MONTAGEM' && tl === currentOM.historicoExecucao.length - 1) tlEtapa = 'MONTAGEM';
+                        var tlIni = tlH.dataInicio ? new Date(tlH.dataInicio) : null;
+                        var tlFim = tlH.dataFim ? new Date(tlH.dataFim) : null;
+                        var tlDur = (tlIni && tlFim) ? Math.max(0, Math.floor((tlFim - tlIni) / 1000) - (tlH.tempoPausadoTotal || 0)) : 0;
+                        var tlExecs = (tlH.executantes || []).join(', ') || '---';
+                        tlBody.push([
+                            { content: tlEtapa, styles: { halign: 'center', fontSize: 6, fontStyle: 'bold', textColor: tlEtapa === 'OFICINA' ? [180,90,0] : (tlEtapa === 'MONTAGEM' ? [0,100,0] : [30,30,30]) } },
+                            { content: tlTag, styles: { halign: 'center', fontSize: 5.5 } },
+                            { content: tlExecs, styles: { fontSize: 5.5 } },
+                            { content: tlIni ? tlIni.toLocaleString('pt-BR') : '--', styles: { halign: 'center', fontSize: 5.5 } },
+                            { content: tlFim ? tlFim.toLocaleString('pt-BR') : '--', styles: { halign: 'center', fontSize: 5.5 } },
+                            { content: _formatarTempo(tlDur), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } }
+                        ]);
+                    }
+                    if(tlBody.length > 0) {
+                        pdf.autoTable({
+                            startY: y,
+                            head: [['Etapa', 'Tag', 'Executantes', 'Inicio', 'Fim', 'Duracao']],
+                            body: tlBody,
+                            theme: 'grid',
+                            tableWidth: 180,
+                            headStyles: { fillColor: [50,90,130], textColor: [255,255,255], fontSize: 5.5, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
+                            bodyStyles: { fontSize: 5.8, cellPadding: 1.3, textColor: [30,30,30], lineColor: [200,200,200], lineWidth: 0.15, overflow: 'linebreak' },
+                            columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 28 }, 2: { cellWidth: 40 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 }, 5: { cellWidth: 22 } },
+                            margin: { left: M, right: M }
+                        });
+                        y = pdf.lastAutoTable.finalY + 6;
+                    }
+                }
+
                 y = _pdfSection(pdf, y, 'ATIVIDADE', 18);
                 var ativBody = [];
                 var totalAtivSeg = 0;

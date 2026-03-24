@@ -40,6 +40,18 @@
                         statusText = '⚡ EM EXECUÇÃO' + (om.primeiroExecutante ? ' — ' + om.primeiroExecutante : '');
                         clickAction = () => showDetail(idx);
                     }
+                } else if(om.statusOficina === 'aguardando_devolucao') {
+                    statusClass = 'em-execucao';
+                    statusText = '🔧 AGUARDANDO DEVOLUÇÃO';
+                    clickAction = () => showDetail(idx);
+                } else if(om.emOficina && !om.lockDeviceId) {
+                    statusClass = 'em-execucao';
+                    statusText = '🔧 OFICINA — Disponível';
+                    clickAction = () => showDetail(idx);
+                } else if(om.oficinaPausada) {
+                    statusClass = 'pendente';
+                    statusText = '🔧 OFICINA — Troca de Turno';
+                    clickAction = () => showRetomarOficina(idx);
                 } else if(om.pendenteAssinatura) {
                     statusClass = 'pendente-assinatura';
                     statusText = 'PENDENTE ASSINATURA';
@@ -217,13 +229,26 @@
                 resetTimers();
             }
             
-            if(currentOM.emOficina) {
+            if(currentOM.statusOficina === STATUS_OFICINA.AGUARDANDO_DEVOLUCAO) {
+                // Aguardando devolucao: mostrar botao de iniciar montagem
+                _aplicarModoOficinaMinimal(true);
+                if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
+                if(timerInterval) clearInterval(timerInterval);
+                if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+                _setBtns({
+                    btnDeslocamento:0, btnIniciar:0, btnCancelar:0, btnExcluir:0,
+                    timerDisplay:0, timerAtividade:0, btnGroupAtividade:0, btnRowExecOficina:0,
+                    btnFinalizar:0, btnDevolverEquip:0, btnOficina:0, btnFinalizarOficina:0,
+                    btnIniciarMontagem:1
+                });
+                renderHistoricoExecucao();
+            } else if(currentOM.emOficina) {
                 _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
                 if(timerInterval) clearInterval(timerInterval);
                 if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
                 $('btnDeslocamento').style.display = 'none';
-                $('btnIniciar').style.display = 'none';
+                $('btnIniciar').style.display = 'block';
                 $('btnIniciar').disabled = false;
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
@@ -287,31 +312,63 @@
         }
 
         function renderHistoricoExecucao() {
-            const historicoList = $('historicoList');
-            if(!currentOM || !currentOM.emOficina) {
+            var historicoList = $('historicoList');
+            if(!currentOM || (!currentOM.emOficina && !currentOM.statusOficina && !currentOM.etapaOficina)) {
                 $('historicoSection').style.display = 'none';
                 historicoList.innerHTML = '';
                 return;
             }
             $('historicoSection').style.display = 'block';
             var histArr = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
-            var execSet = {};
+
+            // Agrupar por etapa
+            var htmlMin = '';
+            var etapas = {};
             for(var i = 0; i < histArr.length; i++) {
-                var execs = Array.isArray(histArr[i].executantes) ? histArr[i].executantes : [];
-                for(var j = 0; j < execs.length; j++) if(execs[j]) execSet[execs[j]] = true;
+                var tag = histArr[i].tag || 'ATIVIDADE';
+                var etapa = 'CAMPO';
+                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
+                else if(tag === 'MONTAGEM') etapa = 'MONTAGEM';
+                if(!etapas[etapa]) etapas[etapa] = [];
+                etapas[etapa].push(histArr[i]);
             }
-            var execNames = Object.keys(execSet);
-            var dataOf = currentOM.dataEnvioOficina || null;
-            if(!dataOf) {
-                for(var k = histArr.length - 1; k >= 0; k--) {
-                    if(histArr[k] && histArr[k].tag === 'OFICINA') { dataOf = histArr[k].dataFim || histArr[k].dataInicio || null; break; }
+
+            var ordem = ['CAMPO', 'OFICINA', 'MONTAGEM'];
+            var cores = { CAMPO: '#1A5276', OFICINA: '#e65100', MONTAGEM: '#2e7d32' };
+            var icones = { CAMPO: '📍', OFICINA: '🔧', MONTAGEM: '🔩' };
+
+            for(var oi = 0; oi < ordem.length; oi++) {
+                var etpNome = ordem[oi];
+                var etpArr = etapas[etpNome];
+                if(!etpArr || etpArr.length === 0) continue;
+
+                var execSet = {};
+                var hhTotal = 0;
+                for(var j = 0; j < etpArr.length; j++) {
+                    var execs = Array.isArray(etpArr[j].executantes) ? etpArr[j].executantes : [];
+                    for(var k = 0; k < execs.length; k++) if(execs[k]) execSet[execs[k]] = true;
+                    hhTotal += (etpArr[j].hhAtividade || 0);
                 }
+
+                var dataIni = etpArr[0].dataInicio ? new Date(etpArr[0].dataInicio).toLocaleString('pt-BR') : '--';
+                var dataFim = etpArr[etpArr.length-1].dataFim ? new Date(etpArr[etpArr.length-1].dataFim).toLocaleString('pt-BR') : 'em andamento';
+
+                htmlMin += '<div class="historico-dia" style="border-left:4px solid ' + cores[etpNome] + ';margin-bottom:8px;padding:8px 12px;background:#f9f9f9;border-radius:8px;">';
+                htmlMin += '<div style="font-weight:800;color:' + cores[etpNome] + ';font-size:14px;">' + icones[etpNome] + ' ' + etpNome + '</div>';
+                htmlMin += '<div style="font-size:12px;color:#555;margin-top:4px;">Inicio: ' + dataIni + ' | Fim: ' + dataFim + '</div>';
+                htmlMin += '<div style="font-size:12px;color:#234;margin-top:4px;">👷 ' + Object.keys(execSet).join(', ') + '</div>';
+                htmlMin += '<div style="font-size:12px;color:#234;margin-top:2px;">⏱️ HH: ' + hhTotal.toFixed(2) + 'h</div>';
+                htmlMin += '</div>';
             }
-            var dataTxt = dataOf ? new Date(dataOf).toLocaleString('pt-BR') : '--';
-            var htmlMin = '<div class="historico-dia oficina-min-resumo">';
-            htmlMin += '<div style="font-weight:800;color:#1A5276;">📅 Enviada para oficina: ' + dataTxt + '</div>';
-            htmlMin += '<div style="margin-top:6px;font-size:13px;color:#234;">👷 Executantes: ' + (execNames.length ? execNames.join(', ') : '---') + '</div>';
-            htmlMin += '</div>';
+
+            if(!htmlMin) {
+                var dataOf = currentOM.dataEnvioOficina || null;
+                var dataTxt = dataOf ? new Date(dataOf).toLocaleString('pt-BR') : '--';
+                htmlMin = '<div class="historico-dia oficina-min-resumo">';
+                htmlMin += '<div style="font-weight:800;color:#1A5276;">📅 Enviada para oficina: ' + dataTxt + '</div>';
+                htmlMin += '</div>';
+            }
+
             historicoList.innerHTML = htmlMin;
         }
 
@@ -410,7 +467,6 @@
             _aplicarModoChecklistFoco(false);
             _aplicarModoOficinaMinimal(false);
             salvarOMAtual();
-            salvarOMs();
             filtrarOMs();
         }
 

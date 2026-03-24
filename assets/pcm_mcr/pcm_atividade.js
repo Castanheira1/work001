@@ -38,6 +38,19 @@
         }
 
         function showExecutantes() {
+            // Redirecionar para modos especiais
+            if(window._modoExecutantesOficina) {
+                return; // ja esta no popup
+            }
+            if(window._modoExecutantesMontagem) {
+                return; // ja esta no popup
+            }
+
+            if(currentOM && currentOM.emOficina && !currentOM.statusOficina) {
+                // Fluxo antigo: oficina sem v2 - redirecionar para novo fluxo
+                showExecutantesOficina();
+                return;
+            }
             if(currentOM && currentOM.emOficina) {
                 deslocamentoSegundos = 0;
                 deslocamentoMinutos = 0;
@@ -50,18 +63,20 @@
                 currentOM._deslocHoraFim = new Date().toISOString();
             }
             $('timerDisplay').style.display = 'none';
-            
-            const list = $('executantesList');
-            list.innerHTML = `
-                <input type="text" placeholder="Nome completo do executante" class="exec-input">
-                <input type="text" placeholder="Nome completo do executante" class="exec-input">
-            `;
-            
+
+            var list = $('executantesList');
+            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+
+            window._modoExecutantesOficina = false;
+            window._modoExecutantesMontagem = false;
             $('popupExecutantes').classList.add('active');
         }
 
         function hideExecutantes() {
             $('popupExecutantes').classList.remove('active');
+            window._modoExecutantesOficina = false;
+            window._modoExecutantesMontagem = false;
         }
 
         function addExecutante() {
@@ -74,17 +89,29 @@
         }
 
         function salvarExecutantes() {
-            const inputs = document.querySelectorAll('.exec-input');
+            // Redirecionar para modos especiais
+            if(window._modoExecutantesOficina) {
+                window._modoExecutantesOficina = false;
+                salvarExecutantesOficina();
+                return;
+            }
+            if(window._modoExecutantesMontagem) {
+                window._modoExecutantesMontagem = false;
+                salvarExecutantesMontagem();
+                return;
+            }
+
+            var inputs = document.querySelectorAll('.exec-input');
             numExecutantes = 0;
             executantesNomes = [];
-            
-            inputs.forEach(input => {
+
+            inputs.forEach(function(input) {
                 if(input.value.trim()) {
                     numExecutantes++;
                     executantesNomes.push(input.value.trim());
                 }
             });
-            
+
             if(numExecutantes === 0) {
                 alert('⚠️ Adicione pelo menos 1 executante!');
                 return;
@@ -207,4 +234,209 @@
             $('btnOficina').style.display = 'block';
             _mostrarChecklistUI(true);
             salvarOMAtual();
+        }
+
+        // --- Fluxo Oficina v2: Iniciar atividade na oficina ---
+        function showExecutantesOficina() {
+            // Pede novo efetivo para atividade na oficina
+            deslocamentoSegundos = 0;
+            deslocamentoMinutos = 0;
+            currentOM._deslocHoraInicio = null;
+            currentOM._deslocHoraFim = null;
+
+            var list = $('executantesList');
+            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                             '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+            // Mudar botao de confirmar para modo oficina
+            window._modoExecutantesOficina = true;
+            $('popupExecutantes').classList.add('active');
+        }
+
+        function salvarExecutantesOficina() {
+            var inputs = document.querySelectorAll('.exec-input');
+            numExecutantes = 0;
+            executantesNomes = [];
+            inputs.forEach(function(input) {
+                if(input.value.trim()) {
+                    numExecutantes++;
+                    executantesNomes.push(input.value.trim());
+                }
+            });
+            if(numExecutantes === 0) {
+                alert('⚠️ Adicione pelo menos 1 executante!');
+                return;
+            }
+
+            atividadeInicio = new Date();
+            tempoPausadoTotal = 0;
+            atividadeJaIniciada = true;
+
+            // Manter emOficina = true, setar etapa
+            currentOM.etapaOficina = ETAPA_OFICINA.OFICINA;
+            currentOM.dataInicioOficina = new Date().toISOString();
+            currentOM.lockDeviceId = deviceId;
+            currentOM.oficinaPausada = false;
+
+            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
+            currentOM.historicoExecucao.push({
+                data: new Date().toLocaleDateString('pt-BR'),
+                executantes: executantesNomes.slice(),
+                dataInicio: atividadeInicio.toISOString(),
+                dataFim: null,
+                deslocamentoMinutos: 0,
+                deslocamentoSegundos: 0,
+                deslocamentoHoraInicio: null,
+                deslocamentoHoraFim: null,
+                tempoPausadoTotal: 0,
+                materiaisUsados: [],
+                tag: 'OFICINA'
+            });
+
+            _uiAtividade();
+            // Mostrar botao finalizar oficina no lugar do botao oficina
+            _setBtns({ btnOficina:0, btnFinalizarOficina:1, btnIniciarMontagem:0, btnDevolverEquip:0 });
+
+            iniciarCronometroAtividade();
+            renderHistoricoExecucao();
+            hideExecutantes();
+            currentOM.statusAtual = 'iniciada';
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
+            salvarOMAtual();
+            _pushOMStatusSupabase(currentOM);
+
+            // Abrir checklist de onde parou
+            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                _mostrarChecklistUI(false);
+            }
+
+            alert('✅ Atividade na OFICINA iniciada!\n' + numExecutantes + ' executante(s)\nSem deslocamento.');
+        }
+
+        // Iniciar montagem (apos finalizar oficina)
+        function showExecutantesMontagem() {
+            deslocamentoSegundos = 0;
+            deslocamentoMinutos = 0;
+
+            var list = $('executantesList');
+            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                             '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+            window._modoExecutantesMontagem = true;
+            $('popupExecutantes').classList.add('active');
+        }
+
+        function salvarExecutantesMontagem() {
+            var inputs = document.querySelectorAll('.exec-input');
+            numExecutantes = 0;
+            executantesNomes = [];
+            inputs.forEach(function(input) {
+                if(input.value.trim()) {
+                    numExecutantes++;
+                    executantesNomes.push(input.value.trim());
+                }
+            });
+            if(numExecutantes === 0) {
+                alert('⚠️ Adicione pelo menos 1 executante!');
+                return;
+            }
+
+            // Iniciar deslocamento para montagem
+            currentOM.etapaOficina = ETAPA_OFICINA.MONTAGEM;
+            currentOM.statusOficina = null;
+            currentOM.emOficina = false;
+            currentOM.retornouOficina = true;
+            currentOM.devolvendoEquipamento = true;
+            currentOM.dataInicioMontagem = new Date().toISOString();
+            currentOM.lockDeviceId = deviceId;
+
+            deslocamentoInicio = new Date();
+            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+            currentOM._deslocHoraFim = null;
+
+            hideExecutantes();
+            salvarOMAtual();
+
+            // Mostrar timer de deslocamento
+            _setBtns({
+                btnDeslocamento:0, btnIniciar:1, btnGroupAtividade:0, btnRowExecOficina:0,
+                btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
+                timerDisplay:1, btnCancelar:0, btnExcluir:0
+            });
+            $('btnIniciar').disabled = false;
+            _aplicarModoOficinaMinimal(false);
+
+            timerInterval = setInterval(function() {
+                var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                var m = Math.floor(diff / 60);
+                var s = diff % 60;
+                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = m;
+                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+            }, 1000);
+
+            currentOM.statusAtual = 'em_deslocamento';
+            _pushOMStatusSupabase(currentOM);
+
+            alert('🚗 DESLOCAMENTO PARA MONTAGEM INICIADO!\n\n' + numExecutantes + ' executante(s)\nApós chegar, clique em INICIAR ATIVIDADE.');
+        }
+
+        // Retomar OM pausada na oficina
+        function showRetomarOficina(idx) {
+            currentOM = oms[idx];
+            _retomarExecs = [];
+            _retomarMesmaEquipe = true;
+            $('retomarInfo').innerHTML =
+                '<b>OM:</b> ' + currentOM.num + '<br>' +
+                '<b>Título:</b> ' + (currentOM.titulo || '') + '<br>' +
+                '<b>Motivo pausa:</b> Troca de Turno (Oficina)<br>' +
+                '<b>Pausada em:</b> ' + (currentOM.oficinaPausaInicio ? new Date(currentOM.oficinaPausaInicio).toLocaleString('pt-BR') : '--') + '<br>' +
+                (currentOM.oficinaPausaExecutantes && currentOM.oficinaPausaExecutantes.length > 0 ? '<b>Equipe anterior:</b> ' + currentOM.oficinaPausaExecutantes.join(', ') : '');
+            $('retomarEquipeDiv').style.display = 'none';
+            $('retomarLocalLabel').style.display = 'none';
+            $('retomarLocalDiv').style.display = 'none';
+            $('retomarExecLista').innerHTML = '';
+            window._retomarModoOficina = true;
+            $('popupRetomar').classList.add('active');
+        }
+
+        function retomarOficina() {
+            if(!_retomarMesmaEquipe && _retomarExecs.length === 0) {
+                alert('⚠️ Adicione ao menos um executante.');
+                return;
+            }
+            hideRetomar();
+            window._retomarModoOficina = false;
+
+            currentOM.oficinaPausada = false;
+            currentOM.lockDeviceId = deviceId;
+            executantesNomes = _retomarExecs.slice();
+            materiaisUsados = currentOM.oficinaPausaMateriaisUsados ? currentOM.oficinaPausaMateriaisUsados.slice() : materiaisUsados.slice();
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
+
+            // Iniciar atividade na oficina diretamente (sem deslocamento)
+            numExecutantes = executantesNomes.length;
+            atividadeInicio = new Date();
+            tempoPausadoTotal = 0;
+            atividadeJaIniciada = true;
+            deslocamentoSegundos = 0;
+            deslocamentoMinutos = 0;
+
+            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
+            currentOM.historicoExecucao.push({
+                data: new Date().toLocaleDateString('pt-BR'),
+                executantes: executantesNomes.slice(),
+                dataInicio: atividadeInicio.toISOString(),
+                dataFim: null,
+                deslocamentoMinutos: 0,
+                deslocamentoSegundos: 0,
+                deslocamentoHoraInicio: null,
+                deslocamentoHoraFim: null,
+                tempoPausadoTotal: 0,
+                materiaisUsados: [],
+                tag: 'OFICINA'
+            });
+
+            currentOM.statusAtual = 'iniciada';
+            salvarOMAtual();
+            showDetail(oms.indexOf(currentOM));
         }

@@ -13,9 +13,15 @@
 
         function showMenuDesvios() {
             var emOficina = !!(currentOM && currentOM.emOficina);
+            var naOficinaAtiva = emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA;
             var itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
             for(var i = 0; i < itensRestritos.length; i++) {
                 itensRestritos[i].style.display = emOficina ? 'none' : 'block';
+            }
+            // Mostrar/esconder botao de finalizar oficina
+            var btnFinOficMenu = document.getElementById('btnFinalizarOficinaMenu');
+            if(btnFinOficMenu) {
+                btnFinOficMenu.style.display = naOficinaAtiva ? 'block' : 'none';
             }
             $('popupMenuDesvios').classList.add('active');
         }
@@ -23,7 +29,16 @@
         function selecionarDesvio(tipo) {
             hideMenuDesvios();
             if(DESVIO_TIPOS[tipo]) { showDesvioGenerico(tipo); return; }
-            if(tipo === '0018') { confirmarTrocaTurno(); return; }
+            if(tipo === '0018') {
+                // Se estiver na oficina, usar troca de turno de oficina
+                if(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                    confirmarTrocaTurnoOficina();
+                } else {
+                    confirmarTrocaTurno();
+                }
+                return;
+            }
+            if(tipo === 'finalizar_oficina') { finalizarOficina(); return; }
             if(tipo === 'reprogramar') { executarReprogramar(); return; }
             if(tipo === 'desativar') { showDesvioDesativar(); return; }
         }
@@ -430,7 +445,8 @@
         function retomarMesmaEquipe(sim) {
             _retomarMesmaEquipe = sim;
             if(sim) {
-                _retomarExecs = currentOM.pausaExecutantes ? currentOM.pausaExecutantes.slice() : [];
+                var execAnterior = window._retomarModoOficina ? (currentOM.oficinaPausaExecutantes || []) : (currentOM.pausaExecutantes || []);
+                _retomarExecs = execAnterior.slice();
                 $('retomarEquipeDiv').style.display = 'none';
             } else {
                 _retomarExecs = [];
@@ -439,8 +455,21 @@
                 $('retomarExecLista').innerHTML = '';
                 setTimeout(function(){ $('retomarExecInput').focus(); }, 200);
             }
-            $('retomarLocalLabel').style.display = 'block';
-            $('retomarLocalDiv').style.display = 'flex';
+            // Na oficina, nao precisa perguntar se ja esta no local
+            if(window._retomarModoOficina) {
+                $('retomarLocalLabel').style.display = 'none';
+                $('retomarLocalDiv').style.display = 'none';
+                // Mostrar botao de confirmar direto
+                var divLocal = $('retomarLocalDiv');
+                divLocal.style.display = 'flex';
+                divLocal.innerHTML = '<button onclick="retomarNoLocal(true)" style="flex:1;padding:12px;background:#1A5276;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;">✅ INICIAR NA OFICINA</button>';
+                $('retomarLocalLabel').style.display = 'block';
+                $('retomarLocalLabel').textContent = 'Confirmar retomada na oficina?';
+            } else {
+                $('retomarLocalLabel').style.display = 'block';
+                $('retomarLocalLabel').textContent = 'Já está no local?';
+                $('retomarLocalDiv').style.display = 'flex';
+            }
         }
 
         function retomarAddExec() {
@@ -463,6 +492,12 @@
         function retomarNoLocal(jaNoLocal) {
             if(!_retomarMesmaEquipe && _retomarExecs.length === 0) {
                 alert('⚠️ Adicione ao menos um executante.');
+                return;
+            }
+
+            // Se estiver retomando oficina, usar fluxo de oficina
+            if(window._retomarModoOficina) {
+                retomarOficina();
                 return;
             }
 
@@ -513,7 +548,6 @@
             currentOM.statusAtual = 'iniciada';
             atividadeJaIniciada = true;
             tempoPausadoTotal = 0;
-            salvarOMs();
             salvarOMAtual();
             showDetail(oms.indexOf(currentOM));
         }
