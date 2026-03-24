@@ -32,29 +32,11 @@ const APP_SHELL = [
   './assets/vendor/xlsx.full.min.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
-  './manifest.webmanifest',
-  './admin_soberano.html',
-  './assets/assets_admin/admin_soberano.css',
-  './assets/assets_admin/admin_utils.js',
-  './assets/assets_admin/admin_state.js',
-  './assets/assets_admin/admin_api.js',
-  './assets/assets_admin/admin_render.js',
-  './assets/assets_admin/admin_core.js',
-  './assets/assets_admin/admin_events.js'
+  './manifest.webmanifest'
 ];
 
 const CACHEABLE_DESTINATIONS = ['script', 'style', 'image', 'font', 'manifest', 'worker'];
-const NON_CRITICAL_ASSETS = [
-  './assets/icons/icon-192.png', './assets/icons/icon-512.png',
-  './admin_soberano.html',
-  './assets/assets_admin/admin_soberano.css',
-  './assets/assets_admin/admin_utils.js',
-  './assets/assets_admin/admin_state.js',
-  './assets/assets_admin/admin_api.js',
-  './assets/assets_admin/admin_render.js',
-  './assets/assets_admin/admin_core.js',
-  './assets/assets_admin/admin_events.js'
-];
+const NON_CRITICAL_ASSETS = ['./assets/icons/icon-192.png', './assets/icons/icon-512.png'];
 const API_TIMEOUT_MS = 12000;
 const BG_SYNC_TAG = 'pcm-sync-pending';
 
@@ -151,6 +133,11 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+
+  /* Admin panel não é PWA — SW não deve interceptar nada do admin */
+  var isAdmin = url.pathname.indexOf('admin_soberano') !== -1 ||
+                url.pathname.indexOf('assets_admin') !== -1;
+  if (isAdmin) return;
 
   var isAPI = url.pathname.indexOf('/rest/') !== -1 ||
               url.pathname.indexOf('/auth/') !== -1 ||
