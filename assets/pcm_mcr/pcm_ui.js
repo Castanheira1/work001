@@ -467,7 +467,6 @@
             _aplicarModoChecklistFoco(false);
             _aplicarModoOficinaMinimal(false);
             salvarOMAtual();
-            salvarOMs();
             filtrarOMs();
         }
 

@@ -217,8 +217,7 @@
             currentOM.devolvendoEquipamento = true;
             
             salvarOMAtual();
-            salvarOMs();
-            
+
             deslocamentoInicio = new Date();
             currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
             currentOM._deslocHoraFim = null;

@@ -338,8 +338,13 @@
         }
 
         _carregarPushPendentes();
-        setInterval(_processarPushPendentes, 45000);
-        window.addEventListener('online', function() { setTimeout(_processarPushPendentes, 3000); });
+        var _pushInterval = setInterval(_processarPushPendentes, 45000);
+        function _onOnlinePush() { setTimeout(_processarPushPendentes, 3000); }
+        window.addEventListener('online', _onOnlinePush);
+        window.addEventListener('beforeunload', function() {
+            clearInterval(_pushInterval);
+            window.removeEventListener('online', _onOnlinePush);
+        });
 
         async function _uploadPDFRelatorio(omNum, _tentativa) {
             if(!window.PdfDB || !omNum) return;

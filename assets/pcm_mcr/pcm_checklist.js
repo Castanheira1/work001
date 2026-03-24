@@ -94,7 +94,6 @@
             currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             salvarOMAtual();
-            salvarOMs();
             $('checklistContent').innerHTML = '';
             $('checklistContent').style.display = 'none';
             $('btnSalvarChecklist').style.display = 'none';

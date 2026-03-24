@@ -548,7 +548,6 @@
             currentOM.statusAtual = 'iniciada';
             atividadeJaIniciada = true;
             tempoPausadoTotal = 0;
-            salvarOMs();
             salvarOMAtual();
             showDetail(oms.indexOf(currentOM));
         }

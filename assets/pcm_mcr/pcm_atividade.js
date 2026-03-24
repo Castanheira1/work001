@@ -354,7 +354,6 @@
 
             hideExecutantes();
             salvarOMAtual();
-            salvarOMs();
 
             // Mostrar timer de deslocamento
             _setBtns({
@@ -438,7 +437,6 @@
             });
 
             currentOM.statusAtual = 'iniciada';
-            salvarOMs();
             salvarOMAtual();
             showDetail(oms.indexOf(currentOM));
         }
