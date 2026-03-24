@@ -439,3 +439,5 @@
             filtrarOMs();
             alert('✅ OM ' + omNum + ' excluída.');
         }
+
+        window.filtrarOMs = filtrarOMs;

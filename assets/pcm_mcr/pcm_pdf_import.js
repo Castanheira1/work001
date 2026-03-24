@@ -358,7 +358,3 @@
         }
 
         window.PCMExtrair = extrairDados;
-        window.puxarOMsManual = puxarOMsManual;
-        window.filtrarOMs = filtrarOMs;
-        window.carregarOMs = carregarOMs;
-        window.salvarOMs = salvarOMs;

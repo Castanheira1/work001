@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pcm-mcr-cache-';
-const CACHE_VERSION = CACHE_PREFIX + 'v9';
+const CACHE_VERSION = CACHE_PREFIX + 'v10';
 
 const APP_SHELL = [
   './',
@@ -133,6 +133,11 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+
+  /* Admin panel não é PWA — SW não deve interceptar nada do admin */
+  var isAdmin = url.pathname.indexOf('admin_soberano') !== -1 ||
+                url.pathname.indexOf('assets_admin') !== -1;
+  if (isAdmin) return;
 
   var isAPI = url.pathname.indexOf('/rest/') !== -1 ||
               url.pathname.indexOf('/auth/') !== -1 ||
