@@ -1,4 +1,5 @@
 function esc(str){if(str==null)return"";return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
+var escAttr=esc; // alias semântico — mesmos 5 chars escapados, usado em atributos HTML
 function safeNum(val){return val==null?"":String(val);}
 function safeStorageOriginalPath(num){return"originais/"+safeNum(num)+".pdf";}
 function safeMediaUrl(url){if(!url)return"";var s=String(url).trim();if(/^https?:\/\//i.test(s)||/^blob:/i.test(s)||/^data:image\//i.test(s))return s;return"";}

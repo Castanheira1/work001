@@ -1,5 +1,4 @@
-﻿var _showConcluidasPainel=false;
-function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 
 function renderKPIs(){
   var all=dashboardData.oms;
@@ -911,7 +910,6 @@ function renderMatEditModal(){
   el.innerHTML=html;
 }
 
-var _sugResultados=[];
 function _mostrarSugestoes(idx,input){
   var sug=document.getElementById("matSug_"+idx);
   if(!sug)return;
