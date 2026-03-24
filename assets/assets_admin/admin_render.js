@@ -348,7 +348,7 @@ function renderEquipes(){
   var oms=dashboardData.oms;
   var equipeMap={};
   oms.forEach(function(o){
-    var eq=o.equipe||(o.primeiro_executante?"Eq. "+o.primeiro_executante:null)||"Sem equipe";
+    var eq=_equipeLabel(o);
     if(!equipeMap[eq])equipeMap[eq]={total:0,fin:0,hh:0,mat:0,desvios:0,exec:0,membros:{}};
     equipeMap[eq].total++;
     if(o.status==="finalizada"){equipeMap[eq].fin++;equipeMap[eq].hh+=Number(o.hh_total||0);equipeMap[eq].mat+=Number(o.materiais_total||0);}
@@ -359,7 +359,7 @@ function renderEquipes(){
   });
   dashboardData.desvios.forEach(function(d){
     var om=oms.find(function(o){return o.num===d.om_num;});
-    var eq=om?(om.equipe||(om.primeiro_executante?"Eq. "+om.primeiro_executante:null)||"Sem equipe"):"Sem equipe";
+    var eq=om?_equipeLabel(om):"Sem equipe";
     if(equipeMap[eq])equipeMap[eq].desvios++;
   });
   var equipes=Object.keys(equipeMap).sort();
@@ -597,8 +597,9 @@ function _renderLeadTime(leads,fin,noPrazo,atrasadas,semPrazo){
   el.innerHTML=h;
 }
 
-function _renderBarHH(all){var fin=all.filter(function(o){return o.status==="finalizada";});var map={};fin.forEach(function(o){var eq=o.equipe||(o.primeiro_executante?"Eq. "+o.primeiro_executante:null)||"Sem equipe";map[eq]=(map[eq]||0)+Number(o.hh_total||0);});var sorted=Object.keys(map).map(function(k){return{label:k,val:map[k]};}).sort(function(a,b){return b.val-a.val;}).slice(0,8);_renderHBars($("chartHHEquipe"),sorted,"var(--b1)","h");}
-function _renderBarMat(all){var fin=all.filter(function(o){return o.status==="finalizada";});var map={};fin.forEach(function(o){var eq=o.equipe||(o.primeiro_executante?"Eq. "+o.primeiro_executante:null)||"Sem equipe";map[eq]=(map[eq]||0)+Number(o.materiais_total||0);});var sorted=Object.keys(map).map(function(k){return{label:k,val:map[k]};}).sort(function(a,b){return b.val-a.val;}).slice(0,8);_renderHBars($("chartMatEquipe"),sorted,"var(--lr)","R$");}
+function _renderBarByField(all,field,elId,color,prefix){var fin=all.filter(function(o){return o.status==="finalizada";});var map={};fin.forEach(function(o){var eq=_equipeLabel(o);map[eq]=(map[eq]||0)+Number(o[field]||0);});var sorted=Object.keys(map).map(function(k){return{label:k,val:map[k]};}).sort(function(a,b){return b.val-a.val;}).slice(0,8);_renderHBars($(elId),sorted,color,prefix);}
+function _renderBarHH(all){_renderBarByField(all,"hh_total","chartHHEquipe","var(--b1)","h");}
+function _renderBarMat(all){_renderBarByField(all,"materiais_total","chartMatEquipe","var(--lr)","R$");}
 
 function _renderHBars(el,data,color,prefix){
   if(!data.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
@@ -610,7 +611,7 @@ function _renderHBars(el,data,color,prefix){
 function _renderProdutividade(all){
   var fin=all.filter(function(o){return o.status==="finalizada";});
   var map={};
-  fin.forEach(function(o){var eq=o.equipe||(o.primeiro_executante?"Eq. "+o.primeiro_executante:null)||"Sem equipe";if(!map[eq])map[eq]={oms:0,hh:0,mat:0};map[eq].oms++;map[eq].hh+=Number(o.hh_total||0);map[eq].mat+=Number(o.materiais_total||0);});
+  fin.forEach(function(o){var eq=_equipeLabel(o);if(!map[eq])map[eq]={oms:0,hh:0,mat:0};map[eq].oms++;map[eq].hh+=Number(o.hh_total||0);map[eq].mat+=Number(o.materiais_total||0);});
   var equipes=Object.keys(map).sort(function(a,b){return map[b].oms-map[a].oms;});
   if(!equipes.length){$("chartProdutividade").innerHTML='<div class="empty">Sem dados</div>';return;}
   var maxOms=Math.max.apply(null,equipes.map(function(e){return map[e].oms;}))||1;
@@ -801,16 +802,15 @@ function renderFluxoBlock(containerId,oms,blockType){
   ["OM","CC","Equipe","Executante","Material","Assinatura","Ações"].forEach(function(th){html+='<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--c3);font-weight:800">'+th+"</th>";});
   html+="</tr></thead><tbody>";
   oms.forEach(function(om,i){
-    var mat=Array.isArray(om.materiais_usados)?om.materiais_usados:[];
-    var executantes=Array.isArray(om.executantes)?om.executantes:[];
-    var exec=executantes.length?executantes[0]:(om.primeiro_executante||"—");
+    var mat=safeParseArray(om.materiais_usados);
+    var exec=_execLabel(om);
     var hasMat=mat.length>0,hasSig=om.cliente_assinou;
     var bg=i%2===0?"#fff":"#fafafa";
     html+='<tr style="background:'+bg+';border-bottom:1px solid var(--c5);">';
-    html+='<td style="padding:8px 10px"><span class="om-num">'+(om.num||"—")+"</span></td>";
-    html+='<td style="padding:8px 10px;font-weight:700">'+(om.cc||"—")+"</td>";
-    html+='<td style="padding:8px 10px;font-weight:700">'+(om.equipe||"—")+"</td>";
-    html+="<td style=\"padding:8px 10px\">"+exec+"</td>";
+    html+='<td style="padding:8px 10px"><span class="om-num">'+esc(om.num||"—")+"</span></td>";
+    html+='<td style="padding:8px 10px;font-weight:700">'+esc(om.cc||"—")+"</td>";
+    html+='<td style="padding:8px 10px;font-weight:700">'+esc(om.equipe||"—")+"</td>";
+    html+='<td style="padding:8px 10px">'+esc(exec)+"</td>";
     html+='<td style="padding:8px 10px"><span style="font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px;background:'+(hasMat?"#fff3cd":"#e8e8e8")+';color:'+(hasMat?"#856404":"#888")+'">'+(hasMat?"✓ "+mat.length+" item(s)":"Sem mat.")+"</span></td>";
     html+='<td style="padding:8px 10px"><span style="font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px;background:'+(hasSig?"#d1e7dd":"#fde8ea")+';color:'+(hasSig?"#1A8754":"#dc3545")+'">'+(hasSig?"Assinou":"Pendente")+"</span></td>";
     html+='<td style="padding:8px 10px;text-align:right"><div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">';
@@ -832,20 +832,20 @@ function renderFluxoBlockOficina(containerId,oms){
   ["OM","TAG","Equipe/CC","Executante","HH","Docs","Ações"].forEach(function(h){html+='<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#e65100;font-weight:800">'+h+"</th>";});
   html+="</tr></thead><tbody>";
   oms.forEach(function(om,i){
-    var executantes=Array.isArray(om.executantes)?om.executantes:[];
-    var exec=executantes.length?executantes[0]:(om.primeiro_executante||"—");
+    var exec=_execLabel(om);
     var hh=typeof om.hh_total==="number"?om.hh_total.toFixed(2)+"h":"—";
     var bg=i%2===0?"#fffdf7":"#fff8ee";
+    var numSafe=escAttr(om.num||"");
     var docBadges="";
-    if(om.has_relatorio)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e3f2fd;color:#1565c0;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'OM\',\''+om.num+'\')" title="Ver Relatório">📄 REL</span>';
-    if(om.has_checklist)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e8f5e9;color:#2e7d32;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'CK\',\''+om.num+'\')" title="Ver Checklist">📋 CK</span>';
-    if(om.has_nc)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#fde8ea;color:#c62828;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'NC\',\''+om.num+'\')" title="Não Conformidade">⚠️ NC</span>';
+    if(om.has_relatorio)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e3f2fd;color:#1565c0;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'OM\',\''+numSafe+'\')" title="Ver Relatório">📄 REL</span>';
+    if(om.has_checklist)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e8f5e9;color:#2e7d32;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'CK\',\''+numSafe+'\')" title="Ver Checklist">📋 CK</span>';
+    if(om.has_nc)docBadges+='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#fde8ea;color:#c62828;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'NC\',\''+numSafe+'\')" title="Não Conformidade">⚠️ NC</span>';
     if(!docBadges)docBadges='<span style="color:#bbb;font-size:10px">Aguardando upload</span>';
     html+='<tr style="background:'+bg+';border-bottom:1px solid #ffe0b2">';
-    html+='<td style="padding:8px 10px"><span class="om-num">'+(om.num||"—")+'</span><br><span style="font-size:10px;color:#999">'+(om.titulo||"")+"</span></td>";
-    html+='<td style="padding:8px 10px;font-weight:800;color:#e65100">'+(om.local_instalacao||om.equipamento||"—")+"</td>";
-    html+='<td style="padding:8px 10px;font-weight:700">'+(om.equipe||"—")+'<br><span style="font-size:10px;color:#999">'+(om.cc||"")+"</span></td>";
-    html+="<td style=\"padding:8px 10px\">"+exec+"</td>";
+    html+='<td style="padding:8px 10px"><span class="om-num">'+esc(om.num||"—")+'</span><br><span style="font-size:10px;color:#999">'+esc(om.titulo||"")+"</span></td>";
+    html+='<td style="padding:8px 10px;font-weight:800;color:#e65100">'+esc(om.local_instalacao||om.equipamento||"—")+"</td>";
+    html+='<td style="padding:8px 10px;font-weight:700">'+esc(om.equipe||"—")+'<br><span style="font-size:10px;color:#999">'+esc(om.cc||"")+"</span></td>";
+    html+='<td style="padding:8px 10px">'+esc(exec)+"</td>";
     html+='<td style="padding:8px 10px;font-weight:800">'+hh+"</td>";
     html+="<td style=\"padding:8px 10px\">"+docBadges+"</td>";
     html+='<td style="padding:8px 10px;text-align:right"><button onclick="abrirRelatorioFluxo(\''+om.num+'\')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Detalhes</button></td>';
@@ -862,16 +862,16 @@ function renderFluxoBlockReprogramadas(containerId,oms){
   ["OM","Equipe/CC","Executante","HH Parcial","Motivo","Docs","Ações"].forEach(function(h){html+='<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:#7b1fa2;font-weight:800">'+h+"</th>";});
   html+="</tr></thead><tbody>";
   oms.forEach(function(om,i){
-    var executantes=Array.isArray(om.executantes)?om.executantes:[];
-    var exec=executantes.length?executantes[0]:(om.primeiro_executante||"—");
+    var exec=_execLabel(om);
     var hh=typeof om.hh_total==="number"?om.hh_total.toFixed(2)+"h":"—";
     var motivo=esc(om.motivo_reprogramacao||"—");
     var bg=i%2===0?"#fdf5ff":"#f9eefe";
-    var docBadges=om.has_relatorio?'<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e3f2fd;color:#1565c0;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'OM\',\''+om.num+'\')">📄 REL</span>':'<span style="color:#bbb;font-size:10px">—</span>';
+    var numSafe=escAttr(om.num||"");
+    var docBadges=om.has_relatorio?'<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:900;background:#e3f2fd;color:#1565c0;margin-right:3px;cursor:pointer" onclick="verPDFOficina(\'OM\',\''+numSafe+'\')">📄 REL</span>':'<span style="color:#bbb;font-size:10px">—</span>';
     html+='<tr style="background:'+bg+';border-bottom:1px solid #e1bee7">';
-    html+='<td style="padding:8px 10px"><span class="om-num">'+(om.num||"—")+'</span><br><span style="font-size:10px;color:#999">'+(om.titulo||"")+"</span></td>";
-    html+='<td style="padding:8px 10px;font-weight:700">'+(om.equipe||"—")+'<br><span style="font-size:10px;color:#999">'+(om.cc||"")+"</span></td>";
-    html+="<td style=\"padding:8px 10px\">"+exec+"</td>";
+    html+='<td style="padding:8px 10px"><span class="om-num">'+esc(om.num||"—")+'</span><br><span style="font-size:10px;color:#999">'+esc(om.titulo||"")+"</span></td>";
+    html+='<td style="padding:8px 10px;font-weight:700">'+esc(om.equipe||"—")+'<br><span style="font-size:10px;color:#999">'+esc(om.cc||"")+"</span></td>";
+    html+='<td style="padding:8px 10px">'+esc(exec)+"</td>";
     html+='<td style="padding:8px 10px;font-weight:800;color:#7b1fa2">'+hh+"</td>";
     html+='<td style="padding:8px 10px;max-width:200px;word-break:break-word">'+motivo+"</td>";
     html+="<td style=\"padding:8px 10px\">"+docBadges+"</td>";
@@ -954,7 +954,7 @@ document.addEventListener("click",function(e){
 function editarMateriaisAdmin(num){
   matEditOM=num;
   var om=(fluxoData.b1.concat(fluxoData.b2,fluxoData.b3)).find(function(o){return o.num===num;});
-  _matEditOriginal=om?(Array.isArray(om.materiais_usados)?JSON.parse(JSON.stringify(om.materiais_usados)):[]):[];
+  _matEditOriginal=om?JSON.parse(JSON.stringify(safeParseArray(om.materiais_usados))):[];
   _matEditData=JSON.parse(JSON.stringify(_matEditOriginal));
   renderMatEditModal();
   document.getElementById("matEditOMNum").textContent=num;
@@ -967,7 +967,7 @@ function showHabilitarDispositivo(num){
   var om=dashboardData.oms.find(function(o){return o.num===num;});if(!om)return;
   _hdOmNum=num;_hdFalhaInicio=om.updated_at||null;
   $("hdOmNum").textContent=num;$("hdOmTitulo").textContent=om.titulo||"";
-  var execArr=Array.isArray(om.executantes)?om.executantes:[];
+  var execArr=safeParseArray(om.executantes);
   $("hdExecAtual").textContent=execArr.length?execArr.join(", "):"—";
   $("hdTempoParado").textContent=_hdFalhaInicio?Math.max(0,Math.floor((Date.now()-new Date(_hdFalhaInicio).getTime())/60000))+" min parado(s)":"—";
   $("hdMesmaEquipe").checked=true;$("hdNovoExecRow").style.display="none";$("hdNovoExec").value="";
