@@ -99,6 +99,73 @@ CREATE TABLE IF NOT EXISTS public.desvios (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.config (
+  chave TEXT PRIMARY KEY,
+  valor TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.bm_materiais (
+  id BIGSERIAL PRIMARY KEY,
+  bm_numero TEXT NOT NULL,
+  bm_data_inicio TEXT,
+  bm_data_fim TEXT,
+  om_num TEXT NOT NULL,
+  titulo_om TEXT,
+  tipo_solicitacao TEXT,
+  codigo TEXT,
+  ct2 TEXT,
+  descricao TEXT,
+  unidade TEXT DEFAULT 'UN',
+  qtd NUMERIC(12,4) DEFAULT 0,
+  vl_unitario NUMERIC(12,4) DEFAULT 0,
+  bdi_percentual NUMERIC(10,4) DEFAULT 0,
+  bdi_valor NUMERIC(12,4) DEFAULT 0,
+  vl_total NUMERIC(12,4) DEFAULT 0,
+  cc TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.bm_hh (
+  id BIGSERIAL PRIMARY KEY,
+  bm_numero TEXT NOT NULL,
+  bm_data_inicio TEXT,
+  bm_data_fim TEXT,
+  om_num TEXT NOT NULL,
+  titulo_om TEXT,
+  cc TEXT,
+  equipe TEXT,
+  escopo TEXT DEFAULT 'geral',
+  executante TEXT,
+  pessoal_n INTEGER,
+  tipo TEXT,
+  data_exec TEXT,
+  hora_inicio TEXT,
+  hora_fim TEXT,
+  tempo_seg INTEGER DEFAULT 0,
+  tempo_fmt TEXT,
+  causa TEXT,
+  tag TEXT,
+  status TEXT,
+  hh_total NUMERIC(10,2) DEFAULT 0,
+  materiais_total NUMERIC(12,2) DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.om_etapas_execucao (
+  id BIGSERIAL PRIMARY KEY,
+  om_num TEXT NOT NULL,
+  etapa_seq INTEGER NOT NULL,
+  etapa_tag TEXT NOT NULL DEFAULT 'ATIVIDADE',
+  executantes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  data_inicio TIMESTAMPTZ,
+  data_fim TIMESTAMPTZ,
+  hh_atividade NUMERIC(10,4) NOT NULL DEFAULT 0,
+  hh_deslocamento NUMERIC(10,4) NOT NULL DEFAULT 0,
+  materiais_usados JSONB NOT NULL DEFAULT '[]'::jsonb,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.dashboard_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   om_num TEXT NOT NULL,
@@ -143,6 +210,14 @@ CREATE INDEX IF NOT EXISTS idx_dashboard_om ON public.dashboard_log (om_num);
 CREATE INDEX IF NOT EXISTS idx_dashboard_mes ON public.dashboard_log (mes_ref);
 CREATE INDEX IF NOT EXISTS idx_dashboard_tipo ON public.dashboard_log (tipo);
 
+CREATE INDEX IF NOT EXISTS idx_bm_materiais_bm ON public.bm_materiais (bm_numero);
+CREATE INDEX IF NOT EXISTS idx_bm_materiais_om ON public.bm_materiais (om_num);
+CREATE INDEX IF NOT EXISTS idx_bm_hh_bm ON public.bm_hh (bm_numero);
+CREATE INDEX IF NOT EXISTS idx_bm_hh_om ON public.bm_hh (om_num);
+CREATE INDEX IF NOT EXISTS idx_om_etapas_om ON public.om_etapas_execucao (om_num);
+CREATE INDEX IF NOT EXISTS idx_om_etapas_data ON public.om_etapas_execucao (data_inicio);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_om_etapas_om_seq ON public.om_etapas_execucao (om_num, etapa_seq);
+
 -- ==========================================
 -- TRIGGER updated_at
 -- ==========================================
@@ -170,6 +245,10 @@ FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 ALTER TABLE public.oms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.desvios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bm_materiais ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bm_hh ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.om_etapas_execucao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dashboard_log ENABLE ROW LEVEL SECURITY;
 
 -- Limpa policies antigas
@@ -178,7 +257,7 @@ BEGIN
   FOR r IN (
     SELECT policyname, tablename FROM pg_policies
     WHERE schemaname = 'public'
-      AND tablename IN ('oms','profiles','desvios','dashboard_log')
+      AND tablename IN ('oms','profiles','desvios','dashboard_log','config','bm_materiais','bm_hh','om_etapas_execucao')
   ) LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', r.policyname, r.tablename);
   END LOOP;
@@ -199,6 +278,28 @@ CREATE POLICY "profiles_update" ON public.profiles FOR UPDATE TO authenticated U
 -- DESVIOS
 CREATE POLICY "desvios_select" ON public.desvios FOR SELECT TO anon, authenticated USING (TRUE);
 CREATE POLICY "desvios_insert" ON public.desvios FOR INSERT TO anon, authenticated WITH CHECK (TRUE);
+
+-- CONFIG
+CREATE POLICY "config_select" ON public.config FOR SELECT TO anon, authenticated USING (TRUE);
+CREATE POLICY "config_insert" ON public.config FOR INSERT TO authenticated WITH CHECK (TRUE);
+CREATE POLICY "config_update" ON public.config FOR UPDATE TO authenticated USING (TRUE) WITH CHECK (TRUE);
+
+-- BM_MATERIAIS
+CREATE POLICY "bm_materiais_select" ON public.bm_materiais FOR SELECT TO anon, authenticated USING (TRUE);
+CREATE POLICY "bm_materiais_insert" ON public.bm_materiais FOR INSERT TO anon, authenticated WITH CHECK (TRUE);
+CREATE POLICY "bm_materiais_delete" ON public.bm_materiais FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = auth.uid() AND p.role = 'admin'));
+
+-- BM_HH
+CREATE POLICY "bm_hh_select" ON public.bm_hh FOR SELECT TO anon, authenticated USING (TRUE);
+CREATE POLICY "bm_hh_insert" ON public.bm_hh FOR INSERT TO anon, authenticated WITH CHECK (TRUE);
+CREATE POLICY "bm_hh_delete" ON public.bm_hh FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = auth.uid() AND p.role = 'admin'));
+
+-- OM_ETAPAS_EXECUCAO
+CREATE POLICY "om_etapas_select" ON public.om_etapas_execucao FOR SELECT TO anon, authenticated USING (TRUE);
+CREATE POLICY "om_etapas_insert" ON public.om_etapas_execucao FOR INSERT TO anon, authenticated WITH CHECK (TRUE);
+CREATE POLICY "om_etapas_update" ON public.om_etapas_execucao FOR UPDATE TO anon, authenticated USING (TRUE) WITH CHECK (TRUE);
 
 -- DASHBOARD_LOG
 CREATE POLICY "dashboard_select" ON public.dashboard_log FOR SELECT TO anon, authenticated USING (TRUE);
