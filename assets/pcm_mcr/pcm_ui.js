@@ -229,7 +229,7 @@
                 resetTimers();
             }
             
-            if(currentOM.statusOficina === STATUS_OFICINA.AGUARDANDO_DEVOLUCAO) {
+            if(typeof STATUS_OFICINA !== 'undefined' && currentOM.statusOficina === STATUS_OFICINA.AGUARDANDO_DEVOLUCAO) {
                 // Aguardando devolucao: mostrar botao de iniciar montagem
                 _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
