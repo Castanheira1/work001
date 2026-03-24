@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pcm-mcr-cache-';
-const CACHE_VERSION = CACHE_PREFIX + 'v10';
+const CACHE_VERSION = CACHE_PREFIX + 'v11';
 
 const APP_SHELL = [
   './',
