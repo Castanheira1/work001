@@ -263,3 +263,7 @@
             }
             if(paraRemover.length > 0) salvarOMs();
         }
+
+        window.puxarOMsManual = puxarOMsManual;
+        window.carregarOMs = carregarOMs;
+        window.salvarOMs = salvarOMs;
