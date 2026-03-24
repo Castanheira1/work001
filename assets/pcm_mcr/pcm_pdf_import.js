@@ -226,7 +226,7 @@
             function escRgx(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
             function extrairPorRotulo(texto, rotulo, proximos) {
                 var labels = (proximos || []).map(escRgx).join('|');
-                var rgx = new RegExp(escRgx(rotulo) + '\s*[:|]?\s*([\s\S]*?)(?=' + (labels ? labels : '$') + '|$)', 'i');
+                var rgx = new RegExp(escRgx(rotulo) + '\\s*[:|]?\\s*([\\s\\S]*?)(?=' + (labels ? labels : '$') + '|$)', 'i');
                 var m = texto.match(rgx);
                 return (m && m[1]) ? limpar(m[1]) : '';
             }
@@ -237,17 +237,17 @@
                 'Descri[cç][aã]o do Local de Instala[cç][aã]o Superior',
                 'Caracter[ií]sticas do Equipamento', 'ORDEM DE MANUTEN'
             ]);
-            if (porCampo) { var mC = porCampo.match(/\b\d{6,10}\b/); if (mC && mC[0] !== om) return mC[0]; }
+            if (porCampo) { var mC = porCampo.match(/\b\d{6,10}\b/); if (mC && mC[0] !== om && mC[0] !== numEquip) return mC[0]; }
             if (txtLines) {
                 var linhas = txtLines.split('\n').map(function(l){ return limpar(l); }).filter(Boolean);
                 for (var i = 0; i < linhas.length; i++) {
                     if (/Centro de Custo/i.test(linhas[i])) {
                         var mIn = linhas[i].match(/Centro de Custo\s*[:|]?\s*(\d{6,10})/i);
-                        if (mIn && mIn[1] !== om) return mIn[1];
+                        if (mIn && mIn[1] !== om && mIn[1] !== numEquip) return mIn[1];
                         for (var j = i + 1; j < Math.min(i + 4, linhas.length); j++) {
                             if (/^(Criticidade|Tipo Contador|T[eé]rmino da Garantia|Fonte radioativa|N[ºo] Identifica)/i.test(linhas[j])) break;
                             var mL = linhas[j].match(/\b\d{6,10}\b/);
-                            if (mL && mL[0] !== om) return mL[0];
+                            if (mL && mL[0] !== om && mL[0] !== numEquip) return mL[0];
                         }
                     }
                 }
@@ -319,19 +319,42 @@
 
         function _extrairTag(txt, txtLines, tituloCurto) {
             var tag = '';
-            if (!txtLines) return tag;
-            var tagLines = txtLines.split('\n');
-            for (var tg = 0; tg < Math.min(tagLines.length, 25); tg++) {
-                var tgl = tagLines[tg].trim();
-                var identMatch = tgl.match(/Identifica[çc][ãa]o\s+T[eé]cnica\s+(M\d{2,5})/i);
-                if (identMatch) return identMatch[1];
-                var mTag = tgl.match(/\b(M\s*\d{2,5})\b/);
-                if (mTag && tgl.match(/Identifica/i)) return mTag[1].replace(/\s+/g, '');
+            if (!txtLines) {
+                var txtTag = txt.match(/(?:TAG|Identifica[çc][ãa]o)\s*[:\s]*\b(M\d{2,5})\b/i);
+                return txtTag ? txtTag[1] : '';
             }
+            var tagLines = txtLines.split('\n');
+            // 1) Buscar na linha de "Identificação Técnica" (com ou sem "Nº" antes)
+            for (var tg = 0; tg < tagLines.length; tg++) {
+                var tgl = tagLines[tg].trim();
+                if (/Identifica[çc][ãa]o/i.test(tgl)) {
+                    // TAG na mesma linha
+                    var identMatch = tgl.match(/\b(M\d{2,5})\b/);
+                    if (identMatch) return identMatch[1];
+                    // TAG na próxima linha (quando PDF separa rótulo do valor)
+                    if (tg + 1 < tagLines.length) {
+                        var nextLine = tagLines[tg + 1].trim();
+                        var nextMatch = nextLine.match(/^(M\d{2,5})\b/);
+                        if (nextMatch) return nextMatch[1];
+                    }
+                }
+            }
+            // 2) Buscar na linha de "Características do Equipamento"
+            for (var ck = 0; ck < tagLines.length; ck++) {
+                if (/Caracter[ií]sticas/i.test(tagLines[ck])) {
+                    for (var cl = ck; cl < Math.min(ck + 3, tagLines.length); cl++) {
+                        var caracMatch = tagLines[cl].match(/\b(M\d{2,5})\b/);
+                        if (caracMatch) return caracMatch[1];
+                    }
+                    break;
+                }
+            }
+            // 3) Buscar no título da OM
             var tituloTag = tituloCurto.match(/\b(M\d{2,5})\b/);
             if (tituloTag) return tituloTag[1];
-            var txtTag = txt.match(/(?:TAG|Identifica)\s*[:\s]*\b(M\d{2,5})\b/i);
-            if (txtTag) return txtTag[1];
+            // 4) Buscar no texto completo perto de TAG ou Identificação
+            var txtTag2 = txt.match(/(?:TAG|Identifica[çc][ãa]o)\s*[:\s]*\b(M\d{2,5})\b/i);
+            if (txtTag2) return txtTag2[1];
             return tag;
         }
 
