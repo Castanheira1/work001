@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'pcm-mcr-cache-';
-const CACHE_VERSION = CACHE_PREFIX + 'v9';
+const CACHE_VERSION = CACHE_PREFIX + 'v10';
 
 const APP_SHELL = [
   './',
@@ -32,11 +32,29 @@ const APP_SHELL = [
   './assets/vendor/xlsx.full.min.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './admin_soberano.html',
+  './assets/assets_admin/admin_soberano.css',
+  './assets/assets_admin/admin_utils.js',
+  './assets/assets_admin/admin_state.js',
+  './assets/assets_admin/admin_api.js',
+  './assets/assets_admin/admin_render.js',
+  './assets/assets_admin/admin_core.js',
+  './assets/assets_admin/admin_events.js'
 ];
 
 const CACHEABLE_DESTINATIONS = ['script', 'style', 'image', 'font', 'manifest', 'worker'];
-const NON_CRITICAL_ASSETS = ['./assets/icons/icon-192.png', './assets/icons/icon-512.png'];
+const NON_CRITICAL_ASSETS = [
+  './assets/icons/icon-192.png', './assets/icons/icon-512.png',
+  './admin_soberano.html',
+  './assets/assets_admin/admin_soberano.css',
+  './assets/assets_admin/admin_utils.js',
+  './assets/assets_admin/admin_state.js',
+  './assets/assets_admin/admin_api.js',
+  './assets/assets_admin/admin_render.js',
+  './assets/assets_admin/admin_core.js',
+  './assets/assets_admin/admin_events.js'
+];
 const API_TIMEOUT_MS = 12000;
 const BG_SYNC_TAG = 'pcm-sync-pending';
 

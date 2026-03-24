@@ -1,4 +1,12 @@
-﻿function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+﻿/* Defensive fallbacks: garantir variáveis cross-script caso admin_state.js falhe */
+if(typeof _showConcluidasPainel==="undefined")var _showConcluidasPainel=false;
+if(typeof dashboardData==="undefined")var dashboardData={oms:[],reports:[],desvios:[]};
+if(typeof currentPipe==="undefined")var currentPipe=null;
+if(typeof PIPE_CFG==="undefined")var PIPE_CFG=[];
+if(typeof DESVIO_COLORS==="undefined")var DESVIO_COLORS={};
+if(typeof fluxoData==="undefined")var fluxoData={b1:[],b2:[],b3:[],b4:[],b5:[],b6:[]};
+
+function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 
 function renderKPIs(){
   var all=dashboardData.oms;

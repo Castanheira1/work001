@@ -1,8 +1,8 @@
 ﻿if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}
 
-const SESSION_KEY="pcm_auth_session";
-let SUPABASE_URL=(window.ENV&&window.ENV.SUPABASE_URL)||window.SUPABASE_URL||"";
-let SUPABASE_ANON_KEY=(window.ENV&&window.ENV.SUPABASE_ANON_KEY)||window.SUPABASE_ANON_KEY||"";
+var SESSION_KEY="pcm_auth_session";
+var SUPABASE_URL=(window.ENV&&window.ENV.SUPABASE_URL)||window.SUPABASE_URL||"";
+var SUPABASE_ANON_KEY=(window.ENV&&window.ENV.SUPABASE_ANON_KEY)||window.SUPABASE_ANON_KEY||"";
 
 function getSession() {
   try {
@@ -13,15 +13,15 @@ function getSession() {
     return null;
   }
 }
-let sb=null;
+var sb=null;
 
 function hasSupabaseClient(){return!!(window.supabase&&typeof window.supabase.createClient==="function");}
 function ensureSupabaseClient(){if(sb)return sb;if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error("Configuração Supabase ausente");if(!hasSupabaseClient())throw new Error("Biblioteca Supabase indisponível");sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return sb;}
 
-let currentUser=null,currentPipe=null;
-let dashboardData={oms:[],reports:[],desvios:[]};
+var currentUser=null,currentPipe=null;
+var dashboardData={oms:[],reports:[],desvios:[]};
 
-const PIPE_CFG=[
+var PIPE_CFG=[
   {key:"enviada",icon:"📤",label:"Enviadas",color:"var(--c2)",bar:"#A0A7B4"},
   {key:"em_execucao",icon:"⚡",label:"Execução",color:"var(--az)",bar:"var(--az)"},
   {key:"pendente_assinatura",icon:"✍️",label:"Pendentes",color:"var(--lr)",bar:"var(--lr)"},
@@ -29,17 +29,17 @@ const PIPE_CFG=[
   {key:"cancelada",icon:"❌",label:"Canceladas",color:"var(--vm)",bar:"var(--vm)"}
 ];
 
-const DESVIO_COLORS={"DISPOSITIVO EM FALHA":["#e67e00","#fff8e6"],"PAUSA":["#0d6efd","#e8f0fe"],"CANCELAMENTO":["#dc3545","#fde8ea"]};
-let fluxoData={b1:[],b2:[],b3:[],b4:[],b5:[],b6:[]};
-let matEditOM=null;
-let _matEditData=[];
-let _matEditOriginal=[];
-let b4Selected={};
-let lastPdfBlob=null;
-let _realtimeChannel=null;
-let _realtimeDebounce=null;
-let _hdOmNum=null,_hdFalhaInicio=null;
-let _adminPricelist=[];
-let _selectedBM="";
-let _showConcluidasPainel=false;
-let _sugResultados=[];
+var DESVIO_COLORS={"DISPOSITIVO EM FALHA":["#e67e00","#fff8e6"],"PAUSA":["#0d6efd","#e8f0fe"],"CANCELAMENTO":["#dc3545","#fde8ea"]};
+var fluxoData={b1:[],b2:[],b3:[],b4:[],b5:[],b6:[]};
+var matEditOM=null;
+var _matEditData=[];
+var _matEditOriginal=[];
+var b4Selected={};
+var lastPdfBlob=null;
+var _realtimeChannel=null;
+var _realtimeDebounce=null;
+var _hdOmNum=null,_hdFalhaInicio=null;
+var _adminPricelist=[];
+var _selectedBM="";
+var _showConcluidasPainel=false;
+var _sugResultados=[];
