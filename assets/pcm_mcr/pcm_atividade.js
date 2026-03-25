@@ -122,6 +122,7 @@
             atividadeJaIniciada = true;
             
             if(currentOM.emOficina) {
+                // Se estiver no fluxo de oficina legado, converter. Mas não deveria entrar aqui no fluxo v2
                 currentOM.emOficina = false;
                 currentOM.retornouOficina = true;
                 deslocamentoMinutos = 0;
@@ -232,7 +233,13 @@
             currentOM.checklistCorretiva = true;
             $('btnChecklist').style.display = 'none';
             $('btnOficina').style.display = 'block';
-            _mostrarChecklistUI(true);
+            
+            // Só mostrar a UI de checklist se a atividade já estiver iniciada
+            if(atividadeJaIniciada || currentOM.statusAtual === 'iniciada') {
+                _mostrarChecklistUI(true);
+            } else {
+                alert('✅ Checklist habilitado!\nInicie a atividade para preenchê-lo.');
+            }
             salvarOMAtual();
         }
 

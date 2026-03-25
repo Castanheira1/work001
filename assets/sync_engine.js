@@ -45,7 +45,7 @@
   function buildLocalOm(r) {
     var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
     var statusRaw = String(r.status || '').toLowerCase();
-    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina' || r.status_oficina === 'em_oficina';
     var lockRemoto = r.lock_device_id || null;
     return {
       num: r.num,
@@ -71,6 +71,13 @@
       cancelada: !!(r.cancelada || statusRaw === 'cancelada'),
       pendenteAssinatura: !!(r.pendente_assinatura || statusRaw === 'pendente_assinatura'),
       emOficina: emOficina,
+      statusOficina: r.status_oficina || null,
+      etapaOficina: r.etapa_oficina || null,
+      oficinaPausada: !!r.oficina_pausada,
+      oficinaTrocaTurno: !!r.oficina_troca_turno,
+      dataEnvioOficina: r.data_inicio_oficina || null,
+      dataFimOficina: r.data_fim_oficina || null,
+      dataInicioMontagem: r.data_inicio_montagem || null,
       historicoExecucao: r.historico_execucao || [],
       materiaisUsados: r.materiais_usados || [],
       executantes: r.executantes || [],
@@ -102,9 +109,38 @@
 
     var estadoFluxo = String(r.estado_fluxo || '').toLowerCase();
     var statusRaw = String(r.status || '').toLowerCase();
-    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina';
+    var emOficina = estadoFluxo.indexOf('oficina') !== -1 || statusRaw === 'em_oficina' || r.status_oficina === 'em_oficina';
     if (!!om.emOficina !== emOficina) {
       om.emOficina = emOficina;
+      changed = true;
+    }
+
+    if (r.status_oficina !== undefined && om.statusOficina !== r.status_oficina) {
+      om.statusOficina = r.status_oficina;
+      changed = true;
+    }
+    if (r.etapa_oficina !== undefined && om.etapaOficina !== r.etapa_oficina) {
+      om.etapaOficina = r.etapa_oficina;
+      changed = true;
+    }
+    if (r.oficina_pausada !== undefined && !!om.oficinaPausada !== !!r.oficina_pausada) {
+      om.oficinaPausada = !!r.oficina_pausada;
+      changed = true;
+    }
+    if (r.oficina_troca_turno !== undefined && !!om.oficinaTrocaTurno !== !!r.oficina_troca_turno) {
+      om.oficinaTrocaTurno = !!r.oficina_troca_turno;
+      changed = true;
+    }
+    if (r.data_inicio_oficina !== undefined && om.dataEnvioOficina !== r.data_inicio_oficina) {
+      om.dataEnvioOficina = r.data_inicio_oficina;
+      changed = true;
+    }
+    if (r.data_fim_oficina !== undefined && om.dataFimOficina !== r.data_fim_oficina) {
+      om.dataFimOficina = r.data_fim_oficina;
+      changed = true;
+    }
+    if (r.data_inicio_montagem !== undefined && om.dataInicioMontagem !== r.data_inicio_montagem) {
+      om.dataInicioMontagem = r.data_inicio_montagem;
       changed = true;
     }
 
