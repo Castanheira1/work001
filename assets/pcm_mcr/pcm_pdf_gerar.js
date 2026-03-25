@@ -651,7 +651,8 @@
                     var execs = hist.executantes || [];
                     var numExec = execs.length || 1;
                     var deslSeg = (hist.deslocamentoSegundos !== undefined) ? hist.deslocamentoSegundos : ((hist.deslocamentoMinutos || 0) * 60);
-                    if((hist.tag === 'OFICINA') || hist.desvio || deslSeg <= 0) continue;
+                    if((hist.tag === 'OFICINA') || deslSeg <= 0) continue;
+                    if(hist.desvio) deslSeg = 0;
                     var dIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio) : null;
                     var dFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim) : null;
                     var dataIniStr = dIni ? dIni.toLocaleDateString('pt-BR') : '--/--/--';
@@ -720,15 +721,14 @@
                 var devDistribuido = false;
                 for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
                     var hx = currentOM.historicoExecucao[eh] || {};
-                    if (hx.desvio) continue; // Silenciosamente omitir desvios da tabela
                     var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
                     var ef = hx.dataFim ? new Date(hx.dataFim) : null;
                     var tagEt = hx.tag || 'ATIVIDADE';
                     var execsEt = (hx.executantes && hx.executantes.length) ? hx.executantes : ['---'];
-                    var hhAtivEt = Number(hx.hhAtividade || 0);
-                    var hhDeslEt = Number(hx.hhDeslocamento || 0);
-                    // Somar HH de desvios ao primeiro deslocamento encontrado
-                    if (!devDistribuido && hhDeslEt > 0 && devHhExtra > 0) {
+                    var hhAtivEt = hx.desvio ? 0 : Number(hx.hhAtividade || 0);
+                    var hhDeslEt = hx.desvio ? 0 : Number(hx.hhDeslocamento || 0);
+                    // Somar HH de desvios ao primeiro deslocamento normal encontrado
+                    if (!devDistribuido && !hx.desvio && hhDeslEt > 0 && devHhExtra > 0) {
                         hhDeslEt += devHhExtra;
                         devDistribuido = true;
                     }
@@ -819,13 +819,12 @@
                 var pessoalNA = 0;
                 for (var h2 = 0; h2 < currentOM.historicoExecucao.length; h2++) {
                     var hist2 = currentOM.historicoExecucao[h2];
-                    if (hist2.desvio) continue;
                     var execs2 = hist2.executantes || [];
                     var numExec2 = execs2.length || 1;
                     var aIni = hist2.dataInicio ? new Date(hist2.dataInicio) : null;
                     var aFim = hist2.dataFim ? new Date(hist2.dataFim) : null;
                     var ativSeg = 0;
-                    if (aIni && aFim) ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
+                    if (aIni && aFim && !hist2.desvio) ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
                     var dataIniStr2 = aIni ? aIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr2 = aFim ? aFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr2 = aIni ? aIni.toLocaleTimeString('pt-BR') : '--:--:--';
