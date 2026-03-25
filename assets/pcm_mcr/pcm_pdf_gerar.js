@@ -651,14 +651,14 @@
                     var execs = hist.executantes || [];
                     var numExec = execs.length || 1;
                     var deslSeg = (hist.deslocamentoSegundos !== undefined) ? hist.deslocamentoSegundos : ((hist.deslocamentoMinutos || 0) * 60);
-                    if((hist.tag === 'OFICINA') || deslSeg <= 0) continue;
+                    if((hist.tag === 'OFICINA') || hist.desvio || deslSeg <= 0) continue;
                     var dIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio) : null;
                     var dFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim) : null;
                     var dataIniStr = dIni ? dIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr = dFim ? dFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr = dIni ? dIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr = dFim ? dFim.toLocaleTimeString('pt-BR') : '--:--:--';
-                    var tempoStr = _formatarTempo(deslSeg);
+                    var deslHoras = (deslSeg / 3600).toFixed(2) + 'h';
                     var causaStr = '002';
                     for (var e = 0; e < numExec; e++) {
                         pessoalN++;
@@ -670,7 +670,7 @@
                             { content: horaIniStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: dataFimStr, styles: { halign: 'center', fontSize: 6 } },
                             { content: horaFimStr, styles: { halign: 'center', fontSize: 6 } },
-                            { content: tempoStr, styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+                            { content: deslHoras, styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
                             { content: causaStr, styles: { halign: 'center', fontSize: 6 } }
                         ]);
                     }
@@ -690,7 +690,7 @@
                 var stlTot = { halign: 'center', fontStyle: 'bold', fontSize: 7, fillColor: [90,90,90], textColor: [255,255,255] };
                 deslBody.push([
                     { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: _formatarTempo(totalDeslSeg), styles: stlTot }, { content: '', styles: stlTot }
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: (totalDeslSeg / 3600).toFixed(2) + 'h', styles: stlTot }, { content: '', styles: stlTot }
                 ]);
                 pdf.autoTable({
                     startY: y,
@@ -710,14 +710,28 @@
                 var etapasHhAtivTotal = 0;
                 var etapasHhDeslTotal = 0;
                 var etapaRowSeq = 1;
+                // Acumular HH de desvios para somar ao deslocamento das etapas normais
+                var _devOM2 = currentOM.desviosRegistrados || [];
+                var _devLocal2 = _getDesviosDaOM(currentOM.num);
+                var _devAll2 = _devOM2.length > 0 ? _devOM2 : _devLocal2;
+                var totalDevSegEtapas = 0;
+                for (var dd2 = 0; dd2 < _devAll2.length; dd2++) totalDevSegEtapas += (_devAll2[dd2].tempoSegundos || 0);
+                var devHhExtra = totalDevSegEtapas / 3600;
+                var devDistribuido = false;
                 for (var eh = 0; eh < currentOM.historicoExecucao.length; eh++) {
                     var hx = currentOM.historicoExecucao[eh] || {};
+                    if (hx.desvio) continue; // Silenciosamente omitir desvios da tabela
                     var ei = hx.dataInicio ? new Date(hx.dataInicio) : null;
                     var ef = hx.dataFim ? new Date(hx.dataFim) : null;
                     var tagEt = hx.tag || 'ATIVIDADE';
                     var execsEt = (hx.executantes && hx.executantes.length) ? hx.executantes : ['---'];
                     var hhAtivEt = Number(hx.hhAtividade || 0);
                     var hhDeslEt = Number(hx.hhDeslocamento || 0);
+                    // Somar HH de desvios ao primeiro deslocamento encontrado
+                    if (!devDistribuido && hhDeslEt > 0 && devHhExtra > 0) {
+                        hhDeslEt += devHhExtra;
+                        devDistribuido = true;
+                    }
                     for (var ex = 0; ex < execsEt.length; ex++) {
                         etapasHhAtivTotal += hhAtivEt;
                         etapasHhDeslTotal += hhDeslEt;
@@ -732,6 +746,8 @@
                         ]);
                     }
                 }
+                // Se nenhum deslocamento encontrado, somar desvios ao total diretamente
+                if (!devDistribuido && devHhExtra > 0) etapasHhDeslTotal += devHhExtra;
                 if(etapasBody.length === 0) {
                     etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
                 } else {
@@ -803,17 +819,18 @@
                 var pessoalNA = 0;
                 for (var h2 = 0; h2 < currentOM.historicoExecucao.length; h2++) {
                     var hist2 = currentOM.historicoExecucao[h2];
+                    if (hist2.desvio) continue;
                     var execs2 = hist2.executantes || [];
                     var numExec2 = execs2.length || 1;
                     var aIni = hist2.dataInicio ? new Date(hist2.dataInicio) : null;
                     var aFim = hist2.dataFim ? new Date(hist2.dataFim) : null;
                     var ativSeg = 0;
-                    if (aIni && aFim && !hist2.desvio) ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
+                    if (aIni && aFim) ativSeg = Math.floor((aFim - aIni) / 1000) - (hist2.tempoPausadoTotal || 0);
                     var dataIniStr2 = aIni ? aIni.toLocaleDateString('pt-BR') : '--/--/--';
                     var dataFimStr2 = aFim ? aFim.toLocaleDateString('pt-BR') : '--/--/--';
                     var horaIniStr2 = aIni ? aIni.toLocaleTimeString('pt-BR') : '--:--:--';
                     var horaFimStr2 = aFim ? aFim.toLocaleTimeString('pt-BR') : '--:--:--';
-                    var tempoStr2 = _formatarTempo(ativSeg);
+                    var ativHoras = (ativSeg / 3600).toFixed(2) + 'h';
                     for (var e2 = 0; e2 < numExec2; e2++) {
                         pessoalNA++;
                         totalAtivSeg += ativSeg;
@@ -824,13 +841,13 @@
                             { content: horaIniStr2, styles: { halign: 'center', fontSize: 6 } },
                             { content: dataFimStr2, styles: { halign: 'center', fontSize: 6 } },
                             { content: horaFimStr2, styles: { halign: 'center', fontSize: 6 } },
-                            { content: tempoStr2, styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } }
+                            { content: ativHoras, styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } }
                         ]);
                     }
                 }
                 ativBody.push([
                     { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: '', styles: stlTot },
-                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: _formatarTempo(totalAtivSeg), styles: stlTot }
+                    { content: '', styles: stlTot }, { content: '', styles: stlTot }, { content: (totalAtivSeg / 3600).toFixed(2) + 'h', styles: stlTot }
                 ]);
                 pdf.autoTable({
                     startY: y,
@@ -855,31 +872,32 @@
                     classifGeral.extra += cl.extra * numExec3;
                     classifGeral.noturno += cl.noturno * numExec3;
                 }
-                var _devOM = currentOM.desviosRegistrados || [];
-                var _devLocal = _getDesviosDaOM(currentOM.num);
-                var _devAll = _devOM.length > 0 ? _devOM : _devLocal;
+                // Somar desvios ao deslocamento silenciosamente no resumo
+                var _devOMr = currentOM.desviosRegistrados || [];
+                var _devLocalr = _getDesviosDaOM(currentOM.num);
+                var _devAllr = _devOMr.length > 0 ? _devOMr : _devLocalr;
                 var totalDevSegResumo = 0;
-                for (var dd = 0; dd < _devAll.length; dd++) totalDevSegResumo += (_devAll[dd].tempoSegundos || 0);
-                var totalComDesvio = totalGeralSeg + totalDevSegResumo;
+                for (var dd = 0; dd < _devAllr.length; dd++) totalDevSegResumo += (_devAllr[dd].tempoSegundos || 0);
+                var totalDeslComDesvio = totalDeslSeg + totalDevSegResumo;
+                var totalGeralComDesvio = totalDeslComDesvio + totalAtivSeg;
                 var resumoBody = [[
-                    { content: _formatarTempo(totalDeslSeg), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } },
-                    { content: _formatarTempo(totalAtivSeg), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } },
-                    { content: _formatarTempo(totalDevSegResumo), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6, textColor: totalDevSegResumo > 0 ? [180,0,0] : [30,30,30] } },
+                    { content: (totalDeslComDesvio / 3600).toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } },
+                    { content: (totalAtivSeg / 3600).toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } },
                     { content: String(pessoalN || pessoalNA || 0), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6 } },
-                    { content: _formatarTempo(totalComDesvio), styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
+                    { content: (totalGeralComDesvio / 3600).toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6.5 } },
                     { content: classifGeral.normal.toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6, textColor: [30,30,30] } },
                     { content: classifGeral.extra.toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6, textColor: [30,30,30] } },
                     { content: classifGeral.noturno.toFixed(2) + 'h', styles: { halign: 'center', fontStyle: 'bold', fontSize: 6, textColor: [30,30,30] } }
                 ]];
                 pdf.autoTable({
                     startY: y,
-                    head: [['Desloc.', 'Ativid.', 'Desvios', 'N\u00ba Pess.', 'TOTAL', 'Normal', 'Extra', 'Noturno']],
+                    head: [['Desloc.', 'Ativid.', 'N\u00ba Pess.', 'TOTAL', 'Normal', 'Extra', 'Noturno']],
                     body: resumoBody,
                     theme: 'grid',
                     tableWidth: 180,
                     headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6.2, fontStyle: 'bold', cellPadding: 1.6, halign: 'center' },
                     bodyStyles: { fontSize: 6.3, cellPadding: 1.8, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 22 }, 2: { cellWidth: 22 }, 3: { cellWidth: 18 }, 4: { cellWidth: 24 }, 5: { cellWidth: 24 }, 6: { cellWidth: 24 }, 7: { cellWidth: 24 } },
+                    columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 26 }, 2: { cellWidth: 20 }, 3: { cellWidth: 26 }, 4: { cellWidth: 28 }, 5: { cellWidth: 26 }, 6: { cellWidth: 28 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 8;
@@ -966,44 +984,6 @@
             }
 
             var obs = currentOM.observacoes;
-            var desviosOM = currentOM.desviosRegistrados || [];
-            var desviosLocal = _getDesviosDaOM(currentOM.num);
-            var desviosAll = desviosOM.length > 0 ? desviosOM : desviosLocal;
-            if (desviosAll.length > 0) {
-                y = _pdfSection(pdf, y, 'DESVIOS REGISTRADOS', 18);
-                var devBody = [];
-                var totalDevSeg = 0;
-                for (var dv = 0; dv < desviosAll.length; dv++) {
-                    var dev = desviosAll[dv];
-                    totalDevSeg += (dev.tempoSegundos || 0);
-                    devBody.push([
-                        { content: dev.tipoCod || '---', styles: { halign: 'center', fontSize: 7, fontStyle: 'bold' } },
-                        { content: dev.tipoLabel || dev.tipo || '---', styles: { fontSize: 7 } },
-                        { content: dev.tagEquipamento || '---', styles: { halign: 'center', fontSize: 7, fontStyle: 'bold' } },
-                        { content: dev.localInstalacao || '---', styles: { fontSize: 7 } },
-                        { content: new Date(dev.data).toLocaleDateString('pt-BR'), styles: { halign: 'center', fontSize: 7 } },
-                        { content: _formatarTempo(dev.tempoSegundos || 0), styles: { halign: 'center', fontStyle: 'bold', fontSize: 7 } }
-                    ]);
-                }
-                var stlDevTot = { halign: 'center', fontStyle: 'bold', fontSize: 8, fillColor: [70,70,70], textColor: [255,255,255] };
-                devBody.push([
-                    { content: 'TOTAL', colSpan: 5, styles: stlDevTot },
-                    { content: _formatarTempo(totalDevSeg), styles: stlDevTot }
-                ]);
-                pdf.autoTable({
-                    startY: y,
-                    head: [['Cod.', 'Tipo Desvio', 'TAG', 'Local', 'Data', 'Tempo']],
-                    body: devBody,
-                    theme: 'grid',
-                    tableWidth: 180,
-                    headStyles: { fillColor: [70,70,70], textColor: [255,255,255], fontSize: 6, fontStyle: 'bold', cellPadding: 1.5, halign: 'center' },
-                    bodyStyles: { fontSize: 6.2, cellPadding: 1.55, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
-                    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 52 }, 2: { cellWidth: 32 }, 3: { cellWidth: 38 }, 4: { cellWidth: 22 }, 5: { cellWidth: 22 } },
-                    margin: { left: M, right: M }
-                });
-                y = pdf.lastAutoTable.finalY + 8;
-            }
-
             y = _pdfDrawObservationTable(pdf, y, 'OBSERVACOES', obs);
 
             var tipoAss = (isCancelamento || currentOM.pendenteAssinatura) ? 'ASSINATURA DO FISCAL' : 'ASSINATURA DO CLIENTE / RESPONSAVEL';
