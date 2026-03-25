@@ -117,6 +117,7 @@
             if(om.pendenteAssinatura) statusFinal = 'pendente_assinatura';
             if(om.finalizada) statusFinal = 'finalizada';
             if(om.cancelada) statusFinal = 'cancelada';
+            if(om.desativada && om.finalizada) statusFinal = 'desativada';
 
             var _hhTotal = 0;
             var _hist = om.historicoExecucao || [];
@@ -131,6 +132,8 @@
             var _estadoFluxo;
             if(om.cancelada) {
                 _estadoFluxo = 'cancelada';
+            } else if(om.desativada && om.finalizada) {
+                _estadoFluxo = 'equipamento_desativado';
             } else if(om.statusOficina === 'aguardando_devolucao') {
                 _estadoFluxo = 'aguardando_devolucao';
             } else if(om.emOficina) {
@@ -190,6 +193,10 @@
                 data_inicio_oficina: om.dataInicioOficina || null,
                 data_fim_oficina: om.dataFimOficina || null,
                 data_inicio_montagem: om.dataInicioMontagem || null,
+                tipo_fechamento: om.tipoFechamento || 'normal',
+                desativada: !!om.desativada,
+                motivo_desativacao: om.motivoDesativacao || null,
+                hh_gasto_desativacao: om.hhGastoDesativacao || null,
                 updated_at: new Date().toISOString()
             };
         }

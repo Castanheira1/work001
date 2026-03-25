@@ -355,10 +355,15 @@
             }
 
             var temOficina = !!(currentOM.hhSnapshotOficina || currentOM.dataEnvioOficina || currentOM.etapaOficina);
+            var temTrocaTurno = !!(currentOM.pausada || currentOM.pausaTrocaTurno || currentOM.oficinaTrocaTurno);
+            var temDesativacao = !!(currentOM.desativada || currentOM.tipoFechamento === 'desativacao');
+            var temMultiSessao = !!(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 1);
+            // Mostrar bloco de rastreabilidade quando houver quebra real no fluxo
+            var temRastreabilidade = temOficina || temTrocaTurno || temDesativacao || temMultiSessao;
 
-            // Se tem oficina, mostrar timeline resumida
+            // Se tem rastreabilidade, mostrar timeline resumida
             var htmlTimeline = '';
-            if(temOficina) {
+            if(temRastreabilidade) {
                 var etapas = { CAMPO: [], OFICINA: [], MONTAGEM: [] };
                 for(var tli = 0; tli < currentOM.historicoExecucao.length; tli++) {
                     var tlH = currentOM.historicoExecucao[tli];
@@ -370,8 +375,17 @@
                 }
                 var cores = { CAMPO: '#1A5276', OFICINA: '#e65100', MONTAGEM: '#2e7d32' };
                 var icones = { CAMPO: '📍', OFICINA: '🔧', MONTAGEM: '🔩' };
-                htmlTimeline = '<div style="margin-bottom:16px;padding:12px;background:linear-gradient(135deg,#f0f4f8,#e3ecf5);border-radius:12px;border:1px solid #c5d5e4;">';
-                htmlTimeline += '<div style="font-size:15px;font-weight:800;color:#1A5276;margin-bottom:10px;">📊 Timeline do Fluxo</div>';
+                var bgColor = temDesativacao ? 'linear-gradient(135deg,#fdf3f0,#fce4dc)' : 'linear-gradient(135deg,#f0f4f8,#e3ecf5)';
+                var borderColor = temDesativacao ? '#e57373' : '#c5d5e4';
+                htmlTimeline = '<div style="margin-bottom:16px;padding:12px;background:' + bgColor + ';border-radius:12px;border:1px solid ' + borderColor + ';">';
+                htmlTimeline += '<div style="font-size:15px;font-weight:800;color:#1A5276;margin-bottom:10px;">📊 Rastreabilidade do Fluxo</div>';
+
+                // Badges de desvios identificados
+                if(temTrocaTurno) htmlTimeline += '<div style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;margin-right:4px;">🔄 Troca de Turno</div>';
+                if(temDesativacao) htmlTimeline += '<div style="display:inline-block;background:#fce4ec;border:1px solid #e91e63;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#c2185b;margin-bottom:8px;margin-right:4px;">⛔ Desativação de Equipamento</div>';
+                if(temOficina) htmlTimeline += '<div style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;margin-right:4px;">🔧 Fluxo de Oficina</div>';
+                if(temMultiSessao && !temOficina && !temTrocaTurno) htmlTimeline += '<div style="display:inline-block;background:#e8f5e9;border:1px solid #4caf50;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#2e7d32;margin-bottom:8px;">✅ Múltiplas Sessões</div>';
+
                 var ordemEt = ['CAMPO', 'OFICINA', 'MONTAGEM'];
                 for(var oi = 0; oi < ordemEt.length; oi++) {
                     var eNome = ordemEt[oi];
@@ -382,9 +396,20 @@
                     htmlTimeline += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #d0dce8;">';
                     htmlTimeline += '<span style="font-size:18px;">' + icones[eNome] + '</span>';
                     htmlTimeline += '<span style="font-weight:800;color:' + cores[eNome] + ';font-size:13px;min-width:70px;">' + eNome + '</span>';
-                    htmlTimeline += '<span style="font-size:12px;color:#555;">HH: <strong>' + eHH.toFixed(2) + 'h</strong></span>';
+                    htmlTimeline += '<span style="font-size:12px;color:#555;">HH Cronológico: <strong>' + eHH.toFixed(2) + 'h</strong></span>';
                     htmlTimeline += '</div>';
                 }
+
+                // Desvio de desativação: mostrar resumo se existir
+                if(temDesativacao && currentOM.desvioDesativacao) {
+                    var _des = currentOM.desvioDesativacao;
+                    htmlTimeline += '<div style="margin-top:8px;padding:6px;background:#fff;border-radius:6px;border-left:4px solid #e91e63;">';
+                    htmlTimeline += '<div style="font-size:12px;font-weight:800;color:#c2185b;">⛔ Motivo da Desativação</div>';
+                    htmlTimeline += '<div style="font-size:11px;color:#555;margin-top:2px;">' + _h(_des.motivo || _des.observacao || 'Não informado') + '</div>';
+                    if(_des.hhGasto !== undefined) htmlTimeline += '<div style="font-size:11px;color:#555;">HH gasto até parada: <strong>' + _des.hhGasto.toFixed(2) + 'h</strong></div>';
+                    htmlTimeline += '</div>';
+                }
+
                 htmlTimeline += '</div>';
             }
 
@@ -423,9 +448,24 @@
                 html += '</div>';
             });
             
-            html += '<div style="padding:12px;background:linear-gradient(135deg, #e3f2fd, #bbdefb);border-radius:10px;text-align:center;">';
-            html += '<div style="font-weight:800;color:#1A5276;font-size:16px;">HH ACUMULADO: ' + hhTotalGeral.toFixed(2) + 'h</div>';
-            html += '<div style="font-size:12px;color:#555;margin-top:4px;">';
+            // Calcular tempo cronológico (janela real da atividade — sem multiplicar por executantes)
+            var tempoCronologico = 0;
+            currentOM.historicoExecucao.forEach(function(hist) {
+                tempoCronologico += (hist.hhAtividade || 0) + (hist.hhDeslocamento || 0);
+            });
+
+            html += '<div style="padding:12px;background:linear-gradient(135deg, #e3f2fd, #bbdefb);border-radius:10px;">';
+            html += '<div style="font-weight:800;color:#1A5276;font-size:15px;margin-bottom:8px;">📊 Resumo de Tempo</div>';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #90caf9;">';
+            html += '<span style="font-size:13px;color:#555;">⏱️ Tempo de Execução (Cronológico)</span>';
+            html += '<strong style="color:#1A5276;font-size:14px;">' + tempoCronologico.toFixed(2) + 'h</strong>';
+            html += '</div>';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #90caf9;">';
+            html += '<span style="font-size:13px;color:#555;">👥 Total de HH Aplicado (soma individual)</span>';
+            html += '<strong style="color:#e65100;font-size:14px;">' + hhTotalGeral.toFixed(2) + 'h</strong>';
+            html += '</div>';
+            html += '<div style="font-size:11px;color:#777;margin-top:6px;font-style:italic;">Tempo cronológico: janela real da atividade. HH aplicado: esforço total da equipe (cronológico × executantes).</div>';
+            html += '<div style="font-size:12px;color:#555;margin-top:6px;">';
             if(hhNormalGeral > 0) html += '<span style="color:#2E86C1;">Normal: ' + hhNormalGeral.toFixed(2) + 'h</span> ';
             if(hhExtraGeral > 0) html += '<span style="color:#f0ad4e;">Extra: ' + hhExtraGeral.toFixed(2) + 'h</span> ';
             if(hhNoturnoGeral > 0) html += '<span style="color:#d9534f;">Noturno: ' + hhNoturnoGeral.toFixed(2) + 'h</span>';

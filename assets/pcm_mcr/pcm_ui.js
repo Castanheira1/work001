@@ -69,6 +69,10 @@
                     }
                     statusText = 'DESVIO' + dvLabel;
                     clickAction = () => showDetail(idx);
+                } else if(om.desativada && om.finalizada) {
+                    statusClass = 'desativada';
+                    statusText = '⛔ EQUIPAMENTO DESATIVADO';
+                    clickAction = () => verPDFGerado(om.num + (om.execTs ? '_' + om.execTs : ''));
                 } else if(om.finalizada) {
                     statusClass = 'finalizada';
                     statusText = 'EXECUTADA';
@@ -94,6 +98,7 @@
                 
                 var icone = om.pendenteAssinatura ? '✍️'
                     : om.cancelada ? '❌'
+                    : (om.desativada && om.finalizada) ? '⛔'
                     : om.finalizada ? '✅'
                     : om.desvioApontado ? '⚠️'
                     : om.emOficina ? '🔧'

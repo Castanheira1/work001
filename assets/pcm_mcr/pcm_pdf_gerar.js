@@ -464,13 +464,14 @@
         function salvarComAssinatura() {
             const imgData = canvas.toDataURL();
             const isCanvasBlank = !ctx.getImageData(0, 0, canvas.width, canvas.height).data.some(c => c !== 0);
-            
+
             if(isCanvasBlank) {
                 alert('⚠️ Assinatura obrigatória!\n\nOu clique em "Finalizar Sem Assinatura"');
                 return;
             }
-            
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+
+            // Desativação não bloqueia checklist
+            if((currentOM.planoCod || currentOM.checklistCorretiva) && currentOM.tipoFechamento !== 'desativacao') {
                 var faltando = validarChecklist();
                 if(faltando.length > 0) {
                     alert('⚠️ CHECKLIST INCOMPLETO!\n\n' + faltando.join('\n\n'));
@@ -510,12 +511,22 @@
             }
 
             _removerDesvioAcumulado(currentOM.num);
-            var _tipoHist = isCancelamento ? 'CANCELADO' : 'ATENDIDO';
-            _gravarDashboardLog(_tipoHist, currentOM);
+            var _tipoHist = isCancelamento ? 'CANCELADO' : (currentOM.tipoFechamento === 'desativacao' ? 'DESATIVADO' : 'ATENDIDO');
+            // Não regrava o dashboard log para desativação pois já foi gravado em confirmarDesativar()
+            if(_tipoHist !== 'DESATIVADO') _gravarDashboardLog(_tipoHist, currentOM);
             _acumularDadosExcel(currentOM);
             
             moverParaHistorico(currentOM, _tipoHist);
-            
+
+            // Gerar relatório de desvio de desativação após finalização
+            if(currentOM.tipoFechamento === 'desativacao' && currentOM.desvioDesativacao) {
+                var _recDes = Object.assign({}, currentOM.desvioDesativacao, {
+                    quemAssinou: currentOM.nomeFiscal || (executantesNomes.length > 0 ? executantesNomes[0] : 'N/A'),
+                    dataFinalizacao: new Date().toISOString()
+                });
+                _gerarPDFDesativacao(currentOM, _recDes);
+            }
+
             const idx = oms.findIndex(om => om.num === currentOM.num);
             if(idx >= 0) {
                 oms.splice(idx, 1);
@@ -536,7 +547,8 @@
         }
 
         function finalizarSemAssinatura() {
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+            // Desativação não bloqueia checklist
+            if((currentOM.planoCod || currentOM.checklistCorretiva) && currentOM.tipoFechamento !== 'desativacao') {
                 var faltando = validarChecklist();
                 if(faltando.length > 0) {
                     alert('⚠️ CHECKLIST INCOMPLETO!\n\n' + faltando.join('\n\n'));
@@ -544,7 +556,10 @@
                 }
             }
 
-            if(!confirm('⚠️ Finalizar SEM assinatura?\n\nOM ficará com status PENDENTE ASSINATURA')) {
+            var _msgConfirm = currentOM.tipoFechamento === 'desativacao'
+                ? '⚠️ Finalizar DESATIVAÇÃO sem assinatura?\n\nOM ficará com status PENDENTE ASSINATURA'
+                : '⚠️ Finalizar SEM assinatura?\n\nOM ficará com status PENDENTE ASSINATURA';
+            if(!confirm(_msgConfirm)) {
                 return;
             }
             
@@ -581,12 +596,24 @@
                 currentOM._hasNcPdf = true;
             }
 
+            // Gerar relatório de desativação se aplicável
+            if(currentOM.tipoFechamento === 'desativacao' && currentOM.desvioDesativacao) {
+                var _recDes2 = Object.assign({}, currentOM.desvioDesativacao, {
+                    quemAssinou: 'Pendente assinatura fiscal',
+                    dataFinalizacao: new Date().toISOString()
+                });
+                _gerarPDFDesativacao(currentOM, _recDes2);
+            }
+
             _pushOMStatusSupabase(currentOM);
             Promise.all(_pdfPromises2.map(function(p){ return p && p.catch ? p.catch(function(){}) : Promise.resolve(); })).then(function() {
                 _uploadPDFRelatorio(currentOM.num);
             });
-            
-            alert('⚠️ OM PENDENTE ASSINATURA\n\nClique 3x na OM para assinar como fiscal.');
+
+            var _alertMsg2 = currentOM.tipoFechamento === 'desativacao'
+                ? '⚠️ DESATIVAÇÃO REGISTRADA\n\nOM com status PENDENTE ASSINATURA.\nRelatório de desativação gerado.'
+                : '⚠️ OM PENDENTE ASSINATURA\n\nClique 3x na OM para assinar como fiscal.';
+            alert(_alertMsg2);
             hideFinalizar();
             hideDetail();
             filtrarOMs();
@@ -599,6 +626,7 @@
             var tipoDoc = 'RELATORIO DE EXECUCAO';
             if(isCancelamento) tipoDoc = 'RELATORIO DE CANCELAMENTO';
             if(currentOM.statusDesvio === 'AGUARDANDO REPROGRAMACAO') tipoDoc = 'RELATORIO DE REPROGRAMACAO';
+            if(currentOM.tipoFechamento === 'desativacao') tipoDoc = 'RELATORIO DE DESATIVACAO';
 
             var y = _pdfHeader(pdf, tipoDoc);
             y = _pdfSection(pdf, y, 'INFORMACOES DA ORDEM', 18);
@@ -636,6 +664,30 @@
                     tableWidth: 180,
                     styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [30,30,30], lineColor: [200,200,200], lineWidth: 0.15, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 152 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 8;
+            }
+
+            if (currentOM.tipoFechamento === 'desativacao' && currentOM.desvioDesativacao) {
+                var _des = currentOM.desvioDesativacao;
+                y = _pdfSection(pdf, y, 'DADOS DA DESATIVACAO', 18);
+                var _hhGastoStr = (_des.hhGasto !== undefined) ? (_des.hhGasto).toFixed(2) + 'h' : '---';
+                var _estadoCkStr = _des.estadoChecklist === 'COM_NC' ? 'Com Não Conformidade' :
+                    (_des.estadoChecklist === 'CONFORME' ? 'Conforme' : 'Não iniciado');
+                var desBody = [
+                    [{ content: 'Motivo / Observação', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe(_des.motivo || _des.observacao || '---'), colSpan: 3 }],
+                    [{ content: 'Quem Solicitou', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe(_des.quemSolicitou || '---'), colSpan: 3 }],
+                    [{ content: 'HH Gasto até Parada', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _hhGastoStr }],
+                    [{ content: 'Estado do Checklist', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _estadoCkStr }]
+                ];
+                pdf.autoTable({
+                    startY: y,
+                    body: desBody,
+                    theme: 'grid',
+                    tableWidth: 180,
+                    styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [30,30,30], lineColor: [200,200,200], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 140 } },
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 8;
@@ -1010,6 +1062,9 @@
                 execTs: om.execTs || '',
                 tipo: tipo,
                 cancelada: om.cancelada || false,
+                desativada: !!om.desativada,
+                tipoFechamento: om.tipoFechamento || 'normal',
+                motivoDesativacao: om.motivoDesativacao || '',
                 temDesvio: tipo === 'DESVIO' || tipo === 'REPROGRAMADO' || tipo === 'DESATIVADO',
                 statusDesvio: null,
                 temChecklist: !!om.planoCod || !!om.checklistCorretiva,
@@ -1031,6 +1086,9 @@
             }
             if(tipo === 'CANCELADO') {
                 entry.cancelada = true;
+            }
+            if(tipo === 'DESATIVADO') {
+                entry.omCompleta = JSON.parse(JSON.stringify(om));
             }
             historico.push(entry);
             localStorage.setItem(STORAGE_KEY_HISTORICO, JSON.stringify(historico));

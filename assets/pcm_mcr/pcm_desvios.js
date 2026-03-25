@@ -602,14 +602,71 @@
         }
         function confirmarDesativar() {
             if(!_desativarFotoBase64) { alert('⚠️ A foto é obrigatória.'); return; }
-            var rec = { omNum: currentOM.num, omTitulo: currentOM.titulo, tipo: 'DESATIVACAO DE EQUIPAMENTO',
+
+            // Calcular HH gasto até o momento da desativação
+            var hhGasto = 0;
+            var histAtual = currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0
+                ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
+            if(histAtual && histAtual.dataInicio) {
+                var _diffSeg = Math.floor((new Date() - new Date(histAtual.dataInicio)) / 1000) - tempoPausadoTotal;
+                if(_diffSeg < 0) _diffSeg = 0;
+                hhGasto = _diffSeg / 3600;
+            }
+
+            // Registrar estado do checklist no momento da parada
+            var estadoChecklist = 'NAO_INICIADO';
+            if(currentOM.checklistDados && currentOM.checklistDados.length > 0) {
+                var _temAnormal = currentOM.checklistDados.some(function(i) { return i.valor === 'anormal'; });
+                var _totalPreench = currentOM.checklistDados.filter(function(i) { return !!i.valor; }).length;
+                estadoChecklist = _temAnormal ? 'COM_NC' : (_totalPreench > 0 ? 'CONFORME' : 'NAO_INICIADO');
+            } else if(document.querySelector('#checklistContent input[type="radio"]:checked')) {
+                var _selAnormal = document.querySelector('#checklistContent input[type="radio"][value="anormal"]:checked');
+                estadoChecklist = _selAnormal ? 'COM_NC' : 'CONFORME';
+            }
+
+            var motivo = $('desativarObs').value.trim() || 'Não informado';
+            var tagEquip = currentOM.tagIdentificacao || currentOM.equipamento || '---';
+
+            var rec = {
+                omNum: currentOM.num,
+                omTitulo: currentOM.titulo,
+                tipo: 'DESATIVACAO DE EQUIPAMENTO',
                 submotivo: 'OM executada - Equipamento desativado',
-                observacao: $('desativarObs').value.trim(),
-                foto: _desativarFotoBase64, data: new Date().toISOString(),
-                executantes: executantesNomes.slice(), status: 'PROVISORIO' };
+                motivo: motivo,
+                observacao: motivo,
+                foto: _desativarFotoBase64,
+                data: new Date().toISOString(),
+                executantes: executantesNomes.slice(),
+                status: 'PROVISORIO',
+                hhGasto: hhGasto,
+                estadoChecklist: estadoChecklist,
+                quemSolicitou: executantesNomes.join(', ') || 'Não informado',
+                tagEquipamento: tagEquip,
+                localInstalacao: currentOM.local || '',
+                descLocal: currentOM.descLocal || '',
+                tipoCod: 'DESATIVACAO',
+                tipoLabel: 'Desativação de Equipamento'
+            };
+
             _salvarDesvioLocal(rec);
             currentOM.desvioRecord = rec;
+            currentOM.tipoFechamento = 'desativacao';
+            currentOM.desativada = true;
+            currentOM.motivoDesativacao = motivo;
+            currentOM.hhGastoDesativacao = hhGasto;
+            currentOM.estadoChecklistDesativacao = estadoChecklist;
+            currentOM.desvioDesativacao = rec;
+
             _gravarDashboardLog('DESATIVADO', currentOM);
+
+            // Ocultar checklist para não bloquear a validação de finalização
+            var _chkSec = $('checklistSection');
+            if(_chkSec) _chkSec.style.display = 'none';
+            var _chkCont = $('checklistContent');
+            if(_chkCont) _chkCont.style.display = 'none';
+            var _chkAct = $('checklistActions');
+            if(_chkAct) _chkAct.style.display = 'none';
+
             hideDesvioDesativar();
             $('btnGroupAtividade').style.display = 'none';
             showFinalizar();
@@ -750,6 +807,66 @@
                 PdfDB.put('dev_' + rec.omNum + '_' + rec.tipoCod, out);
                 PdfDB.put('dev_' + rec.omNum, out);
             } catch(e) { console.error('Erro PDF desvio:', e); }
+        }
+
+        function _gerarPDFDesativacao(om, rec) {
+            try {
+                var jsPDF = window.jspdf.jsPDF;
+                var pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                var M = 15;
+                var y = _pdfHeader(pdf, 'RELATORIO DE DESVIO — DESATIVACAO DE EQUIPAMENTO');
+
+                y = _pdfSection(pdf, y, 'IDENTIFICACAO DA ORDEM', 18);
+                pdf.autoTable({
+                    startY: y,
+                    body: [
+                        [{ content: 'OM', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe(rec.omNum || '---') }],
+                        [{ content: 'Equipamento', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe(rec.tagEquipamento || '---') }],
+                        [{ content: 'Local', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe((rec.localInstalacao || '') + (rec.descLocal ? ' — ' + rec.descLocal : '')) }],
+                        [{ content: 'Data/Hora', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: new Date(rec.data).toLocaleString('pt-BR') }]
+                    ],
+                    theme: 'grid', tableWidth: 180,
+                    styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [30,30,30], lineColor: [200,200,200], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 148 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 8;
+
+                y = _pdfSection(pdf, y, 'DADOS DA DESATIVACAO', 18);
+                var _estadoCkStr = rec.estadoChecklist === 'COM_NC' ? 'Com Não Conformidade' :
+                    (rec.estadoChecklist === 'CONFORME' ? 'Conforme' : 'Não iniciado');
+                pdf.autoTable({
+                    startY: y,
+                    body: [
+                        [{ content: 'Motivo da Desativação', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe(rec.motivo || rec.observacao || '---') }],
+                        [{ content: 'Quem Solicitou', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe(rec.quemSolicitou || '---') }],
+                        [{ content: 'Quem Assinou/Validou', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe(rec.quemAssinou || (om.nomeFiscal || '---')) }],
+                        [{ content: 'HH Gasto até a Parada', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: rec.hhGasto !== undefined ? rec.hhGasto.toFixed(2) + 'h' : '---' }],
+                        [{ content: 'Estado do Checklist', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _estadoCkStr }],
+                        [{ content: 'Executantes', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [250,230,220] } }, { content: _pdfTextSafe((rec.executantes || []).join(', ') || '---') }]
+                    ],
+                    theme: 'grid', tableWidth: 180,
+                    styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [30,30,30], lineColor: [200,200,200], lineWidth: 0.15, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 140 } },
+                    margin: { left: M, right: M }
+                });
+                y = pdf.lastAutoTable.finalY + 8;
+
+                if(rec.foto) {
+                    y = _pdfSection(pdf, y, 'EVIDENCIA FOTOGRAFICA', 90);
+                    y = _pdfEnsureSpace(pdf, y, 86, 20);
+                    var boxW = 90, boxH = 65;
+                    pdf.setFillColor(248,248,248); pdf.setDrawColor(180,180,180); pdf.setLineWidth(0.2);
+                    pdf.rect(M, y, boxW, boxH, 'FD');
+                    try { pdf.addImage(rec.foto, 'JPEG', M + 0.5, y + 0.5, boxW - 1, boxH - 1); } catch(e) {}
+                    y += boxH + 6;
+                }
+
+                _pdfRodape(pdf, 'RELATORIO DE DESVIO — DESATIVACAO');
+                var out = pdf.output('dataurlstring');
+                PdfDB.put('desativacao_' + rec.omNum, out);
+                PdfDB.put('dev_DESATIVACAO_' + rec.omNum, out);
+            } catch(e) { console.error('Erro PDF desativação:', e); }
         }
 
         function _getDesviosDaOM(omNum) {
