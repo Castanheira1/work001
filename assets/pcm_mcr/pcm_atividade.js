@@ -423,7 +423,19 @@
             $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
             $('btnIniciar').onclick = null;
 
-            _uiAtividade();
+            // Na montagem (retorno da oficina): não abrir checklist automaticamente,
+            // mas mantê-lo acessível via botão "Editar Checklist"
+            _uiAtividade(true); // skipChecklistAuto = true
+            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                $('checklistSection').style.display = 'block';
+                $('checklistSection').textContent = '📋 Checklist (acessível via botão)';
+                $('checklistActions').style.display = 'block';
+                $('checklistContent').style.display = 'none';
+                $('checklistContent').innerHTML = '';
+                $('btnSalvarChecklist').style.display = 'none';
+                $('btnEditarChecklist').style.display = 'block';
+            }
+
             iniciarCronometroAtividade();
             renderHistoricoExecucao();
 
@@ -432,7 +444,7 @@
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
-            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min');
+            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min\n\n📋 Checklist disponível via botão EDITAR CHECKLIST.');
         }
 
         // Retomar OM pausada na oficina
