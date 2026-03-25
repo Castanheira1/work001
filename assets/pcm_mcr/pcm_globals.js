@@ -103,9 +103,10 @@ function verificarDependencias() {
 
         function _uiAtividade(skipChecklistAuto) {
             var naOficina = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
+            var emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:'flex',
-                btnRowExecOficina:'flex', btnFinalizar: naOficina ? 0 : 1,
+                btnRowExecOficina:'flex', btnFinalizar: emFluxoOficina ? 0 : 1,
                 btnCancelar:0, btnExcluir:0, btnCancelarDesvio:0,
                 timerAtividade:1,
                 btnFinalizarOficina: naOficina ? 1 : 0,

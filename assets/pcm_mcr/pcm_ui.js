@@ -268,9 +268,11 @@
                 }
             }
 
-            if(currentOM.devolvendoEquipamento && currentOM.retornouOficina) {
+            if(currentOM.retornouOficina || currentOM.devolvendoEquipamento) {
                 $('checklistSection').style.display = 'none';
                 $('checklistActions').style.display = 'none';
+                $('checklistContent').style.display = 'none';
+                _aplicarModoChecklistFoco(false);
             }
 
             if(currentOM.desvioApontado) {

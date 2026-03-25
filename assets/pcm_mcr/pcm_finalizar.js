@@ -189,10 +189,14 @@
                         alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
                         return;
                     }
+                    if(foto.antes && !foto.depois) {
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' tem Foto ANTES mas falta a Foto DEPOIS.\n\nTire a foto após o reparo antes de devolver.');
+                        return;
+                    }
                 }
             }
             
-            if(!confirm('🔧 DEVOLVER EQUIPAMENTO?\n\nIniciará o deslocamento para montagem.' + (temAnormal ? '\n\nFotos do DEPOIS podem ser adicionadas após retomar.' : ''))) return;
+            if(!confirm('🔧 DEVOLVER EQUIPAMENTO?\n\nIniciará o deslocamento para montagem.')) return;
             
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
             
