@@ -195,23 +195,29 @@
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
                 $('timerDisplay').style.display = 'block';
-                
+
+                // Devolução: btnIniciar vira "INICIAR MONTAGEM"
+                if(currentOM.devolvendoEquipamento && currentOM.retornouOficina) {
+                    $('btnIniciar').textContent = '🔧 INICIAR MONTAGEM';
+                    $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
+                }
+
                 if(!deslocamentoInicio && currentOM._deslocHoraInicio) {
                     deslocamentoInicio = new Date(currentOM._deslocHoraInicio);
                 }
-                
+
                 var infoDiv = $('timerDateInfo');
                 if(infoDiv && deslocamentoInicio) {
-                    infoDiv.style.display = 'block'; 
-                    infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); 
+                    infoDiv.style.display = 'block';
+                    infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR');
                 }
-                
+
                 if(timerInterval) clearInterval(timerInterval);
                 timerInterval = setInterval(() => {
                     const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
                     const m = Math.floor(diff / 60);
                     const s = diff % 60;
-                    $('timerDisplay').textContent = 
+                    $('timerDisplay').textContent =
                         String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
                     deslocamentoSegundos = diff;
                     deslocamentoMinutos = m;

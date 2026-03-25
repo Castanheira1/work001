@@ -312,10 +312,58 @@
             alert('✅ Atividade na OFICINA iniciada!\n' + numExecutantes + ' executante(s)\nSem deslocamento.');
         }
 
-        // Iniciar montagem (apos finalizar oficina)
-        function showExecutantesMontagem() {
+        // Iniciar devolução (deslocamento sem efetivo, após finalizar oficina)
+        function iniciarDevolucao() {
+            if(!confirm('🚗 INICIAR DEVOLUÇÃO?\n\nO tempo de deslocamento será contado.\nApós chegar, clique em INICIAR MONTAGEM para informar o efetivo.')) return;
+
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
+
+            currentOM.etapaOficina = ETAPA_OFICINA.MONTAGEM;
+            currentOM.statusOficina = null;
+            currentOM.emOficina = false;
+            currentOM.retornouOficina = true;
+            currentOM.devolvendoEquipamento = true;
+            currentOM.dataInicioMontagem = new Date().toISOString();
+            currentOM.lockDeviceId = deviceId;
+
+            deslocamentoInicio = new Date();
+            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+            currentOM._deslocHoraFim = null;
+
+            salvarOMAtual();
+
+            // Mostrar timer de deslocamento + botão INICIAR MONTAGEM (pedir efetivo)
+            _setBtns({
+                btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:0, btnRowExecOficina:0,
+                btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
+                timerDisplay:1, btnCancelar:0, btnExcluir:0
+            });
+            // Reutilizar btnIniciar como "INICIAR MONTAGEM" após devolução
+            $('btnIniciar').style.display = 'block';
+            $('btnIniciar').disabled = false;
+            $('btnIniciar').textContent = '🔧 INICIAR MONTAGEM';
+            $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
+            _aplicarModoOficinaMinimal(false);
+
+            timerInterval = setInterval(function() {
+                var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                var m = Math.floor(diff / 60);
+                var s = diff % 60;
+                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = m;
+                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+            }, 1000);
+
+            currentOM.statusAtual = 'em_deslocamento';
+            _pushOMStatusSupabase(currentOM);
+        }
+
+        // Pedir efetivo para montagem (após devolução)
+        function showExecutantesMontagem() {
+            // Gravar fim do deslocamento (devolução)
+            currentOM._deslocHoraFim = new Date().toISOString();
 
             var list = $('executantesList');
             list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
@@ -339,45 +387,45 @@
                 return;
             }
 
-            // Iniciar deslocamento para montagem
-            currentOM.etapaOficina = ETAPA_OFICINA.MONTAGEM;
-            currentOM.statusOficina = null;
-            currentOM.emOficina = false;
-            currentOM.retornouOficina = true;
-            currentOM.devolvendoEquipamento = true;
-            currentOM.dataInicioMontagem = new Date().toISOString();
-            currentOM.lockDeviceId = deviceId;
+            // Parar timer de deslocamento
+            if(timerInterval) clearInterval(timerInterval);
 
-            deslocamentoInicio = new Date();
-            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
-            currentOM._deslocHoraFim = null;
+            // Iniciar atividade de montagem com o efetivo informado
+            atividadeInicio = new Date();
+            tempoPausadoTotal = 0;
+            atividadeJaIniciada = true;
+
+            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
+            currentOM.historicoExecucao.push({
+                data: new Date().toLocaleDateString('pt-BR'),
+                executantes: executantesNomes.slice(),
+                dataInicio: atividadeInicio.toISOString(),
+                dataFim: null,
+                deslocamentoMinutos: deslocamentoMinutos,
+                deslocamentoSegundos: deslocamentoSegundos,
+                deslocamentoHoraInicio: currentOM._deslocHoraInicio || null,
+                deslocamentoHoraFim: currentOM._deslocHoraFim || null,
+                tempoPausadoTotal: 0,
+                materiaisUsados: [],
+                tag: 'MONTAGEM'
+            });
 
             hideExecutantes();
+
+            // Restaurar btnIniciar ao estado normal
+            $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
+            $('btnIniciar').onclick = null;
+
+            _uiAtividade();
+            iniciarCronometroAtividade();
+            renderHistoricoExecucao();
+
+            currentOM.statusAtual = 'iniciada';
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
             salvarOMAtual();
-
-            // Mostrar timer de deslocamento
-            _setBtns({
-                btnDeslocamento:0, btnIniciar:1, btnGroupAtividade:0, btnRowExecOficina:0,
-                btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
-                timerDisplay:1, btnCancelar:0, btnExcluir:0
-            });
-            $('btnIniciar').disabled = false;
-            _aplicarModoOficinaMinimal(false);
-
-            timerInterval = setInterval(function() {
-                var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                var m = Math.floor(diff / 60);
-                var s = diff % 60;
-                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-                deslocamentoSegundos = diff;
-                deslocamentoMinutos = m;
-                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
-            }, 1000);
-
-            currentOM.statusAtual = 'em_deslocamento';
             _pushOMStatusSupabase(currentOM);
 
-            alert('🚗 DESLOCAMENTO PARA MONTAGEM INICIADO!\n\n' + numExecutantes + ' executante(s)\nApós chegar, clique em INICIAR ATIVIDADE.');
+            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min');
         }
 
         // Retomar OM pausada na oficina
