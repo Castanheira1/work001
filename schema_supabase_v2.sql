@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS public.oms (
   fiscal_assinou BOOLEAN NOT NULL DEFAULT FALSE,
   estado_fluxo TEXT NOT NULL DEFAULT 'executada' CHECK (estado_fluxo IN (
     'executada','preliminar','validada_admin','alterada_admin',
-    'pendente_fiscal','devolvida_admin','arquivada','cancelada','em_oficina'
+    'pendente_fiscal','devolvida_admin','arquivada','cancelada',
+    'em_oficina','aguardando_devolucao'
   )),
   has_nc BOOLEAN NOT NULL DEFAULT FALSE,
   tipo_checklist TEXT DEFAULT '',
