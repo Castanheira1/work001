@@ -706,6 +706,11 @@
                 });
                 y = pdf.lastAutoTable.finalY + 6;
 
+                // ETAPAS DA EXECUCAO: só mostrar se houve etapas especiais (oficina, desvio, troca de turno)
+                var _temEtapaEspecial = currentOM.historicoExecucao.some(function(hx) {
+                    return hx.desvio || hx.tag === 'OFICINA' || hx.tag === 'TROCA DE TURNO' || (hx.tag && hx.tag !== 'ATIVIDADE');
+                });
+                if (_temEtapaEspecial) {
                 y = _pdfSection(pdf, y, 'ETAPAS DA EXECUCAO', 18);
                 var etapasBody = [];
                 var etapasHhAtivTotal = 0;
@@ -748,15 +753,11 @@
                 }
                 // Se nenhum deslocamento encontrado, somar desvios ao total diretamente
                 if (!devDistribuido && devHhExtra > 0) etapasHhDeslTotal += devHhExtra;
-                if(etapasBody.length === 0) {
-                    etapasBody.push([{ content: 'Sem etapas registradas', colSpan: 7, styles: { halign: 'center', fontSize: 6.2, textColor: [110,110,110] } }]);
-                } else {
-                    etapasBody.push([
-                        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
-                        { content: etapasHhAtivTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
-                        { content: etapasHhDeslTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } }
-                    ]);
-                }
+                etapasBody.push([
+                    { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
+                    { content: etapasHhAtivTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } },
+                    { content: etapasHhDeslTotal.toFixed(2) + 'h', styles: { halign: 'center', fontSize: 6.4, fontStyle: 'bold', fillColor: [90,90,90], textColor: [255,255,255] } }
+                ]);
                 pdf.autoTable({
                     startY: y,
                     head: [['#', 'Etapa', 'Executantes', 'Início', 'Fim', 'HH Ativ.', 'HH Desl.']],
@@ -769,6 +770,7 @@
                     margin: { left: M, right: M }
                 });
                 y = pdf.lastAutoTable.finalY + 6;
+                }
 
 
                 // --- Timeline Oficina (se OM passou pela oficina) ---
