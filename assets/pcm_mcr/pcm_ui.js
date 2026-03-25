@@ -262,6 +262,11 @@
                 }
             }
 
+            if(currentOM.devolvendoEquipamento && currentOM.retornouOficina) {
+                $('checklistSection').style.display = 'none';
+                $('checklistActions').style.display = 'none';
+            }
+
             if(currentOM.desvioApontado) {
                 $('btnCancelarDesvio').style.display = 'block';
             }

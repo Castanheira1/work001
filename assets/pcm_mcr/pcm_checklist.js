@@ -143,7 +143,7 @@
         }
 
         function _mostrarChecklistUI(forcarAberto) {
-            var isOficina = currentOM && (currentOM.emOficina || currentOM.retornouOficina);
+            var isOficina = currentOM && currentOM.emOficina && !currentOM.retornouOficina && !currentOM.devolvendoEquipamento;
             _aplicarModoChecklistFoco(!isOficina);
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';

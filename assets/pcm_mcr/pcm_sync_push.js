@@ -248,9 +248,13 @@
             };
             function _payloadCompatEstadoFluxo(p){
                 if(!p) return p;
+                var VALID = ['executada','preliminar','validada_admin','alterada_admin',
+                             'pendente_fiscal','devolvida_admin','arquivada','cancelada','em_oficina'];
                 var out = Object.assign({}, p);
-                if(out.estado_fluxo === 'em_oficina') {
-                    out.estado_fluxo = 'executada';
+                if(VALID.indexOf(out.estado_fluxo) === -1) {
+                    var fallback = (out.estado_fluxo === 'aguardando_devolucao') ? 'em_oficina' : 'executada';
+                    console.warn('[PUSH] estado_fluxo "' + out.estado_fluxo + '" → fallback "' + fallback + '"');
+                    out.estado_fluxo = fallback;
                 }
                 return out;
             }
@@ -311,7 +315,7 @@
                     var delay = Math.min(20000, 3000 * Math.pow(2, _tentativa - 1));
                     setTimeout(function() { _pushOMStatusSupabase(om, _tentativa + 1); }, delay);
                 } else {
-                    _pushPendentes.push({ payload: payload, ts: Date.now() });
+                    _pushPendentes.push({ payload: payload, ts: Date.now(), retries: 0 });
                     _salvarPushPendentes();
                     if(window.showToast) window.showToast('⚠️ OM ' + om.num + ' salva localmente — sync pendente', 'warn', 6000);
                 }
@@ -321,18 +325,36 @@
         async function _processarPushPendentes() {
             if(_pushPendentes.length === 0) return;
             if(!navigator.onLine) return;
+            var MAX_RETRIES = 20;
+            var MAX_AGE_MS = 4 * 60 * 60 * 1000;
+            var agora = Date.now();
             var total = _pushPendentes.length;
             var falhas = [];
+            var descartadas = 0;
             for(var i = 0; i < total; i++) {
+                var item = _pushPendentes[i];
+                var idade = agora - (item.ts || 0);
+                var retries = item.retries || 0;
+                if(retries >= MAX_RETRIES || idade > MAX_AGE_MS) {
+                    descartadas++;
+                    console.error('[PUSH] OM ' + (item.payload && item.payload.num) +
+                        ' descartada da fila (retries=' + retries + ', idade=' +
+                        Math.round(idade/60000) + 'min)');
+                    continue;
+                }
                 try {
-                    await _executarPush(_pushPendentes[i].payload);
+                    await _executarPush(item.payload);
                 } catch(e) {
-                    falhas.push(_pushPendentes[i]);
+                    item.retries = retries + 1;
+                    falhas.push(item);
                 }
             }
             _pushPendentes = falhas;
             _salvarPushPendentes();
-            if(falhas.length === 0 && total > 0) {
+            if(descartadas > 0 && window.showToast) {
+                window.showToast('⚠️ ' + descartadas + ' OM(s) removida(s) da fila (limite de tentativas)', 'warn', 6000);
+            }
+            if(falhas.length === 0 && total > 0 && descartadas === 0) {
                 if(window.showToast) window.showToast('✅ ' + total + ' OM(s) sincronizada(s)', 'success');
             }
         }
