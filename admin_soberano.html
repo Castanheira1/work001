@@ -30,6 +30,7 @@
       <button class="nav-tab" onclick="goPage('desvios',this)">Desvios</button>
       <button class="nav-tab" onclick="goPage('analytics',this)">Analytics</button>
       <button class="nav-tab" onclick="goPage('pasta',this)">Relatórios</button>
+      <button class="nav-tab" onclick="goPage('bmreport',this)">BM Report</button>
       <button class="nav-tab" onclick="goPage('config',this)">Config</button>
     </div>
     <div class="nav-right">
@@ -247,6 +248,23 @@
       <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>⏳ Bloco 4 — Sem assinatura do cliente</h3><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--c3);font-weight:600" id="b4count"></span><button class="btn-a btn-primary" style="padding:6px 12px;font-size:10px" onclick="enviarLoteFiscal()">Enviar Lote ao Fiscal</button></div></div><div class="card-body"><div id="fluxoB4"><div class="empty">Nenhuma OM.</div></div></div></div>
       <div class="card" style="margin-bottom:14px;border-color:#EA580C"><div class="card-head" style="background:linear-gradient(135deg,#FFF7ED,#FFEDD5)"><h3 style="color:#EA580C">🔧 Bloco 5 — Em Oficina</h3><span style="font-size:10px;color:#EA580C;font-weight:600" id="b5count"></span></div><div class="card-body"><div id="fluxoB5"><div class="empty">Nenhuma OM.</div></div></div></div>
       <div class="card" style="margin-bottom:14px;border-color:#7C3AED"><div class="card-head" style="background:linear-gradient(135deg,#FAF5FF,#F3E8FF)"><h3 style="color:#7C3AED">🔄 Bloco 6 — Reprogramadas</h3><span style="font-size:10px;color:#7C3AED;font-weight:600" id="b6count"></span></div><div class="card-body"><div id="fluxoB6"><div class="empty">Nenhuma OM reprogramada.</div></div></div></div>
+    </div>
+    <div class="page" id="pg-bmreport">
+      <div id="bmHeader"></div>
+      <div id="bmKpis" class="bm-kpi-row"></div>
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px" id="bmAderenciaRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Aderência (%)</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="bmAderencia"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Progresso Acumulado</h3></div><div class="card-body" style="min-height:220px;padding:14px 16px" id="bmProgresso"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="bmEscopoRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Atendimento por Escopo</h3></div><div class="card-body" style="padding:14px 16px" id="bmEscopo"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Comparativo BM</h3></div><div class="card-body" style="padding:14px 16px" id="bmComparativo"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px" id="bmDesviosRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios Consolidados</h3></div><div class="card-body" style="padding:14px 16px" id="bmDesviosTable"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:200px" id="bmDesviosDonut"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>HH e Custos do Período</h3></div><div class="card-body" style="padding:14px 16px" id="bmCustos"></div></div>
     </div>
     <div class="page" id="pg-config">
       <div class="grid2">

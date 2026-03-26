@@ -46,3 +46,4 @@ var _sugResultados=[];
 var _currentPage=1;
 var _pageSize=25;
 var _advancedFiltersOpen=false;
+var _bmConfig={numero:"",di:"",df:""};
