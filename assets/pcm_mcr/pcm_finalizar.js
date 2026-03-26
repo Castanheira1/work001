@@ -57,10 +57,10 @@
                     _calcHH(historicoAtual);
                     historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
                     historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'OFICINA';
+                    historicoAtual.tag = 'ENVIO_OFICINA';
                 }
             }
-            
+
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
