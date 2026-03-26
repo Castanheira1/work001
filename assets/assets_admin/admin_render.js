@@ -749,6 +749,65 @@ function renderPasta(){
 
 function onOpenOM(num){var om=dashboardData.oms.find(function(o){return o.num===num;});if(!om)return;showOmModal(om);}
 
+function _buildAdminTimelineHTML(historicoExecucao){
+  var COR_ETAPA     = {CAMPO:'#378ADD',OFICINA:'#D85A30',MONTAGEM:'#1D9E75'};
+  var COR_ETAPA_TXT = {CAMPO:'#185FA5',OFICINA:'#993C1D',MONTAGEM:'#0F6E56'};
+  var etapas=[];
+  for(var hi=0;hi<historicoExecucao.length;hi++){
+    var h=historicoExecucao[hi];
+    if(!h.dataInicio||!h.dataFim)continue;
+    var tag=h.tag||'ATIVIDADE';
+    var etapa='CAMPO';
+    if(tag==='OFICINA'||tag==='OFICINA_FIM'||tag==='OFICINA_TROCA_TURNO'||tag==='OFICINA_DEVOLUCAO')etapa='OFICINA';
+    else if(tag==='MONTAGEM')etapa='MONTAGEM';
+    var iniMs=new Date(h.dataInicio).getTime();
+    var fimMs=new Date(h.dataFim).getTime();
+    etapas.push({etapa:etapa,executantes:h.executantes||[],iniMs:iniMs,fimMs:fimMs,
+      iniStr:new Date(iniMs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      fimStr:new Date(fimMs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      cor:COR_ETAPA[etapa]||'#378ADD',corTxt:COR_ETAPA_TXT[etapa]||'#185FA5'});
+  }
+  if(!etapas.length)return '<div style="font-size:11px;color:#aaa;padding:8px 0;">Sem dados de execução.</div>';
+  var globalIni=etapas[0].iniMs;
+  var globalFim=etapas[etapas.length-1].fimMs;
+  var range=globalFim-globalIni||1;
+  function fmtMS(ms){var s=Math.round(ms/1000);var m=Math.floor(s/60),ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
+  function fmtHoraMs(ms){var d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+  var totalAtivoMs=0,totalOciosoMs=0;
+  for(var ei=0;ei<etapas.length;ei++){
+    var e=etapas[ei];
+    e.durMs=Math.max(e.fimMs-e.iniMs,0);totalAtivoMs+=e.durMs;
+    e.leftPct=((e.iniMs-globalIni)/range*100).toFixed(1);
+    e.widthPct=Math.max((e.durMs/range*100),0.8).toFixed(1);
+    if(ei<etapas.length-1){var gapMs=etapas[ei+1].iniMs-e.fimMs;if(gapMs>0){totalOciosoMs+=gapMs;e.gapMs=gapMs;e.gapLeft=((e.fimMs-globalIni)/range*100).toFixed(1);e.gapWidth=Math.max((gapMs/range*100),0.5).toFixed(1);}}
+  }
+  var html='<div class="tl-wrap">';
+  html+='<div class="tl-row tl-hdr"><span>Etapa</span><span>Executantes</span><span>Horario</span><span>Timeline</span><span>Duracao</span></div>';
+  for(var ri=0;ri<etapas.length;ri++){
+    var e=etapas[ri];
+    var execHtml=e.executantes.map(function(x){return esc(x);}).join('<br>');
+    var barInner='<div class="tl-bar-bg"></div>';
+    barInner+='<div class="tl-bar" style="left:'+e.leftPct+'%;width:'+e.widthPct+'%;background:'+e.cor+';"></div>';
+    if(e.gapMs)barInner+='<div class="tl-gap" style="left:'+e.gapLeft+'%;width:'+e.gapWidth+'%;"><span>'+fmtMS(e.gapMs)+'</span></div>';
+    html+='<div class="tl-row">';
+    html+='<span class="tl-etapa" style="color:'+e.corTxt+'">'+e.etapa+'</span>';
+    html+='<div class="tl-exec">'+execHtml+'</div>';
+    html+='<div><div class="tl-hora">'+e.iniStr+'</div><div class="tl-hora">'+e.fimStr+'</div></div>';
+    html+='<div class="tl-bar-wrap">'+barInner+'</div>';
+    html+='<span class="tl-dur" style="color:'+e.corTxt+'">'+fmtMS(e.durMs)+'</span>';
+    html+='</div>';
+  }
+  var nTicks=4,ticks='';
+  for(var t=0;t<nTicks;t++)ticks+='<span>'+fmtHoraMs(globalIni+(range*t/(nTicks-1)))+'</span>';
+  html+='<div class="tl-ticks">'+ticks+'</div>';
+  html+='<div class="tl-footer">';
+  html+='<div>Ativo: <strong>'+fmtMS(totalAtivoMs)+'</strong></div>';
+  html+='<div>Ocioso: <strong>'+fmtMS(totalOciosoMs)+'</strong></div>';
+  html+='<div>Total: <strong>'+((totalAtivoMs+totalOciosoMs)/3600000).toFixed(2)+'h</strong></div>';
+  html+='</div></div>';
+  return html;
+}
+
 function showOmModal(om){
   var stMap={enviada:["Enviada","#888"],em_execucao:["Em Execução","var(--az)"],pendente_assinatura:["Pend. Assinatura","var(--lr)"],finalizada:["Finalizada","var(--vd)"],cancelada:["Cancelada","var(--vm)"],em_oficina:["🔧 Em Oficina","#e65100"]};
   var st=stMap[om.status]||[om.status,"#888"];
@@ -766,6 +825,12 @@ function showOmModal(om){
   [["Equipamento",om.equipamento],["CC",om.cc],["Local",om.local_instalacao],["Plano",om.plano_cod],["Equipe",om.equipe||om.primeiro_executante],["Criado em",om.created_at?new Date(om.created_at).toLocaleString("pt-BR"):null]].forEach(function(row){if(row[1])h+='<div class="detail-item"><div class="detail-label">'+esc(row[0])+'</div><div class="detail-value">'+esc(row[1])+"</div></div>";});
   h+="</div></div>";
   if(executantes.length){h+='<div class="modal-section"><div class="modal-section-title">Executantes</div>';executantes.forEach(function(e){h+='<span class="exec-chip">👷 '+esc(e)+"</span>";});h+="</div>";}
+  var histExec=safeParseArray(om.historico_execucao);
+  if(histExec.length>1||om.em_oficina||om.retornouOficina){
+    h+='<div class="modal-section"><div class="modal-section-title">Rastreabilidade do Fluxo</div>';
+    h+=_buildAdminTimelineHTML(histExec);
+    h+='</div>';
+  }
   if(materiais.length){
     h+='<div class="modal-section"><div class="modal-section-title">Materiais Utilizados</div>';
     materiais.forEach(function(m){h+='<div class="mat-row"><span class="mat-nome">'+esc(m.nome||m.descricao||"—")+'</span><span class="mat-qtd">'+esc((m.qtd||0)+" "+(m.unidade||""))+"</span>";if(m.total)h+='<span class="mat-total">R$ '+Number(m.total).toFixed(2)+"</span>";h+="</div>";});
