@@ -449,10 +449,13 @@ async function baixarZip(){
   try{
     var zip=new JSZip();var folder=zip.folder("Relatorios_OMs");
     var semPdf=0,adicionados=0;
+    var comPdf=reports.filter(function(r){return r.has_relatorio;}).length;
+    var processados=0;
     for(var i=0;i<reports.length;i++){
       var r=reports[i];
       if(!r.has_relatorio){semPdf++;continue;}
-      btn.textContent="Mesclando "+(i+1)+"/"+reports.length+" (OM "+r.num+")…";
+      processados++;
+      btn.textContent="Mesclando "+processados+"/"+comPdf+" (OM "+r.num+")…";
       var prefixes=["OM"];
       if(r.has_checklist)prefixes.push("CK");
       if(r.has_nc)prefixes.push("NC");

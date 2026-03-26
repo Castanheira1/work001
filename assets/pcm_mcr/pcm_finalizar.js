@@ -347,8 +347,8 @@
         }
 
         function _buildOMTimelineHTML(historicoExecucao) {
-            var cores    = ['#1D9E75','#378ADD','#D85A30','#7F77DD','#D4537E','#639922'];
-            var coresTxt = ['#0F6E56','#185FA5','#993C1D','#534AB7','#993556','#3B6D11'];
+            var COR_ETAPA     = { CAMPO:'#378ADD', OFICINA:'#D85A30', MONTAGEM:'#1D9E75' };
+            var COR_ETAPA_TXT = { CAMPO:'#185FA5', OFICINA:'#993C1D', MONTAGEM:'#0F6E56' };
 
             var etapas = [];
             for(var hi = 0; hi < historicoExecucao.length; hi++) {
@@ -367,8 +367,8 @@
                     fimMs: fimMs,
                     iniStr: new Date(iniMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
                     fimStr: new Date(fimMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
-                    cor: cores[hi % cores.length],
-                    corTxt: coresTxt[hi % coresTxt.length]
+                    cor:    COR_ETAPA[etapa]     || '#378ADD',
+                    corTxt: COR_ETAPA_TXT[etapa] || '#185FA5'
                 });
             }
             if(!etapas.length) return '';
@@ -431,7 +431,7 @@
             for(var t = 0; t < nTicks; t++) {
                 ticks += '<span>' + fmtHoraMs(globalIni + (range * t / (nTicks - 1))) + '</span>';
             }
-            html += '<div class="tl-ticks" style="padding-left:256px;">' + ticks + '</div>';
+            html += '<div class="tl-ticks">' + ticks + '</div>';
 
             html += '<div class="tl-footer">';
             html += '<div>Ativo: <strong>' + fmtMS(totalAtivoMs) + '</strong></div>';
