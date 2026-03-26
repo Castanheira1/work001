@@ -346,6 +346,101 @@
             setTimeout(function(){ setupSignaturePad(); }, 300);
         }
 
+        function _buildOMTimelineHTML(historicoExecucao) {
+            var cores    = ['#1D9E75','#378ADD','#D85A30','#7F77DD','#D4537E','#639922'];
+            var coresTxt = ['#0F6E56','#185FA5','#993C1D','#534AB7','#993556','#3B6D11'];
+
+            var etapas = [];
+            for(var i = 0; i < historicoExecucao.length; i++) {
+                var h = historicoExecucao[i];
+                if(!h.dataInicio || !h.dataFim) continue;
+                var tag = h.tag || 'ATIVIDADE';
+                var etapa = 'CAMPO';
+                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
+                else if(tag === 'MONTAGEM') etapa = 'MONTAGEM';
+                var iniMs = new Date(h.dataInicio).getTime();
+                var fimMs = new Date(h.dataFim).getTime();
+                etapas.push({
+                    etapa: etapa,
+                    executantes: h.executantes || [],
+                    iniMs: iniMs,
+                    fimMs: fimMs,
+                    iniStr: new Date(iniMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                    fimStr: new Date(fimMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                    cor: cores[i % cores.length],
+                    corTxt: coresTxt[i % coresTxt.length]
+                });
+            }
+            if(!etapas.length) return '';
+
+            var globalIni = etapas[0].iniMs;
+            var globalFim = etapas[etapas.length - 1].fimMs;
+            var range = globalFim - globalIni || 1;
+
+            function fmtMS(ms) {
+                var s = Math.round(ms / 1000);
+                var m = Math.floor(s / 60), ss = s % 60;
+                return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+            }
+            function fmtHoraMs(ms) {
+                var d = new Date(ms);
+                return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            }
+
+            var totalAtivoMs = 0, totalOciosoMs = 0;
+            for(var i = 0; i < etapas.length; i++) {
+                var e = etapas[i];
+                e.durMs = Math.max(e.fimMs - e.iniMs, 0);
+                totalAtivoMs += e.durMs;
+                e.leftPct = ((e.iniMs - globalIni) / range * 100).toFixed(1);
+                e.widthPct = Math.max((e.durMs / range * 100), 0.8).toFixed(1);
+                if(i < etapas.length - 1) {
+                    var gapMs = etapas[i + 1].iniMs - e.fimMs;
+                    if(gapMs > 0) {
+                        totalOciosoMs += gapMs;
+                        e.gapMs = gapMs;
+                        e.gapLeft = ((e.fimMs - globalIni) / range * 100).toFixed(1);
+                        e.gapWidth = Math.max((gapMs / range * 100), 0.5).toFixed(1);
+                    }
+                }
+            }
+
+            var html = '<div class="tl-wrap">';
+            html += '<div class="tl-row tl-hdr"><span>Etapa</span><span>Executantes</span><span>Horario</span><span>Timeline</span><span>Duracao</span></div>';
+
+            for(var i = 0; i < etapas.length; i++) {
+                var e = etapas[i];
+                var execHtml = e.executantes.map(function(x){ return _h(x); }).join('<br>');
+                var barInner = '<div class="tl-bar-bg"></div>';
+                barInner += '<div class="tl-bar" style="left:' + e.leftPct + '%;width:' + e.widthPct + '%;background:' + e.cor + ';"></div>';
+                if(e.gapMs) {
+                    barInner += '<div class="tl-gap" style="left:' + e.gapLeft + '%;width:' + e.gapWidth + '%;"><span>' + fmtMS(e.gapMs) + '</span></div>';
+                }
+                html += '<div class="tl-row">';
+                html += '<span class="tl-etapa" style="color:' + e.corTxt + '">' + e.etapa + '</span>';
+                html += '<div class="tl-exec">' + execHtml + '</div>';
+                html += '<div><div class="tl-hora">' + e.iniStr + '</div><div class="tl-hora">' + e.fimStr + '</div></div>';
+                html += '<div class="tl-bar-wrap">' + barInner + '</div>';
+                html += '<span class="tl-dur" style="color:' + e.corTxt + '">' + fmtMS(e.durMs) + '</span>';
+                html += '</div>';
+            }
+
+            // Tick marks under the bar column
+            var nTicks = 4;
+            var ticks = '';
+            for(var t = 0; t < nTicks; t++) {
+                ticks += '<span>' + fmtHoraMs(globalIni + (range * t / (nTicks - 1))) + '</span>';
+            }
+            html += '<div class="tl-ticks" style="padding-left:256px;">' + ticks + '</div>';
+
+            html += '<div class="tl-footer">';
+            html += '<div>Ativo: <strong>' + fmtMS(totalAtivoMs) + '</strong></div>';
+            html += '<div>Ocioso: <strong>' + fmtMS(totalOciosoMs) + '</strong></div>';
+            html += '<div>Total: <strong>' + ((totalAtivoMs + totalOciosoMs) / 3600000).toFixed(2) + 'h</strong></div>';
+            html += '</div></div>';
+            return html;
+        }
+
         function renderResumoHistorico() {
             var div = $('resumoHistorico');
 
@@ -379,56 +474,33 @@
 
             var htmlTimeline = '';
             if(temRastreabilidade) {
-                var etapas = { CAMPO: [], OFICINA: [], MONTAGEM: [] };
-                for(var tli = 0; tli < currentOM.historicoExecucao.length; tli++) {
-                    var tlH = currentOM.historicoExecucao[tli];
-                    var tlTag = tlH.tag || 'ATIVIDADE';
-                    var etapa = 'CAMPO';
-                    if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
-                    else if(tlTag === 'MONTAGEM') etapa = 'MONTAGEM';
-                    etapas[etapa].push(tlH);
-                }
-                var coresEtapa = { CAMPO: '#1A5276', OFICINA: '#b84c00', MONTAGEM: '#2e7d32' };
-
                 htmlTimeline = '<div style="' + S.section + '">';
                 htmlTimeline += '<div style="' + S.sectionTitle + '">Rastreabilidade do Fluxo</div>';
-                htmlTimeline += '<div style="' + S.card + '">';
 
                 // Badges
-                var hasBadges = temTrocaTurno || temDesativacao || temOficina || temMultiSessao;
-                if(hasBadges) {
-                    htmlTimeline += '<div style="padding:7px 10px;border-bottom:1px solid #f0f0f0;">';
-                    if(temTrocaTurno) htmlTimeline += '<span style="' + S.badge + 'background:#fff8f0;border-color:#e07800;color:#b85c00;">Troca de Turno</span>';
-                    if(temDesativacao) htmlTimeline += '<span style="' + S.badge + 'background:#fdf0f3;border-color:#c62828;color:#c62828;">Desativacao de Equipamento</span>';
-                    if(temOficina) htmlTimeline += '<span style="' + S.badge + 'background:#f0f4ff;border-color:#3a5cbf;color:#2b4aac;">Fluxo de Oficina</span>';
-                    if(temMultiSessao && !temOficina && !temTrocaTurno) htmlTimeline += '<span style="' + S.badge + 'background:#f0faf2;border-color:#388e3c;color:#2e7d32;">Multiplas Sessoes</span>';
-                    htmlTimeline += '</div>';
-                }
+                var badgeParts = [];
+                if(temTrocaTurno) badgeParts.push('<span style="' + S.badge + 'background:#fff8f0;border-color:#e07800;color:#b85c00;">Troca de Turno</span>');
+                if(temDesativacao) badgeParts.push('<span style="' + S.badge + 'background:#fdf0f3;border-color:#c62828;color:#c62828;">Desativacao de Equipamento</span>');
+                if(temOficina) badgeParts.push('<span style="' + S.badge + 'background:#f0f4ff;border-color:#3a5cbf;color:#2b4aac;">Fluxo de Oficina</span>');
+                if(temMultiSessao && !temOficina && !temTrocaTurno) badgeParts.push('<span style="' + S.badge + 'background:#f0faf2;border-color:#388e3c;color:#2e7d32;">Multiplas Sessoes</span>');
+                if(badgeParts.length) htmlTimeline += '<div style="margin-bottom:6px;">' + badgeParts.join('') + '</div>';
 
-                var ordemEt = ['CAMPO', 'OFICINA', 'MONTAGEM'];
-                for(var oi = 0; oi < ordemEt.length; oi++) {
-                    var eNome = ordemEt[oi];
-                    var eArr = etapas[eNome];
-                    if(!eArr || eArr.length === 0) continue;
-                    var eHH = 0;
-                    for(var j = 0; j < eArr.length; j++) eHH += (eArr[j].hhAtividade || 0);
-                    var isLast = (oi === ordemEt.length - 1) || !ordemEt.slice(oi + 1).some(function(n) { return etapas[n] && etapas[n].length > 0; });
-                    htmlTimeline += '<div style="' + (isLast ? S.rowLast : S.row) + '">';
-                    htmlTimeline += '<span style="font-size:12px;font-weight:700;color:' + coresEtapa[eNome] + ';min-width:72px;">' + eNome + '</span>';
-                    htmlTimeline += '<span style="' + S.label + '">HH: <strong style="color:#222;">' + eHH.toFixed(2) + 'h</strong></span>';
-                    htmlTimeline += '</div>';
-                }
+                // Visual timeline
+                htmlTimeline += '<div style="' + S.card + 'padding:6px 8px;">';
+                htmlTimeline += _buildOMTimelineHTML(currentOM.historicoExecucao);
+                htmlTimeline += '</div>';
 
+                // Deactivation reason (if applicable)
                 if(temDesativacao && currentOM.desvioDesativacao) {
                     var _des = currentOM.desvioDesativacao;
-                    htmlTimeline += '<div style="padding:7px 10px;background:#fff8f8;border-top:1px solid #f0c0c0;">';
+                    htmlTimeline += '<div style="padding:7px 10px;background:#fff8f8;border:1px solid #f0c0c0;border-radius:6px;margin-top:6px;">';
                     htmlTimeline += '<div style="font-size:11px;font-weight:700;color:#b00;margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em;">Motivo da Desativacao</div>';
                     htmlTimeline += '<div style="font-size:12px;color:#333;">' + _h(_des.motivo || _des.observacao || 'Nao informado') + '</div>';
                     if(_des.hhGasto !== undefined) htmlTimeline += '<div style="font-size:11px;color:#777;margin-top:2px;">HH gasto ate a parada: ' + _des.hhGasto.toFixed(2) + 'h</div>';
                     htmlTimeline += '</div>';
                 }
 
-                htmlTimeline += '</div></div>';
+                htmlTimeline += '</div>';
             }
 
             var html = htmlTimeline + '<div style="' + S.section + '">';
