@@ -51,8 +51,14 @@
       </section>
 
       <section class="card painel-global-filters">
-        <div class="card-head"><h3>🎛️ Filtros Globais</h3></div>
-        <div class="card-body">
+        <div class="card-head"><h3>Filtros</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-a btn-ghost" onclick="toggleAdvancedFilters()" id="btnAdvFilters" style="padding:4px 10px;font-size:10px">Mais filtros</button>
+            <button class="btn-a btn-ghost" onclick="clearGlobalFilters()" style="padding:4px 10px;font-size:10px">Limpar</button>
+            <button class="btn-a btn-ghost" onclick="loadDashboard()" style="padding:4px 10px;font-size:10px">↻ Atualizar</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:10px 14px">
           <div class="global-filter-row">
             <div class="filter-group bm-group">
               <label class="field-label">Período BM</label>
@@ -65,12 +71,12 @@
               <label class="field-label">Busca</label>
               <div class="search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="searchInput" placeholder="Buscar OM, título, operador…" oninput="renderList()">
+                <input type="text" id="searchInput" placeholder="OM, título, operador, equip., FIA…" oninput="_currentPage=1;renderList()">
               </div>
             </div>
             <div class="filter-group filter-group-sm">
               <label class="field-label">Status</label>
-              <select class="filter-select" id="filterStatus" onchange="filterPipeSelect()">
+              <select class="filter-select" id="filterStatus" onchange="_currentPage=1;filterPipeSelect()">
                 <option value="">Todos os status</option>
                 <option value="enviada">Enviadas</option>
                 <option value="em_execucao">Em Execução</option>
@@ -80,46 +86,35 @@
               </select>
             </div>
             <div class="filter-group filter-group-sm">
-              <label class="field-label">Equipe (FIA/BM)</label>
-              <select class="filter-select" id="filterEquipe" onchange="renderList()"><option value="">Todas as equipes</option></select>
-            </div>
-            <div class="filter-group filter-group-sm">
-              <label class="field-label">FIA</label>
-              <select class="filter-select" id="filterFIA" onchange="renderList()"><option value="">Todos os FIAs</option></select>
-            </div>
-            <div class="filter-group filter-group-sm">
-              <label class="field-label">Escopo</label>
-              <select class="filter-select" id="filterEscopo" onchange="renderList()">
-                <option value="">Todos os escopos</option>
-                <option value="geral">📋 Geral</option>
-                <option value="preventiva_usina">🏭 Prev. Usina</option>
-                <option value="preventiva_mina">⛏️ Prev. Mina</option>
-                <option value="preventiva_turno">🔄 Prev. Turno</option>
-                <option value="corretiva">🔧 Corretiva</option>
-              </select>
+              <label class="field-label">Equipe</label>
+              <select class="filter-select" id="filterEquipe" onchange="_currentPage=1;renderList()"><option value="">Todas as equipes</option></select>
             </div>
           </div>
-          <div class="global-filter-row compact">
-            <div class="filter-group filter-group-date">
-              <label class="field-label">Janela de datas</label>
-              <div class="date-range-fields">
-                <input type="date" id="filterDtInicio" onchange="renderList()">
-                <span>até</span>
-                <input type="date" id="filterDtFim" onchange="renderList()">
+          <div class="advanced-filters-panel" id="advancedFiltersPanel" style="display:none">
+            <div class="global-filter-row" style="grid-template-columns:1.5fr 1.5fr 2fr;margin-top:10px">
+              <div class="filter-group filter-group-sm">
+                <label class="field-label">Escopo</label>
+                <select class="filter-select" id="filterEscopo" onchange="_currentPage=1;renderList()">
+                  <option value="">Todos os escopos</option>
+                  <option value="geral">Geral</option>
+                  <option value="preventiva_usina">Prev. Usina</option>
+                  <option value="preventiva_mina">Prev. Mina</option>
+                  <option value="preventiva_turno">Prev. Turno</option>
+                  <option value="corretiva">Corretiva</option>
+                </select>
               </div>
-            </div>
-            <div class="filter-group filter-group-sm">
-              <label class="field-label">Volume</label>
-              <select class="filter-select" id="filterQtd" onchange="renderList()" style="width:auto;min-width:90px">
-                <option value="20">20 OMs</option>
-                <option value="50">50 OMs</option>
-                <option value="100">100 OMs</option>
-                <option value="0">Todas</option>
-              </select>
-            </div>
-            <div class="filter-group filter-actions">
-              <button class="btn-a btn-ghost" onclick="clearGlobalFilters()">Limpar filtros</button>
-              <button class="btn-a btn-ghost" onclick="loadDashboard()">↻ Atualizar dados</button>
+              <div class="filter-group filter-group-sm">
+                <label class="field-label">FIA</label>
+                <select class="filter-select" id="filterFIA" onchange="_currentPage=1;renderList()"><option value="">Todos os FIAs</option></select>
+              </div>
+              <div class="filter-group filter-group-date">
+                <label class="field-label">Janela de datas</label>
+                <div class="date-range-fields">
+                  <input type="date" id="filterDtInicio" onchange="_currentPage=1;renderList()">
+                  <span>até</span>
+                  <input type="date" id="filterDtFim" onchange="_currentPage=1;renderList()">
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -181,7 +176,7 @@
         </div>
         <div class="card-body">
           <div id="omList"><div class="empty">Nenhuma OM.</div></div>
-          <div id="omPagination" style="display:none;text-align:center;padding:10px"></div>
+          <div id="omPagination" class="pagination-bar"></div>
         </div>
       </div>
     </div>
@@ -204,19 +199,31 @@
         <button class="btn-a btn-ghost" style="padding:6px 12px;font-size:10px" onclick="renderAnalytics()">↻ Atualizar</button>
       </div>
       <div id="analyticsMetrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
-      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>🧠 Insights Operacionais Avançados</h3></div><div class="card-body" style="padding:12px 16px" id="analyticsDeepInsights"></div></div>
+      <div class="card analytics-score-card" style="margin-bottom:14px"><div class="card-head"><h3>Saúde Operacional</h3></div><div class="card-body" style="padding:14px 16px" id="analyticsHealthScore"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Insights Operacionais</h3></div><div class="card-body" style="padding:12px 16px" id="analyticsDeepInsights"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow0">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Eficiência por Escopo</h3></div><div class="card-body" style="padding:12px 16px" id="chartEficienciaEscopo"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Backlog Aging</h3></div><div class="card-body" style="padding:12px 16px;min-height:180px" id="chartBacklogAging"></div></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow1">
         <div class="card" style="margin:0"><div class="card-head"><h3>Pipeline de Status</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutStatus"></div></div>
         <div class="card" style="margin:0"><div class="card-head"><h3>Distribuição por Escopo</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutEscopo"></div></div>
       </div>
-      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Throughput — OMs Finalizadas por Dia (14d)</h3></div><div class="card-body" style="min-height:200px;padding:12px 16px" id="chartTimeline"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Throughput — OMs Finalizadas por Dia</h3>
+        <div style="display:flex;gap:4px">
+          <button class="btn-a btn-ghost throughput-btn active" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(14,this)">14d</button>
+          <button class="btn-a btn-ghost throughput-btn" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(30,this)">30d</button>
+          <button class="btn-a btn-ghost throughput-btn" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(60,this)">60d</button>
+        </div>
+      </div><div class="card-body" style="min-height:200px;padding:12px 16px" id="chartTimeline"></div></div>
       <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>SLA e Lead Time</h3></div><div class="card-body" style="min-height:180px;padding:12px 16px" id="chartLeadTime"></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow3">
         <div class="card" style="margin:0"><div class="card-head"><h3>HH Medido por Equipe</h3></div><div class="card-body" style="min-height:180px" id="chartHHEquipe"></div></div>
         <div class="card" style="margin:0"><div class="card-head"><h3>Custo Materiais por Equipe</h3></div><div class="card-body" style="min-height:180px" id="chartMatEquipe"></div></div>
       </div>
       <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Consolidado por Equipe</h3></div><div class="card-body" style="min-height:200px;padding:12px 16px" id="chartProdutividade"></div></div>
-      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>💰 Custo por Centro de Custo</h3></div><div class="card-body" style="padding:12px 16px" id="chartCustoCC"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Custo por Centro de Custo</h3></div><div class="card-body" style="padding:12px 16px" id="chartCustoCC"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Heatmap de Atividade</h3></div><div class="card-body" style="padding:12px 16px" id="chartHeatmap"></div></div>
     </div>
     <div class="page" id="pg-pasta">
       <div class="card"><div class="card-head"><h3>📁 Relatórios Sincronizados</h3><button class="btn-a btn-primary" id="btnZip" onclick="baixarZip()">⬇ Baixar Todos (.zip)</button></div><div class="card-body"><div id="pastaList"><div class="empty">Nenhum relatório.</div></div></div></div>
@@ -269,11 +276,11 @@
 <div class="modal-overlay" id="omModal"><div class="modal-box"><div class="modal-head"><div class="modal-title" id="modalTitle">Detalhe da OM</div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn-a btn-danger" id="modalBtnDelete" style="padding:5px 10px;font-size:10px">🗑 Excluir</button><button class="modal-close" onclick="closeOmModal()">✕</button></div></div><div class="modal-body" id="modalBody"></div></div></div>
 <div class="hd-overlay" id="hdModal"><div class="hd-box"><div class="hd-title">📱 Habilitar Novo Dispositivo</div><div class="hd-sub">OM <span id="hdOmNum"></span> — <span id="hdOmTitulo"></span></div><div class="hd-alert">⚠️ O aparelho falhou. O tempo parado será registrado como desvio <strong>DISPOSITIVO EM FALHA</strong>.</div><div class="hd-row"><div><div class="hd-label">Executante(s)</div><div class="hd-value" id="hdExecAtual">—</div></div><div><div class="hd-label">Tempo parado</div><div class="hd-value" id="hdTempoParado">—</div></div></div><div class="hd-label">Equipe de retomada</div><div class="hd-radio-row"><label><input type="radio" name="hdEquipe" id="hdMesmaEquipe" value="mesma" checked> Mesma equipe</label><label><input type="radio" name="hdEquipe" id="hdEquipeDiferente" value="diferente"> Equipe diferente</label></div><div id="hdNovoExecRow" style="display:none"><div class="hd-label">Nome do novo responsável</div><input class="hd-input" id="hdNovoExec" type="text" placeholder="Nome completo"></div><div class="hd-btns"><button class="hd-btn hd-btn-cancel" onclick="hideHabilitarDispositivo()">Cancelar</button><button class="hd-btn hd-btn-confirm" id="hdBtnConfirmar" onclick="confirmarHabilitarDispositivo()">Habilitar</button></div></div></div>
 <div id="matEditModal" style="position:fixed;inset:0;background:rgba(10,15,26,.65);backdrop-filter:blur(4px);z-index:350;display:none;align-items:center;justify-content:center;padding:16px"><div style="background:#fff;border-radius:16px;width:100%;max-width:880px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,.25)"><div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0"><div style="font-size:14px;font-weight:800">✏️ Editar Materiais — OM <span id="matEditOMNum"></span></div><button onclick="document.getElementById('matEditModal').style.display='none'" class="modal-close">✕</button></div><div style="padding:20px 22px"><div id="matEditRows"></div><button onclick="adicionarMatLinha()" class="btn-a btn-ghost" style="margin-top:8px;width:100%;justify-content:center">+ Adicionar Material</button><div style="margin-top:10px;padding:8px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10px;font-weight:600;color:#92400E">⚠️ Após salvar, o PDF ficará desatualizado — dados corretos no banco e no Excel.</div><div style="display:flex;gap:8px;margin-top:12px"><button onclick="document.getElementById('matEditModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button><button id="btnSalvarMat" onclick="salvarMateriaisAdmin()" class="btn-a btn-primary" style="flex:2;justify-content:center;padding:12px">Salvar Alterações</button></div></div></div></div>
-<script src="assets/assets_admin/admin_utils.js?v=20260324"></script>
-<script src="assets/assets_admin/admin_state.js?v=20260324"></script>
-<script src="assets/assets_admin/admin_api.js?v=20260324"></script>
-<script src="assets/assets_admin/admin_render.js?v=20260324"></script>
-<script src="assets/assets_admin/admin_core.js?v=20260324"></script>
-<script src="assets/assets_admin/admin_events.js?v=20260324"></script>
+<script src="assets/assets_admin/admin_utils.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_state.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_api.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_render.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_core.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_events.js?v=20260326"></script>
 </body>
 </html>
