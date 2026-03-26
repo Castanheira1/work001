@@ -133,6 +133,16 @@ async function carregarConfig(){
   }catch(e){adminToast("Erro ao carregar config: "+e.message,"error");}
 }
 
+async function loadBMConfig(){
+  try{
+    var cli=ensureSupabaseClient();
+    var{data}=await cli.from("config").select("*");
+    if(!data)return;
+    var map={};data.forEach(function(r){map[r.chave]=r.valor;});
+    _bmConfig={numero:map.bm_numero||"",di:map.bm_data_inicio||"",df:map.bm_data_fim||""};
+  }catch(e){console.warn("loadBMConfig error:",e);}
+}
+
 async function salvarConfigBM(){
   var n=$("cfgBmNumero").value.trim();
   if(!n){adminToast("Informe o N° BM","warn");return;}

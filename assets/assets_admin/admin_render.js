@@ -1,6 +1,10 @@
 ﻿/* Variáveis globais definidas em admin_state.js (carregado antes) */
 
 function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+var _throughputDays=14;
+function setThroughputDays(d,btn){_throughputDays=d;document.querySelectorAll(".throughput-btn").forEach(function(b){b.classList.remove("active");});if(btn)btn.classList.add("active");_renderTimeline(dashboardData.oms);}
+function toggleAdvancedFilters(){_advancedFiltersOpen=!_advancedFiltersOpen;var p=$("advancedFiltersPanel");var b=$("btnAdvFilters");if(p)p.style.display=_advancedFiltersOpen?"block":"none";if(b)b.textContent=_advancedFiltersOpen?"Menos filtros":"Mais filtros";}
+function goToPage(pg){_currentPage=pg;renderList();var el=$("omList");if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
 
 function renderKPIs(){
   var all=dashboardData.oms;
@@ -125,7 +129,7 @@ function getFilteredOms(includeConcluidas){
   if(eq)list=list.filter(function(o){return(o.equipe||o.primeiro_executante)===eq;});
   if(fia)list=list.filter(function(o){return String(o.fia||o.fia_numero||"")===String(fia);});
   if(filtroEscopo)list=list.filter(function(o){return(o.escopo||'geral')===filtroEscopo;});
-  if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search);});
+  if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search)||String(o.fia||o.fia_numero||"").toLowerCase().includes(search);});
   function _parseDateSafe(v){
     if(!v)return null;
     if(v instanceof Date && !isNaN(v.getTime()))return v;
@@ -237,15 +241,15 @@ function clearGlobalFilters(){
   if($("filterStatus"))$("filterStatus").value="";
   if($("filterDtInicio"))$("filterDtInicio").value="";
   if($("filterDtFim"))$("filterDtFim").value="";
-  if($("filterQtd"))$("filterQtd").value="20";
   _showConcluidasPainel=false;
+  _currentPage=1;
   if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent="Mostrar concluídas";
   currentPipe=null;
   renderPipeline();
   renderList();
 }
-function filterPipeSelect(){currentPipe=$("filterStatus").value||null;renderPipeline();renderList();}
-function filterPipe(k){currentPipe=currentPipe===k?null:k;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();}
+function filterPipeSelect(){currentPipe=$("filterStatus").value||null;_currentPage=1;renderPipeline();renderList();}
+function filterPipe(k){currentPipe=currentPipe===k?null:k;_currentPage=1;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();}
 
 function populateEquipeFilter(){
   var equipes=[...new Set(dashboardData.oms.map(function(o){return o.equipe||o.primeiro_executante;}).filter(Boolean))].sort();
@@ -265,20 +269,23 @@ function populateEquipeFilter(){
 }
 
 function renderList(){
-  var maxQtd=parseInt(($("filterQtd")?$("filterQtd").value:"20"))||0;
   var list=getFilteredOms();
   if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent=_showConcluidasPainel?"Ocultar concluídas":"Mostrar concluídas";
   var cfg=currentPipe?PIPE_CFG.find(function(p){return p.key===currentPipe;}):null;
   $("listTitle").textContent=cfg?cfg.icon+" "+cfg.label:"Todas as OMs";
   var totalFiltrado=list.length;
-  var exibindo=maxQtd>0?Math.min(maxQtd,totalFiltrado):totalFiltrado;
-  $("listCount").textContent=exibindo+" de "+totalFiltrado+" ordem(ns)";
+  var totalPages=Math.max(1,Math.ceil(totalFiltrado/_pageSize));
+  if(_currentPage>totalPages)_currentPage=totalPages;
+  if(_currentPage<1)_currentPage=1;
+  var startIdx=(_currentPage-1)*_pageSize;
+  var endIdx=Math.min(startIdx+_pageSize,totalFiltrado);
+  $("listCount").textContent=totalFiltrado>0?(startIdx+1)+"–"+endIdx+" de "+totalFiltrado+" ordem(ns)":"0 ordens";
   renderOperationalTimeline();
   renderPeriodoInsights();
-  if(!list.length){$("omList").innerHTML='<div class="empty">Nenhuma OM encontrada.</div>';$("omPagination").style.display="none";return;}
-  var listShow=maxQtd>0?list.slice(0,maxQtd):list;
+  if(!list.length){$("omList").innerHTML='<div class="empty">Nenhuma OM encontrada.</div>';$("omPagination").innerHTML="";return;}
+  var listShow=list.slice(startIdx,endIdx);
   var h="";
-  var _escopoMap={preventiva_usina:'🏭 Usina',preventiva_mina:'⛏️ Mina',preventiva_turno:'🔄 Turno',corretiva:'🔧 Corretiva'};
+  var _escopoMap={preventiva_usina:'Usina',preventiva_mina:'Mina',preventiva_turno:'Turno',corretiva:'Corretiva'};
   listShow.forEach(function(om,idx){
     var bar=(PIPE_CFG.find(function(p){return p.key===om.status;})||{}).bar||"#ccc";
     var titulo=esc(om.titulo||"—"),equipe=esc(om.equipe||om.primeiro_executante||"—");
@@ -288,25 +295,41 @@ function renderList(){
     h+='<div class="om-item" style="animation-delay:'+(Math.min(idx,10)*25)+'ms" onclick="onOpenOM(\''+om.num+'\')">';
     h+='<div class="om-bar" style="background:'+bar+'"></div><div class="om-body">';
     h+='<div class="om-num">'+om.num+'</div>';
-    h+='<div class="om-titulo">'+(isExec?'<span style="display:inline-block;width:7px;height:7px;background:var(--az);border-radius:50%;margin-right:5px;animation:dotLive 1.5s infinite;vertical-align:middle"></span>':'')+titulo+'</div>';
-    h+='<div class="om-equipe">'+equipe+(dtLabel?' <span style="color:var(--c4);font-size:10px">'+dtLabel+'</span>':'')+'</div>';
-    if((om.escopo==="preventiva_turno")||om.motivo_reprogramacao)h+='<div style="font-size:10px;font-weight:800;color:#6D28D9;background:#F3E8FF;display:inline-block;padding:1px 6px;border-radius:4px;">↔ Passada turno</div>';
-    if(om.escopo&&_escopoMap[om.escopo])h+='<div style="font-size:10px;font-weight:800;color:var(--b1);background:var(--bc);display:inline-block;padding:1px 6px;border-radius:4px;">'+_escopoMap[om.escopo]+'</div>';
-    if(om.fia||om.fia_numero)h+='<div style="font-size:10px;font-weight:800;color:var(--c2);background:var(--c6);display:inline-block;padding:1px 6px;border-radius:4px;">FIA '+esc(String(om.fia||om.fia_numero))+'</div>';
+    h+='<div class="om-titulo">'+(isExec?'<span class="live-dot"></span>':'')+titulo+'</div>';
+    h+='<div class="om-equipe">'+equipe+(dtLabel?' <span class="om-date">'+dtLabel+'</span>':'')+'</div>';
+    if((om.escopo==="preventiva_turno")||om.motivo_reprogramacao)h+='<span class="om-tag om-tag-turno">↔ Passada turno</span>';
+    if(om.escopo&&_escopoMap[om.escopo])h+='<span class="om-tag om-tag-escopo">'+_escopoMap[om.escopo]+'</span>';
+    if(om.fia||om.fia_numero)h+='<span class="om-tag om-tag-fia">FIA '+esc(String(om.fia||om.fia_numero))+'</span>';
     if(om.hh_total>0)h+='<div class="om-hh">'+Number(om.hh_total).toFixed(1)+'h</div>';
     if(om.materiais_total>0)h+='<div class="om-mat">R$'+Number(om.materiais_total).toFixed(0)+'</div>';
-    if(isExec)h+='<button onclick="event.stopPropagation();showHabilitarDispositivo(\''+om.num+'\')" style="flex-shrink:0;padding:5px 10px;background:linear-gradient(135deg,#e67e00,#f5a623);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer">📱 Habilitar</button>';
+    if(isExec)h+='<button onclick="event.stopPropagation();showHabilitarDispositivo(\''+om.num+'\')" class="btn-habilitar">Habilitar</button>';
     h+='<div class="om-docs">';
-    h+='<div class="doc-badge" style="background:'+(om.has_relatorio?'var(--bc)':'var(--c6)')+';color:'+(om.has_relatorio?'var(--b1)':'var(--c4)')+'" title="Relatório">R</div>';
-    h+='<div class="doc-badge" style="background:'+(om.has_checklist?'var(--ac)':'var(--c6)')+';color:'+(om.has_checklist?'var(--az)':'var(--c4)')+'" title="Checklist">C</div>';
-    h+='<div class="doc-badge" style="background:'+(om.has_fotos?'var(--lc)':'var(--c6)')+';color:'+(om.has_fotos?'var(--lr)':'var(--c4)')+'" title="Fotográfico">F</div>';
+    h+='<div class="doc-badge'+(om.has_relatorio?' doc-on':'')+'" title="Relatório">R</div>';
+    h+='<div class="doc-badge'+(om.has_checklist?' doc-on-ck':'')+'" title="Checklist">C</div>';
+    h+='<div class="doc-badge'+(om.has_fotos?' doc-on-ft':'')+'" title="Fotográfico">F</div>';
     h+='</div></div></div>';
   });
   $("omList").innerHTML=h;
-  if(maxQtd>0&&totalFiltrado>maxQtd){
-    $("omPagination").style.display="block";
-    $("omPagination").innerHTML='<span style="font-size:11px;color:var(--c3);font-weight:700">Mostrando '+exibindo+' de '+totalFiltrado+' — aumente o limite ou filtre por período</span>';
-  }else{$("omPagination").style.display="none";}
+  _renderPagination(totalFiltrado,totalPages);
+}
+
+function _renderPagination(total,totalPages){
+  var el=$("omPagination");if(!el)return;
+  if(totalPages<=1){el.innerHTML="";return;}
+  var h='<div class="pag-info">'+((_currentPage-1)*_pageSize+1)+'–'+Math.min(_currentPage*_pageSize,total)+' de '+total+'</div>';
+  h+='<div class="pag-btns">';
+  h+='<button class="pag-btn" onclick="goToPage(1)"'+(_currentPage===1?' disabled':'')+' title="Primeira">«</button>';
+  h+='<button class="pag-btn" onclick="goToPage('+(_currentPage-1)+')"'+(_currentPage===1?' disabled':'')+' title="Anterior">‹</button>';
+  var start=Math.max(1,_currentPage-2),end=Math.min(totalPages,_currentPage+2);
+  if(_currentPage<=3)end=Math.min(totalPages,5);
+  if(_currentPage>=totalPages-2)start=Math.max(1,totalPages-4);
+  for(var p=start;p<=end;p++){
+    h+='<button class="pag-btn'+(p===_currentPage?' pag-active':'')+'" onclick="goToPage('+p+')">'+p+'</button>';
+  }
+  h+='<button class="pag-btn" onclick="goToPage('+(_currentPage+1)+')"'+(_currentPage===totalPages?' disabled':'')+' title="Próxima">›</button>';
+  h+='<button class="pag-btn" onclick="goToPage('+totalPages+')"'+(_currentPage===totalPages?' disabled':'')+' title="Última">»</button>';
+  h+='</div>';
+  el.innerHTML=h;
 }
 
 function exportarCsvPainel(){
@@ -455,10 +478,14 @@ function renderAnalytics(){
     mh+='<div style="font-size:22px;font-weight:900;color:'+m.color+';font-family:\'JetBrains Mono\',monospace">'+m.val+'</div></div>';
   });
   $("analyticsMetrics").innerHTML=mh;
+  _renderHealthScore(all,fin,taxaSLA,comPrazo,leadMedian,vencidas);
   _renderDeepOperationalInsights(all);
+  _renderEficienciaEscopo(all,fin);
+  _renderBacklogAging(all);
   _renderDonutStatus(all);_renderDonutEscopo(all);_renderTimeline(all);
   _renderLeadTime(leads,fin,noPrazo,atrasadas,semPrazo);
   _renderBarHH(all);_renderBarMat(all);_renderProdutividade(all);_renderCustoCC();
+  _renderHeatmap(all);
 }
 
 function _renderDeepOperationalInsights(all){
@@ -540,7 +567,7 @@ function _renderDonutEscopo(all){
 
 function _renderTimeline(all){
   var fin=all.filter(function(o){return o.status==="finalizada"&&o.data_finalizacao;});
-  var days=14,buckets=[];
+  var days=_throughputDays||14,buckets=[];
   for(var d=days-1;d>=0;d--){
     var dt=new Date();dt.setDate(dt.getDate()-d);dt.setHours(0,0,0,0);
     var key=dt.toISOString().split("T")[0];
@@ -1059,4 +1086,486 @@ function atualizarBmPreview(){
   if(!n){$("cfgBmPreview").textContent="Informe o N° BM";return;}
   function fmt(d){if(!d)return"?";var p=d.split("-");return p[2]+"/"+p[1]+"/"+p[0];}
   $("cfgBmPreview").textContent="BM "+n+" — "+fmt(di)+" a "+fmt(df);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ANALYTICS AVANÇADO — Novas visualizações 2026
+   ═══════════════════════════════════════════════════════ */
+
+function _renderHealthScore(all,fin,taxaSLA,comPrazo,leadMedian,vencidas){
+  var el=$("analyticsHealthScore");if(!el)return;
+  if(!all.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
+  var total=all.length;
+  var taxaAtendimento=total>0?(fin.length/total)*100:0;
+  var scoreSLA=comPrazo>0?Math.min(100,taxaSLA):50;
+  var scoreAtend=Math.min(100,taxaAtendimento);
+  var scoreLead=leadMedian<=2?100:leadMedian<=5?75:leadMedian<=10?50:25;
+  var scoreBacklog=vencidas.length===0?100:vencidas.length<=3?70:vencidas.length<=10?40:15;
+  var retrabalho=all.filter(function(o){return o.estado_fluxo==="devolvida_admin"||o.motivo_reprogramacao;}).length;
+  var scoreRetrab=total>0?Math.max(0,100-(retrabalho/total)*500):100;
+  var score=Math.round((scoreSLA*0.25)+(scoreAtend*0.25)+(scoreLead*0.2)+(scoreBacklog*0.15)+(scoreRetrab*0.15));
+  var color=score>=80?"var(--vd)":score>=60?"var(--lr)":score>=40?"#e67e00":"var(--vm)";
+  var label=score>=80?"Excelente":score>=60?"Bom":score>=40?"Atenção":"Crítico";
+  var W=200,cx=100,cy=100,r=80,sw=14;
+  var arc=Math.PI*1.5;
+  var filled=arc*(score/100);
+  var startAngle=-Math.PI*0.75;
+  function polarToCart(cx2,cy2,r2,angle){return{x:cx2+r2*Math.cos(angle),y:cy2+r2*Math.sin(angle)};}
+  var bgStart=polarToCart(cx,cy,r,startAngle);
+  var bgEnd=polarToCart(cx,cy,r,startAngle+arc);
+  var valEnd=polarToCart(cx,cy,r,startAngle+filled);
+  var bgLarge=arc>Math.PI?1:0;
+  var valLarge=filled>Math.PI?1:0;
+  var svg='<svg width="'+W+'" height="170" viewBox="0 0 200 170">';
+  svg+='<path d="M'+bgStart.x+' '+bgStart.y+' A'+r+' '+r+' 0 '+bgLarge+' 1 '+bgEnd.x+' '+bgEnd.y+'" fill="none" stroke="var(--c5)" stroke-width="'+sw+'" stroke-linecap="round"/>';
+  if(score>0)svg+='<path d="M'+bgStart.x+' '+bgStart.y+' A'+r+' '+r+' 0 '+valLarge+' 1 '+valEnd.x+' '+valEnd.y+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" stroke-linecap="round" style="transition:all .8s ease"/>';
+  svg+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" font-size="36" font-weight="900" fill="'+color+'" font-family="JetBrains Mono,monospace">'+score+'</text>';
+  svg+='<text x="'+cx+'" y="'+(cy+16)+'" text-anchor="middle" font-size="12" font-weight="700" fill="var(--c2)">'+label+'</text>';
+  svg+='</svg>';
+  var details='<div class="health-details">';
+  var factors=[
+    {name:"SLA Cumprimento",val:scoreSLA.toFixed(0),weight:"25%"},
+    {name:"Taxa Atendimento",val:scoreAtend.toFixed(0),weight:"25%"},
+    {name:"Lead Time",val:scoreLead.toFixed(0),weight:"20%"},
+    {name:"Backlog",val:scoreBacklog.toFixed(0),weight:"15%"},
+    {name:"Retrabalho",val:scoreRetrab.toFixed(0),weight:"15%"}
+  ];
+  factors.forEach(function(f){
+    var v=parseInt(f.val);
+    var fc=v>=80?"var(--vd)":v>=60?"var(--lr)":v>=40?"#e67e00":"var(--vm)";
+    details+='<div class="health-factor"><div class="health-factor-bar" style="width:'+v+'%;background:'+fc+'"></div><div class="health-factor-info"><span class="health-factor-name">'+f.name+'</span><span class="health-factor-val" style="color:'+fc+'">'+f.val+'</span></div></div>';
+  });
+  details+='</div>';
+  el.innerHTML='<div class="health-wrap">'+svg+details+'</div>';
+}
+
+function _renderEficienciaEscopo(all,fin){
+  var el=$("chartEficienciaEscopo");if(!el)return;
+  if(!fin.length){el.innerHTML='<div class="empty">Sem OMs finalizadas</div>';return;}
+  var escopos=[
+    {key:"geral",label:"Geral",color:"#607D8B"},
+    {key:"preventiva_usina",label:"Prev. Usina",color:"#1A5276"},
+    {key:"preventiva_mina",label:"Prev. Mina",color:"#2E86C1"},
+    {key:"preventiva_turno",label:"Prev. Turno",color:"#E67E22"},
+    {key:"corretiva",label:"Corretiva",color:"#C0392B"}
+  ];
+  var data=escopos.map(function(e){
+    var fEsc=fin.filter(function(o){return(o.escopo||"geral")===e.key;});
+    var tEsc=all.filter(function(o){return(o.escopo||"geral")===e.key;});
+    if(!fEsc.length)return null;
+    var hhTotal=fEsc.reduce(function(s,o){return s+Number(o.hh_total||0);},0);
+    var matTotal=fEsc.reduce(function(s,o){return s+Number(o.materiais_total||0);},0);
+    return{label:e.label,color:e.color,count:fEsc.length,total:tEsc.length,hhMedio:hhTotal/fEsc.length,custoMedio:matTotal/fEsc.length,taxa:tEsc.length>0?Math.round((fEsc.length/tEsc.length)*100):0};
+  }).filter(Boolean);
+  if(!data.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
+  var h='<div class="efic-grid">';
+  h+='<div class="efic-hdr"><span>Escopo</span><span>OMs</span><span>HH/OM</span><span>R$/OM</span><span>Atendimento</span></div>';
+  data.forEach(function(d){
+    var taxaColor=d.taxa>=80?"var(--vd)":d.taxa>=50?"var(--lr)":"var(--vm)";
+    h+='<div class="efic-row">';
+    h+='<span class="efic-label" style="color:'+d.color+'"><span class="efic-dot" style="background:'+d.color+'"></span>'+d.label+'</span>';
+    h+='<span class="efic-val">'+d.count+'/'+d.total+'</span>';
+    h+='<span class="efic-val efic-mono">'+d.hhMedio.toFixed(1)+'h</span>';
+    h+='<span class="efic-val efic-mono">R$'+_fmtNum(d.custoMedio)+'</span>';
+    h+='<span class="efic-val" style="color:'+taxaColor+';font-weight:900">'+d.taxa+'%</span>';
+    h+='</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+function _renderBacklogAging(all){
+  var el=$("chartBacklogAging");if(!el)return;
+  var abertas=all.filter(function(o){return o.status!=="finalizada"&&o.status!=="cancelada";});
+  if(!abertas.length){el.innerHTML='<div class="empty">Nenhuma OM aberta no backlog</div>';return;}
+  var now=Date.now();
+  var faixas=[
+    {label:"< 24h",min:0,max:1,color:"var(--vd)",count:0},
+    {label:"1–3 dias",min:1,max:3,color:"var(--az)",count:0},
+    {label:"3–7 dias",min:3,max:7,color:"var(--lr)",count:0},
+    {label:"7–14 dias",min:7,max:14,color:"#e67e00",count:0},
+    {label:"14+ dias",min:14,max:99999,color:"var(--vm)",count:0}
+  ];
+  abertas.forEach(function(o){
+    var created=o.created_at||o.uploaded_at||o.data_upload;
+    if(!created)return;
+    var dias=(now-new Date(created).getTime())/86400000;
+    for(var i=0;i<faixas.length;i++){if(dias>=faixas[i].min&&dias<faixas[i].max){faixas[i].count++;break;}}
+  });
+  var maxCount=Math.max.apply(null,faixas.map(function(f){return f.count;}))||1;
+  var h='<div class="aging-chart">';
+  faixas.forEach(function(f){
+    var pct=Math.max(3,(f.count/maxCount)*100);
+    h+='<div class="aging-row">';
+    h+='<span class="aging-label">'+f.label+'</span>';
+    h+='<div class="aging-bar-wrap"><div class="aging-bar" style="width:'+pct.toFixed(0)+'%;background:'+f.color+'"></div></div>';
+    h+='<span class="aging-val" style="color:'+f.color+'">'+f.count+'</span>';
+    h+='</div>';
+  });
+  h+='<div class="aging-total">Total em aberto: <strong>'+abertas.length+'</strong> OMs</div>';
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+function _renderHeatmap(all){
+  var el=$("chartHeatmap");if(!el)return;
+  if(!all.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
+  var grid={};
+  var diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  for(var di=0;di<7;di++)for(var hi=0;hi<24;hi++)grid[di+"_"+hi]=0;
+  var maxVal=0;
+  all.forEach(function(om){
+    var hist=safeParseArray(om.historico_execucao);
+    hist.forEach(function(hx){
+      var dt=hx.dataInicio?new Date(hx.dataInicio):null;
+      if(!dt||isNaN(dt.getTime()))return;
+      var key=dt.getDay()+"_"+dt.getHours();
+      grid[key]=(grid[key]||0)+1;
+      if(grid[key]>maxVal)maxVal=grid[key];
+    });
+  });
+  if(!maxVal){el.innerHTML='<div class="empty">Sem dados de execução</div>';return;}
+  var cellW=26,cellH=22,padL=36,padT=20,gapX=2,gapY=2;
+  var W=padL+24*(cellW+gapX)+10;
+  var H=padT+7*(cellH+gapY)+10;
+  var svg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" style="overflow:visible">';
+  for(var hh=0;hh<24;hh+=2){
+    svg+='<text x="'+(padL+hh*(cellW+gapX)+cellW/2)+'" y="14" text-anchor="middle" font-size="9" font-weight="700" fill="var(--c2)">'+String(hh).padStart(2,"0")+'</text>';
+  }
+  for(var dd=0;dd<7;dd++){
+    svg+='<text x="'+(padL-6)+'" y="'+(padT+dd*(cellH+gapY)+cellH/2+3)+'" text-anchor="end" font-size="9" font-weight="700" fill="var(--c2)">'+diasSemana[dd]+'</text>';
+    for(var hr=0;hr<24;hr++){
+      var val=grid[dd+"_"+hr]||0;
+      var intensity=val/maxVal;
+      var r2=Math.round(226-intensity*194);
+      var g2=Math.round(242-intensity*156);
+      var b2=Math.round(253-intensity*213);
+      if(intensity>0.6){r2=Math.round(12+intensity*10);g2=Math.round(35+intensity*40);b2=Math.round(64+intensity*80);}
+      var fill=val===0?"var(--c6)":"rgb("+r2+","+g2+","+b2+")";
+      var x=padL+hr*(cellW+gapX);
+      var y=padT+dd*(cellH+gapY);
+      svg+='<rect x="'+x+'" y="'+y+'" width="'+cellW+'" height="'+cellH+'" rx="3" fill="'+fill+'" style="transition:fill .3s">';
+      svg+='<title>'+diasSemana[dd]+' '+String(hr).padStart(2,"0")+':00 — '+val+' atividade(s)</title></rect>';
+      if(val>0)svg+='<text x="'+(x+cellW/2)+'" y="'+(y+cellH/2+3)+'" text-anchor="middle" font-size="8" font-weight="800" fill="'+(intensity>0.4?"#fff":"var(--c2)")+'">'+val+'</text>';
+    }
+  }
+  svg+='</svg>';
+  var legend='<div class="heatmap-legend"><span class="heatmap-legend-label">Menos</span>';
+  [0,0.25,0.5,0.75,1].forEach(function(i){
+    var c=i===0?"var(--c6)":i<0.5?"#B3D4F0":i<0.75?"#4A90C4":"var(--b1)";
+    legend+='<span class="heatmap-legend-cell" style="background:'+c+'"></span>';
+  });
+  legend+='<span class="heatmap-legend-label">Mais</span></div>';
+  el.innerHTML=svg+legend;
+}
+
+/* ============================================================
+   BM REPORT — Dashboard Inteligente de Medição
+   ============================================================ */
+
+function _getBMFilteredOms(){
+  var oms=dashboardData.oms||[];
+  if(!_bmConfig.di||!_bmConfig.df)return oms;
+  var di=new Date(_bmConfig.di+"T00:00:00");
+  var df=new Date(_bmConfig.df+"T23:59:59");
+  return oms.filter(function(o){
+    var d=new Date(o.created_at||o.updated_at||"");
+    return d>=di&&d<=df;
+  });
+}
+
+function renderBMReport(){
+  if(!_bmConfig.numero||!_bmConfig.di||!_bmConfig.df){
+    var el=$("bmHeader");
+    if(el)el.innerHTML='<div class="bm-empty-state"><div class="bm-empty-icon">📋</div><div class="bm-empty-title">BM não configurado</div><div class="bm-empty-sub">Configure o Boletim de Medição na aba <strong>Config</strong> para visualizar o relatório.</div></div>';
+    ["bmKpis","bmAderencia","bmProgresso","bmEscopo","bmComparativo","bmDesviosTable","bmDesviosDonut","bmCustos"].forEach(function(id){var e=$(id);if(e)e.innerHTML="";});
+    return;
+  }
+  var oms=_getBMFilteredOms();
+  _renderBMHeader(oms);
+  _renderBMKpis(oms);
+  _renderBMAderencia(oms);
+  _renderBMProgresso(oms);
+  _renderBMEscopo(oms);
+  _renderBMComparativo(oms);
+  _renderBMDesvios(oms);
+  _renderBMCustos(oms);
+}
+
+function _renderBMHeader(oms){
+  var el=$("bmHeader");if(!el)return;
+  var di=new Date(_bmConfig.di+"T00:00:00");
+  var df=new Date(_bmConfig.df+"T23:59:59");
+  var now=new Date();
+  var totalDays=Math.max(1,Math.round((df-di)/(86400000)));
+  var elapsed=Math.max(0,Math.min(totalDays,Math.round((now-di)/(86400000))));
+  var remaining=Math.max(0,totalDays-elapsed);
+  var pct=Math.min(100,Math.round(elapsed/totalDays*100));
+  var fmtDt=function(d){var dd=String(d.getDate()).padStart(2,"0");var mm=String(d.getMonth()+1).padStart(2,"0");return dd+"/"+mm+"/"+d.getFullYear();};
+  var statusClass=remaining<=3?"bm-countdown-urgent":remaining<=7?"bm-countdown-warn":"bm-countdown-ok";
+  el.innerHTML='<div class="bm-header-card">'+
+    '<div class="bm-header-left">'+
+      '<div class="bm-header-bm">BM '+esc(_bmConfig.numero)+'</div>'+
+      '<div class="bm-header-periodo">'+fmtDt(di)+' → '+fmtDt(df)+'</div>'+
+      '<div class="bm-header-updated">Atualizado: '+fmtDt(now)+' '+String(now.getHours()).padStart(2,"0")+':'+String(now.getMinutes()).padStart(2,"0")+'</div>'+
+    '</div>'+
+    '<div class="bm-header-right">'+
+      '<div class="'+statusClass+'"><span class="bm-countdown-num">'+remaining+'</span><span class="bm-countdown-label">dia'+(remaining!==1?"s":"")+" restante"+(remaining!==1?"s":"")+'</span></div>'+
+    '</div>'+
+    '<div class="bm-progress-wrap">'+
+      '<div class="bm-progress-bar-bg"><div class="bm-progress-bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="bm-progress-labels"><span>Dia '+elapsed+' de '+totalDays+'</span><span>'+pct+'% do período</span></div>'+
+    '</div>'+
+  '</div>';
+}
+
+function _renderBMKpis(oms){
+  var el=$("bmKpis");if(!el)return;
+  var total=oms.length;
+  var finalizadas=oms.filter(function(o){return o.status==="finalizada";}).length;
+  var emExec=oms.filter(function(o){return o.status==="em_execucao";}).length;
+  var equipSet={};oms.forEach(function(o){if(o.equipamento)equipSet[o.equipamento]=1;});
+  var equipCount=Object.keys(equipSet).length;
+  var desvios=(dashboardData.desvios||[]).length;
+  var canceladas=oms.filter(function(o){return o.status==="cancelada";}).length;
+  var reprog=oms.filter(function(o){return o.motivo_reprogramacao;}).length;
+  var totalDesvios=desvios+canceladas+reprog;
+  var pctFin=total>0?Math.round(finalizadas/total*100):0;
+  var sevClass=totalDesvios===0?"bm-kpi-sev-ok":totalDesvios<=5?"bm-kpi-sev-warn":"bm-kpi-sev-danger";
+  el.innerHTML=
+    '<div class="bm-kpi bm-kpi-blue"><div class="bm-kpi-val">'+total+'</div><div class="bm-kpi-label">Planejadas</div></div>'+
+    '<div class="bm-kpi bm-kpi-green"><div class="bm-kpi-val">'+finalizadas+'</div><div class="bm-kpi-sub">'+pctFin+'% do total</div><div class="bm-kpi-label">Realizadas</div></div>'+
+    '<div class="bm-kpi bm-kpi-orange"><div class="bm-kpi-val">'+emExec+' <span class="live-dot"></span></div><div class="bm-kpi-label">Em Andamento</div></div>'+
+    '<div class="bm-kpi bm-kpi-purple"><div class="bm-kpi-val">'+equipCount+'</div><div class="bm-kpi-label">Equipamentos</div></div>'+
+    '<div class="bm-kpi '+sevClass+'"><div class="bm-kpi-val">'+totalDesvios+'</div><div class="bm-kpi-label">Desvios</div></div>';
+}
+
+function _renderBMAderencia(oms){
+  var el=$("bmAderencia");if(!el)return;
+  var total=oms.length;
+  var fin=oms.filter(function(o){return o.status==="finalizada";}).length;
+  var canceladas=oms.filter(function(o){return o.status==="cancelada";}).length;
+  var reprog=oms.filter(function(o){return o.motivo_reprogramacao;}).length;
+  var desvioClient=canceladas+reprog;
+  var base=total>0?total-desvioClient:0;
+  var aderencia=base>0?Math.min(100,Math.round(fin/base*100)):0;
+  var color=aderencia>=95?"#22C55E":aderencia>=80?"#F59E0B":"#EF4444";
+  var r=80,cx=100,cy=100;
+  var startAngle=-210,endAngle=30,range=endAngle-startAngle;
+  var valAngle=startAngle+(range*aderencia/100);
+  function polarToCart(cx,cy,r,deg){var rad=deg*Math.PI/180;return{x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)};}
+  var s=polarToCart(cx,cy,r,startAngle);
+  var e=polarToCart(cx,cy,r,endAngle);
+  var v=polarToCart(cx,cy,r,valAngle);
+  var largeArc=valAngle-startAngle>180?1:0;
+  var svg='<svg viewBox="0 0 200 160" style="width:100%;max-width:240px">';
+  svg+='<path d="M'+s.x+' '+s.y+' A'+r+' '+r+' 0 1 1 '+e.x+' '+e.y+'" fill="none" stroke="var(--c5)" stroke-width="14" stroke-linecap="round"/>';
+  svg+='<path d="M'+s.x+' '+s.y+' A'+r+' '+r+' 0 '+largeArc+' 1 '+v.x+' '+v.y+'" fill="none" stroke="'+color+'" stroke-width="14" stroke-linecap="round"/>';
+  svg+='<text x="'+cx+'" y="'+(cy-8)+'" text-anchor="middle" font-size="32" font-weight="900" fill="'+color+'">'+aderencia+'%</text>';
+  svg+='<text x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle" font-size="11" font-weight="700" fill="var(--c2)">Aderência</text>';
+  svg+='<text x="'+cx+'" y="'+(cy+28)+'" text-anchor="middle" font-size="9" font-weight="600" fill="var(--c3)">'+fin+' de '+base+' (excl. desvios cliente)</text>';
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
+
+function _renderBMProgresso(oms){
+  var el=$("bmProgresso");if(!el)return;
+  var di=new Date(_bmConfig.di+"T00:00:00");
+  var df=new Date(_bmConfig.df+"T23:59:59");
+  var now=new Date();
+  var totalDays=Math.max(1,Math.round((df-di)/86400000));
+  var total=oms.length;
+  // Build daily accumulation
+  var finOms=oms.filter(function(o){return o.status==="finalizada";});
+  var dayMap={};
+  finOms.forEach(function(o){
+    var d=new Date(o.updated_at||o.created_at||"");
+    var dayIdx=Math.max(0,Math.min(totalDays,Math.round((d-di)/86400000)));
+    if(!dayMap[dayIdx])dayMap[dayIdx]=0;
+    dayMap[dayIdx]++;
+  });
+  var acum=[];var running=0;
+  for(var i=0;i<=totalDays;i++){running+=(dayMap[i]||0);acum.push(running);}
+  // SVG line chart
+  var w=500,h=180,padL=45,padR=15,padT=15,padB=30;
+  var chartW=w-padL-padR,chartH=h-padT-padB;
+  var maxY=Math.max(total,acum[acum.length-1]||1,1);
+  function px(day){return padL+(day/totalDays)*chartW;}
+  function py(val){return padT+chartH-(val/maxY)*chartH;}
+  var svg='<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;font-family:Inter,sans-serif">';
+  // Grid lines
+  for(var g=0;g<=4;g++){
+    var yy=padT+(chartH/4)*g;var vv=Math.round(maxY-maxY/4*g);
+    svg+='<line x1="'+padL+'" y1="'+yy+'" x2="'+(w-padR)+'" y2="'+yy+'" stroke="var(--c5)" stroke-width="0.5"/>';
+    svg+='<text x="'+(padL-6)+'" y="'+(yy+3)+'" text-anchor="end" font-size="9" fill="var(--c3)">'+vv+'</text>';
+  }
+  // Meta linear (dashed)
+  var metaPath="M"+px(0)+" "+py(0);
+  for(var m=1;m<=totalDays;m++){metaPath+=" L"+px(m)+" "+py(Math.round(total/totalDays*m));}
+  svg+='<path d="'+metaPath+'" fill="none" stroke="var(--c4)" stroke-width="1.5" stroke-dasharray="5,4"/>';
+  // Actual accumulated line
+  var elapsedDays=Math.max(0,Math.min(totalDays,Math.round((now-di)/86400000)));
+  var actualPath="M"+px(0)+" "+py(acum[0]);
+  for(var a=1;a<=elapsedDays&&a<acum.length;a++){actualPath+=" L"+px(a)+" "+py(acum[a]);}
+  // Fill area
+  var fillPath=actualPath+" L"+px(Math.min(elapsedDays,totalDays))+" "+py(0)+" L"+px(0)+" "+py(0)+" Z";
+  var aheadOfTarget=acum[elapsedDays]>=Math.round(total/totalDays*elapsedDays);
+  svg+='<path d="'+fillPath+'" fill="'+(aheadOfTarget?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.10)")+'" />';
+  svg+='<path d="'+actualPath+'" fill="none" stroke="var(--b1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+  // Current point
+  if(elapsedDays>0&&elapsedDays<acum.length){
+    svg+='<circle cx="'+px(elapsedDays)+'" cy="'+py(acum[elapsedDays])+'" r="4" fill="var(--b1)" stroke="#fff" stroke-width="2"/>';
+    svg+='<text x="'+px(elapsedDays)+'" y="'+(py(acum[elapsedDays])-8)+'" text-anchor="middle" font-size="10" font-weight="800" fill="var(--b1)">'+acum[elapsedDays]+'</text>';
+  }
+  // X labels
+  var step=Math.max(1,Math.round(totalDays/6));
+  for(var xl=0;xl<=totalDays;xl+=step){
+    var dt=new Date(di.getTime()+xl*86400000);
+    var lb=String(dt.getDate()).padStart(2,"0")+"/"+String(dt.getMonth()+1).padStart(2,"0");
+    svg+='<text x="'+px(xl)+'" y="'+(h-5)+'" text-anchor="middle" font-size="8" fill="var(--c3)">'+lb+'</text>';
+  }
+  // Legend
+  svg+='<line x1="'+(padL+10)+'" y1="'+(h-5)+'" x2="'+(padL+25)+'" y2="'+(h-5)+'" stroke="var(--b1)" stroke-width="2"/>';
+  svg+='<text x="'+(padL+28)+'" y="'+(h-2)+'" font-size="8" fill="var(--c2)">Realizadas</text>';
+  svg+='<line x1="'+(padL+90)+'" y1="'+(h-5)+'" x2="'+(padL+105)+'" y2="'+(h-5)+'" stroke="var(--c4)" stroke-width="1.5" stroke-dasharray="5,4"/>';
+  svg+='<text x="'+(padL+108)+'" y="'+(h-2)+'" font-size="8" fill="var(--c3)">Meta linear</text>';
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
+
+function _renderBMEscopo(oms){
+  var el=$("bmEscopo");if(!el)return;
+  var escopos=["preventiva_usina","preventiva_mina","preventiva_turno","corretiva"];
+  var labels={"preventiva_usina":"Prev. Usina","preventiva_mina":"Prev. Mina","preventiva_turno":"Prev. Turno","corretiva":"Corretiva"};
+  var colors={"preventiva_usina":"#3B82F6","preventiva_mina":"#F59E0B","preventiva_turno":"#8B5CF6","corretiva":"#EF4444"};
+  var html='<div class="bm-escopo-list">';
+  escopos.forEach(function(esc_key){
+    var escopoOms=oms.filter(function(o){return(o.escopo||"geral")===esc_key;});
+    var tot=escopoOms.length;
+    var fin=escopoOms.filter(function(o){return o.status==="finalizada";}).length;
+    var pct=tot>0?Math.round(fin/tot*100):0;
+    var barColor=colors[esc_key]||"var(--b1)";
+    html+='<div class="bm-escopo-row">'+
+      '<div class="bm-escopo-label">'+labels[esc_key]+'</div>'+
+      '<div class="bm-escopo-bar-wrap">'+
+        '<div class="bm-escopo-bar-bg"><div class="bm-escopo-bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>'+
+      '</div>'+
+      '<div class="bm-escopo-vals"><span class="bm-escopo-pct" style="color:'+barColor+'">'+pct+'%</span><span class="bm-escopo-count">'+fin+'/'+tot+'</span></div>'+
+    '</div>';
+  });
+  // Also show "geral" if any
+  var geralOms=oms.filter(function(o){return!o.escopo||o.escopo==="geral";});
+  if(geralOms.length>0){
+    var gt=geralOms.length;var gf=geralOms.filter(function(o){return o.status==="finalizada";}).length;var gp=gt>0?Math.round(gf/gt*100):0;
+    html+='<div class="bm-escopo-row"><div class="bm-escopo-label">Geral</div><div class="bm-escopo-bar-wrap"><div class="bm-escopo-bar-bg"><div class="bm-escopo-bar-fill" style="width:'+gp+'%;background:#6B7280"></div></div></div><div class="bm-escopo-vals"><span class="bm-escopo-pct" style="color:#6B7280">'+gp+'%</span><span class="bm-escopo-count">'+gf+'/'+gt+'</span></div></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function _renderBMComparativo(oms){
+  var el=$("bmComparativo");if(!el)return;
+  var currentNum=parseInt(_bmConfig.numero)||0;
+  var prevNum=currentNum-1;
+  if(prevNum<=0){el.innerHTML='<div class="bm-no-compare"><span style="font-size:11px;color:var(--c3);font-weight:600">Sem BM anterior para comparar</span><div style="margin-top:12px;font-size:28px;font-weight:900;color:var(--c1)">BM '+currentNum+'</div><div style="font-size:11px;color:var(--c2);margin-top:4px">Primeiro período registrado</div></div>';return;}
+  // Fetch previous BM data async
+  el.innerHTML='<div class="bm-loading">Carregando BM '+(prevNum)+'…</div>';
+  var cli=ensureSupabaseClient();
+  cli.from("bm_hh").select("om_num,status").eq("bm_numero",prevNum).then(function(res){
+    var prev=res.data||[];
+    var prevMap={};prev.forEach(function(r){if(!prevMap[r.om_num])prevMap[r.om_num]=r;});
+    var prevOms=Object.values(prevMap);
+    var prevTotal=prevOms.length;
+    var prevFin=prevOms.filter(function(o){return o.status==="finalizada";}).length;
+    var prevPct=prevTotal>0?Math.round(prevFin/prevTotal*100):0;
+    var curTotal=oms.length;
+    var curFin=oms.filter(function(o){return o.status==="finalizada";}).length;
+    var curPct=curTotal>0?Math.round(curFin/curTotal*100):0;
+    var delta=curPct-prevPct;
+    var deltaClass=delta>=0?"bm-delta-up":"bm-delta-down";
+    var deltaIcon=delta>=0?"▲":"▼";
+    el.innerHTML='<div class="bm-compare-grid">'+
+      '<div class="bm-compare-col"><div class="bm-compare-title">BM '+(prevNum)+'</div><div class="bm-compare-big">'+prevPct+'%</div><div class="bm-compare-detail">'+prevFin+'/'+prevTotal+' OMs</div></div>'+
+      '<div class="bm-compare-arrow"><div class="'+deltaClass+'">'+deltaIcon+' '+Math.abs(delta)+'pp</div></div>'+
+      '<div class="bm-compare-col bm-compare-current"><div class="bm-compare-title">BM '+currentNum+'</div><div class="bm-compare-big">'+curPct+'%</div><div class="bm-compare-detail">'+curFin+'/'+curTotal+' OMs</div></div>'+
+    '</div>';
+  }).catch(function(){el.innerHTML='<div class="bm-no-compare"><span style="font-size:11px;color:var(--c3)">Dados BM '+(prevNum)+' indisponíveis</span></div>';});
+}
+
+function _renderBMDesvios(oms){
+  var tEl=$("bmDesviosTable");
+  var dEl=$("bmDesviosDonut");
+  if(!tEl||!dEl)return;
+  var cats={};
+  // From desvios table
+  (dashboardData.desvios||[]).forEach(function(d){
+    var tipo=d.tipo||"Outro";
+    var label=tipo==="DISPOSITIVO EM FALHA"?"Equipamento em Falha":tipo==="PAUSA"?"Pausa Operacional":tipo==="CANCELAMENTO"?"Cancelamento":tipo;
+    if(!cats[label])cats[label]=0;cats[label]++;
+  });
+  // From OMs
+  oms.forEach(function(o){
+    if(o.status==="cancelada"){if(!cats["OM Cancelada"])cats["OM Cancelada"]=0;cats["OM Cancelada"]++;}
+    if(o.motivo_reprogramacao){if(!cats["Reprogramada"])cats["Reprogramada"]=0;cats["Reprogramada"]++;}
+    if(o.estado_fluxo==="devolvida_admin"){if(!cats["Devolvida Fiscal"])cats["Devolvida Fiscal"]=0;cats["Devolvida Fiscal"]++;}
+    if(o.estado_fluxo==="em_oficina"){if(!cats["Em Oficina"])cats["Em Oficina"]=0;cats["Em Oficina"]++;}
+  });
+  var entries=Object.keys(cats).map(function(k){return{label:k,count:cats[k]};}).sort(function(a,b){return b.count-a.count;});
+  var totalDev=entries.reduce(function(s,e){return s+e.count;},0);
+  if(totalDev===0){tEl.innerHTML='<div class="empty" style="padding:20px">Nenhum desvio registrado neste período.</div>';dEl.innerHTML="";return;}
+  var catColors=["#EF4444","#F59E0B","#3B82F6","#8B5CF6","#EC4899","#10B981","#6B7280"];
+  var html='<table class="bm-desvio-table"><thead><tr><th>Categoria</th><th>Qtd</th><th>%</th><th></th></tr></thead><tbody>';
+  entries.forEach(function(e,i){
+    var pct=Math.round(e.count/totalDev*100);
+    var color=catColors[i%catColors.length];
+    html+='<tr><td><span class="bm-desvio-dot" style="background:'+color+'"></span>'+esc(e.label)+'</td><td class="bm-desvio-count">'+e.count+'</td><td>'+pct+'%</td><td><div class="bm-desvio-bar" style="width:'+pct+'%;background:'+color+'"></div></td></tr>';
+  });
+  html+='</tbody><tfoot><tr><td><strong>Total</strong></td><td class="bm-desvio-count"><strong>'+totalDev+'</strong></td><td>100%</td><td></td></tr></tfoot></table>';
+  tEl.innerHTML=html;
+  // Donut
+  var donutData=entries.map(function(e,i){return{label:e.label,value:e.count,color:catColors[i%catColors.length]};});
+  dEl.innerHTML=_svgDonut(donutData,140);
+}
+
+function _renderBMCustos(oms){
+  var el=$("bmCustos");if(!el)return;
+  var totalHH=0;var totalMat=0;
+  var matByType={Pricelist:0,Extraordinario:0,"Material Vale":0};
+  var ccMap={};
+  oms.forEach(function(o){
+    totalHH+=Number(o.hh_total||0);
+    var mats=safeParseArray(o.materiais_usados);
+    mats.forEach(function(m){
+      var val=Number(m.total||m.preco||0)*Number(m.qtd||1);
+      totalMat+=val;
+      var tipo=m.tipo||"Pricelist";
+      if(matByType[tipo]!==undefined)matByType[tipo]+=val;
+      else matByType[tipo]=val;
+      var cc=m.cc||o.cc||"Sem CC";
+      if(!ccMap[cc])ccMap[cc]=0;ccMap[cc]+=val;
+    });
+  });
+  var topCC=Object.keys(ccMap).map(function(k){return{cc:k,val:ccMap[k]};}).sort(function(a,b){return b.val-a.val;}).slice(0,5);
+  var html='<div class="bm-custos-grid">';
+  html+='<div class="bm-custo-card"><div class="bm-custo-icon">⏱</div><div class="bm-custo-val">'+_fmtNum(totalHH,1)+'h</div><div class="bm-custo-label">HH Total Executado</div></div>';
+  html+='<div class="bm-custo-card"><div class="bm-custo-icon">💰</div><div class="bm-custo-val">R$ '+_fmtNum(totalMat,2)+'</div><div class="bm-custo-label">Custo Total Materiais</div></div>';
+  html+='</div>';
+  // Breakdown by type
+  html+='<div class="bm-custos-breakdown"><div class="bm-custos-section-title">Por Tipo de Material</div><div class="bm-custos-type-grid">';
+  Object.keys(matByType).forEach(function(tipo){
+    var val=matByType[tipo];
+    var pct=totalMat>0?Math.round(val/totalMat*100):0;
+    html+='<div class="bm-custos-type-row"><span class="bm-custos-type-label">'+esc(tipo)+'</span><span class="bm-custos-type-val">R$ '+_fmtNum(val,2)+' ('+pct+'%)</span></div>';
+  });
+  html+='</div></div>';
+  // Top 5 CC
+  if(topCC.length>0){
+    html+='<div class="bm-custos-breakdown"><div class="bm-custos-section-title">Top 5 Centros de Custo</div>';
+    topCC.forEach(function(cc,i){
+      var pct=totalMat>0?Math.round(cc.val/totalMat*100):0;
+      html+='<div class="bm-custos-cc-row"><span class="bm-custos-cc-rank">#'+(i+1)+'</span><span class="bm-custos-cc-name">'+esc(cc.cc)+'</span><span class="bm-custos-cc-val">R$ '+_fmtNum(cc.val,2)+' ('+pct+'%)</span></div>';
+    });
+    html+='</div>';
+  }
+  el.innerHTML=html;
 }

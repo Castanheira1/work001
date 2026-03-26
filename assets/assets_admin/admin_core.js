@@ -8,6 +8,7 @@
   if(pg==="fluxo")loadFluxo();
   if(pg==="desvios")renderDesvios();
   if(pg==="analytics")renderAnalytics();
+  if(pg==="bmreport")renderBMReport();
 }
 
 function doLogout(){localStorage.removeItem(SESSION_KEY);window.location.href="PCM_MCR_v5.html";}
@@ -30,6 +31,7 @@ async function verificarAdmin(){
     $("userLabel").textContent=currentUser.toUpperCase();
     $("avatarLetter").textContent=currentUser[0].toUpperCase();
     loadDashboard();
+    loadBMConfig();
     carregarPricelist();
     carregarBMsPeriodo();
     setInterval(function(){loadDashboard(true);},60000);
@@ -50,6 +52,7 @@ function _iniciarRealtime(){
         var pg=document.querySelector(".nav-tab.active");
         var pgName=pg?pg.getAttribute("onclick"):"";
         if(pgName&&pgName.indexOf("fluxo")>=0)loadFluxo();
+        else if(pgName&&pgName.indexOf("bmreport")>=0){loadDashboard(true);setTimeout(renderBMReport,500);}
         else loadDashboard(true);
         _piscarDotRealtime();
       },400);
