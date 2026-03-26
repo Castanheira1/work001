@@ -314,14 +314,25 @@ class FiscalDashboard {
       });
   }
 
+  // Colunas comuns a todos os blocos — inclui has_relatorio, has_checklist e has_nc
+  // que são necessárias para exibir os botões de visualização no modal
+  static get FISCAL_COLS() {
+    return "num,titulo,cc,equipe,equipamento,primeiro_executante,executantes," +
+           "materiais_usados,materiais_total,estado_fluxo,cliente_assinou," +
+           "admin_modificou_material,fiscal_assinou,cancelada," +
+           "has_relatorio,has_checklist,has_nc," +
+           "data_assinatura_fiscal,updated_at";
+  }
+
   async loadFiscal(silent = false) {
     if (!silent) this.$("refreshDot").classList.add("loading");
     try {
+      const cols = FiscalDashboard.FISCAL_COLS;
       const [res1, res2, res3, res4] = await Promise.all([
-        this.sb.from("vw_fiscal_bloco1").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
-        this.sb.from("vw_fiscal_bloco2").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
-        this.sb.from("vw_fiscal_bloco3").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at"),
-        this.sb.from("vw_fiscal_bloco4").select("num,titulo,cc,equipe,equipamento,primeiro_executante,executantes,materiais_usados,materiais_total,estado_fluxo,cliente_assinou,admin_modificou_material,fiscal_assinou,cancelada,data_assinatura_fiscal,updated_at")
+        this.sb.from("vw_fiscal_bloco1").select(cols),
+        this.sb.from("vw_fiscal_bloco2").select(cols),
+        this.sb.from("vw_fiscal_bloco3").select(cols),
+        this.sb.from("vw_fiscal_bloco4").select(cols)
       ]);
       if (res1.error) throw res1.error;
       if (res2.error) throw res2.error;
@@ -382,7 +393,19 @@ class FiscalDashboard {
       html += `<td style="padding:8px 10px;font-weight:700">${esc(om.equipe || "—")}</td>`;
       html += `<td style="padding:8px 10px">${esc(exec)}</td>`;
       html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${hasMat ? "#fff3cd" : "#e8e8e8"};color:${hasMat ? "#856404" : "#888"}">${hasMat ? "✓ " + mat.length + " item(s)" : "Sem mat."}</span></td>`;
-      let statusLabel = esc(om.estado_fluxo || "—"), statusColor = "#888", statusBg = "#e8e8e8";
+      // Traduz o estado_fluxo técnico para label amigável ao fiscal
+      const ESTADO_LABELS = {
+        pendente_fiscal:  "Aguard. Fiscal",
+        devolvida_admin:  "Devolvida Admin",
+        arquivada:        "Arquivada",
+        cancelada:        "Cancelada",
+        alterada_admin:   "Alt. pelo Admin",
+        validada_admin:   "Validada Admin",
+        executada:        "Executada",
+        preliminar:       "Preliminar"
+      };
+      let statusLabel = ESTADO_LABELS[om.estado_fluxo] || esc(om.estado_fluxo || "—");
+      let statusColor = "#1A8754", statusBg = "#d1e7dd";
       if (om.cancelada)  { statusLabel = "Cancelada";     statusColor = "#dc3545"; statusBg = "#fde8ea"; }
       else if (hasModif) { statusLabel = "Mat. Alterado"; statusColor = "#856404"; statusBg = "#fff3cd"; }
       html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${statusBg};color:${statusColor}">${statusLabel}</span></td>`;
@@ -421,17 +444,33 @@ class FiscalDashboard {
   assinarLoteBloco1() {
     const nums = Object.keys(this.b1Selected);
     if (!nums.length) return this.fiscalToast("Nenhuma OM selecionada no Bloco 1", "warn");
-    if (!confirm(`Assinar e arquivar ${nums.length} OM(s)?`)) return;
+    // Usa o modal de confirmação padrão do sistema em vez de confirm() nativo
+    this._signOM = "__lote_b1__";
+    this.$("signOMNum").textContent = `${nums.length} OM(s) selecionadas`;
+    this.$("signModal").style.display = "flex";
+  }
+
+  async _executarLoteB1() {
+    const nums = Object.keys(this.b1Selected);
+    if (!nums.length) return;
+    const btn = this.$("btnConfirmSign");
+    btn.disabled = true; btn.textContent = "Aguarde…";
     const agora = new Date().toISOString();
-    this.sb.from("oms").update({ fiscal_assinou: true, data_assinatura_fiscal: agora, estado_fluxo: "arquivada", updated_at: agora })
-      .in("num", nums)
-      .then(({ error }) => {
-        if (error) throw error;
-        this.b1Selected = {};
-        this.fiscalToast(`${nums.length} OM(s) assinadas e arquivadas`, "success");
-        this.loadFiscal();
-      })
-      .catch(err => this.fiscalToast(`Erro ao assinar lote: ${err.message}`, "error"));
+    try {
+      const { error } = await this.sb.from("oms")
+        .update({ fiscal_assinou: true, data_assinatura_fiscal: agora, estado_fluxo: "arquivada", updated_at: agora })
+        .in("num", nums);
+      if (error) throw error;
+      this.b1Selected = {};
+      this.fiscalToast(`${nums.length} OM(s) assinadas e arquivadas`, "success");
+      this.$("signModal").style.display = "none";
+      this._signOM = null;
+      await this.loadFiscal();
+    } catch (err) {
+      this.fiscalToast(`Erro ao assinar lote: ${err.message}`, "error");
+    } finally {
+      btn.disabled = false; btn.textContent = "✍ Assinar e Arquivar";
+    }
   }
 
   assinarOM(num) {
@@ -442,6 +481,8 @@ class FiscalDashboard {
 
   async confirmarAssinatura() {
     if (!this._signOM) return;
+    // Despacha para o método de lote quando o trigger for o botão "Assinar em Lote"
+    if (this._signOM === "__lote_b1__") { await this._executarLoteB1(); return; }
     const btn = this.$("btnConfirmSign");
     btn.disabled = true; btn.textContent = "Aguarde…";
     const agora = new Date().toISOString();
@@ -505,7 +546,9 @@ class FiscalDashboard {
     const allOms = [...this.fiscalData.b1, ...this.fiscalData.b2, ...this.fiscalData.b3, ...this.fiscalData.b4];
     const om = allOms.find(o => o.num === num);
     if (!om) {
-      this.sb.from("oms").select("*").eq("num", num).single()
+      // Fallback: busca direta garantindo que has_relatorio/has_checklist/has_nc sejam incluídos
+      const cols = FiscalDashboard.FISCAL_COLS + ",titulo,equipamento,executantes,materiais_usados";
+      this.sb.from("oms").select(cols).eq("num", num).single()
         .then(({ data, error }) => {
           if (error || !data) { this.fiscalToast("OM não encontrada", "error"); return; }
           this.renderModalOM(data);
@@ -526,7 +569,18 @@ class FiscalDashboard {
     html += `<div class="detail-item"><div class="detail-label">Equipe</div><div class="detail-value">${esc(om.equipe || "—")}</div></div>`;
     html += `<div class="detail-item"><div class="detail-label">CC</div><div class="detail-value">${esc(om.cc || "—")}</div></div>`;
     html += `<div class="detail-item"><div class="detail-label">Equipamento</div><div class="detail-value">${esc(om.equipamento || "—")}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Estado Fluxo</div><div class="detail-value">${esc(om.estado_fluxo || "—")}</div></div>`;
+    const ESTADO_LABELS_MODAL = {
+      pendente_fiscal: "Aguardando Fiscal",
+      devolvida_admin: "Devolvida ao Admin",
+      arquivada:       "Arquivada",
+      cancelada:       "Cancelada",
+      alterada_admin:  "Material Alterado pelo Admin",
+      validada_admin:  "Validada pelo Admin",
+      executada:       "Executada",
+      preliminar:      "Preliminar"
+    };
+    const estadoLabel = ESTADO_LABELS_MODAL[om.estado_fluxo] || esc(om.estado_fluxo || "—");
+    html += `<div class="detail-item"><div class="detail-label">Estado Fluxo</div><div class="detail-value">${estadoLabel}</div></div>`;
     html += '</div></div>';
     html += '<div class="modal-section"><div class="modal-section-title">Executantes</div>';
     if (executantes.length) {
