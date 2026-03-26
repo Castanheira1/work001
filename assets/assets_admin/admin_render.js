@@ -739,7 +739,7 @@ function renderPasta(){
     tags.forEach(function(t){h+='<span class="pasta-tag" style="background:'+t[1]+';color:'+t[2]+'">'+t[0]+"</span>";});
     h+='</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0">';
     h+='<button class="btn-dl btn-ver" onclick="verPDFOficina(\'OM\',\''+r.num+'\')">Execução</button>';
-    h+='<button class="btn-dl btn-baixar" onclick="downloadAllPDFs(\''+r.num+'\','+JSON.stringify(!!r.has_checklist)+','+JSON.stringify(!!r.has_nc)+')">⬇ Todos</button>';
+    h+='<button class="btn-dl btn-baixar" onclick="downloadAllPDFs(\''+r.num+'\','+JSON.stringify(!!r.has_checklist)+','+JSON.stringify(!!r.has_nc)+','+JSON.stringify(!!r.has_relatorio)+')">⬇ Todos</button>';
     if(r.has_checklist)h+='<button class="btn-dl btn-ver" onclick="verPDFOficina(\'CK\',\''+r.num+'\')" style="background:#e3f2fd;color:#1565c0">CK</button>';
     if(r.has_nc)h+='<button class="btn-dl btn-ver" onclick="verPDFOficina(\'NC\',\''+r.num+'\')" style="background:#fde8ea;color:#c62828">NC</button>';
     h+='</div></div>';
@@ -786,7 +786,7 @@ function showOmModal(om){
   if(om.has_relatorio){
     h+='<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">';
     h+='<button class="btn-a btn-primary" style="flex:1;justify-content:center" onclick="closeOmModal();viewPDF(\''+omNum+'\')">📄 Execução</button>';
-    h+='<button class="btn-a btn-ghost" style="flex:1;justify-content:center" onclick="closeOmModal();downloadAllPDFs(\''+omNum+'\','+JSON.stringify(!!om.has_checklist)+','+JSON.stringify(!!om.has_nc)+')">⬇ Baixar Todos</button>';
+    h+='<button class="btn-a btn-ghost" style="flex:1;justify-content:center" onclick="closeOmModal();downloadAllPDFs(\''+omNum+'\','+JSON.stringify(!!om.has_checklist)+','+JSON.stringify(!!om.has_nc)+','+JSON.stringify(!!om.has_relatorio)+')">⬇ Baixar Todos</button>';
     if(om.has_checklist)h+='<button class="btn-a btn-ghost" style="flex:1;justify-content:center;color:#1565c0" onclick="closeOmModal();verPDFOficina(\'CK\',\''+omNum+'\')">📋 Checklist</button>';
     if(om.has_nc)h+='<button class="btn-a btn-ghost" style="flex:1;justify-content:center;color:#c62828" onclick="closeOmModal();verPDFOficina(\'NC\',\''+omNum+'\')">⚠️ NC</button>';
     h+="</div>";

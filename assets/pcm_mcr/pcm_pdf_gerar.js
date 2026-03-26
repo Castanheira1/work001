@@ -835,7 +835,7 @@
                         var tlH = currentOM.historicoExecucao[tl];
                         var tlTag = tlH.tag || 'ATIVIDADE';
                         var tlEtapa = 'CAMPO';
-                        if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO') tlEtapa = 'OFICINA';
+                        if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO' || tlTag === 'OFICINA_DEVOLUCAO') tlEtapa = 'OFICINA';
                         else if(tlTag === 'MONTAGEM') tlEtapa = 'MONTAGEM';
                         else if(currentOM.etapaOficina === 'MONTAGEM' && tl === currentOM.historicoExecucao.length - 1) tlEtapa = 'MONTAGEM';
                         var tlIni = tlH.dataInicio ? new Date(tlH.dataInicio) : null;

@@ -345,7 +345,7 @@
             for(var i = 0; i < histArr.length; i++) {
                 var tag = histArr[i].tag || 'ATIVIDADE';
                 var etapa = 'CAMPO';
-                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
+                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO' || tag === 'OFICINA_DEVOLUCAO') etapa = 'OFICINA';
                 else if(tag === 'MONTAGEM') etapa = 'MONTAGEM';
                 if(!etapas[etapa]) etapas[etapa] = [];
                 etapas[etapa].push(histArr[i]);

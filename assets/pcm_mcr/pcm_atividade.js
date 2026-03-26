@@ -65,8 +65,15 @@
             $('timerDisplay').style.display = 'none';
 
             var list = $('executantesList');
-            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
-                '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+            if(executantesNomes.length > 0) {
+                // Pré-preencher com a equipe já informada na retomada (evita digitar duas vezes)
+                list.innerHTML = executantesNomes.map(function(n) {
+                    return '<input type="text" class="exec-input" value="' + n.replace(/"/g, '&quot;') + '">';
+                }).join('');
+            } else {
+                list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                    '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+            }
 
             window._modoExecutantesOficina = false;
             window._modoExecutantesMontagem = false;

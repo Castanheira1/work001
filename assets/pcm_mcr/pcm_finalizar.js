@@ -57,10 +57,10 @@
                     _calcHH(historicoAtual);
                     historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
                     historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'OFICINA';
+                    historicoAtual.tag = 'ENVIO_OFICINA';
                 }
             }
-            
+
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
@@ -211,10 +211,10 @@
                     _calcHH(historicoAtual);
                     historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
                     historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'OFICINA';
+                    historicoAtual.tag = 'OFICINA_DEVOLUCAO';
                 }
             }
-            
+
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.retornouOficina = true;
@@ -346,6 +346,101 @@
             setTimeout(function(){ setupSignaturePad(); }, 300);
         }
 
+        function _buildOMTimelineHTML(historicoExecucao) {
+            var cores    = ['#1D9E75','#378ADD','#D85A30','#7F77DD','#D4537E','#639922'];
+            var coresTxt = ['#0F6E56','#185FA5','#993C1D','#534AB7','#993556','#3B6D11'];
+
+            var etapas = [];
+            for(var hi = 0; hi < historicoExecucao.length; hi++) {
+                var h = historicoExecucao[hi];
+                if(!h.dataInicio || !h.dataFim) continue;
+                var tag = h.tag || 'ATIVIDADE';
+                var etapa = 'CAMPO';
+                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO' || tag === 'OFICINA_DEVOLUCAO') etapa = 'OFICINA';
+                else if(tag === 'MONTAGEM') etapa = 'MONTAGEM';
+                var iniMs = new Date(h.dataInicio).getTime();
+                var fimMs = new Date(h.dataFim).getTime();
+                etapas.push({
+                    etapa: etapa,
+                    executantes: h.executantes || [],
+                    iniMs: iniMs,
+                    fimMs: fimMs,
+                    iniStr: new Date(iniMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                    fimStr: new Date(fimMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+                    cor: cores[hi % cores.length],
+                    corTxt: coresTxt[hi % coresTxt.length]
+                });
+            }
+            if(!etapas.length) return '';
+
+            var globalIni = etapas[0].iniMs;
+            var globalFim = etapas[etapas.length - 1].fimMs;
+            var range = globalFim - globalIni || 1;
+
+            function fmtMS(ms) {
+                var s = Math.round(ms / 1000);
+                var m = Math.floor(s / 60), ss = s % 60;
+                return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+            }
+            function fmtHoraMs(ms) {
+                var d = new Date(ms);
+                return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            }
+
+            var totalAtivoMs = 0, totalOciosoMs = 0;
+            for(var ei = 0; ei < etapas.length; ei++) {
+                var e = etapas[ei];
+                e.durMs = Math.max(e.fimMs - e.iniMs, 0);
+                totalAtivoMs += e.durMs;
+                e.leftPct = ((e.iniMs - globalIni) / range * 100).toFixed(1);
+                e.widthPct = Math.max((e.durMs / range * 100), 0.8).toFixed(1);
+                if(ei < etapas.length - 1) {
+                    var gapMs = etapas[ei + 1].iniMs - e.fimMs;
+                    if(gapMs > 0) {
+                        totalOciosoMs += gapMs;
+                        e.gapMs = gapMs;
+                        e.gapLeft = ((e.fimMs - globalIni) / range * 100).toFixed(1);
+                        e.gapWidth = Math.max((gapMs / range * 100), 0.5).toFixed(1);
+                    }
+                }
+            }
+
+            var html = '<div class="tl-wrap">';
+            html += '<div class="tl-row tl-hdr"><span>Etapa</span><span>Executantes</span><span>Horario</span><span>Timeline</span><span>Duracao</span></div>';
+
+            for(var ri = 0; ri < etapas.length; ri++) {
+                var e = etapas[ri];
+                var execHtml = e.executantes.map(function(x){ return _h(x); }).join('<br>');
+                var barInner = '<div class="tl-bar-bg"></div>';
+                barInner += '<div class="tl-bar" style="left:' + e.leftPct + '%;width:' + e.widthPct + '%;background:' + e.cor + ';"></div>';
+                if(e.gapMs) {
+                    barInner += '<div class="tl-gap" style="left:' + e.gapLeft + '%;width:' + e.gapWidth + '%;"><span>' + fmtMS(e.gapMs) + '</span></div>';
+                }
+                html += '<div class="tl-row">';
+                html += '<span class="tl-etapa" style="color:' + e.corTxt + '">' + e.etapa + '</span>';
+                html += '<div class="tl-exec">' + execHtml + '</div>';
+                html += '<div><div class="tl-hora">' + e.iniStr + '</div><div class="tl-hora">' + e.fimStr + '</div></div>';
+                html += '<div class="tl-bar-wrap">' + barInner + '</div>';
+                html += '<span class="tl-dur" style="color:' + e.corTxt + '">' + fmtMS(e.durMs) + '</span>';
+                html += '</div>';
+            }
+
+            // Tick marks under the bar column
+            var nTicks = 4;
+            var ticks = '';
+            for(var t = 0; t < nTicks; t++) {
+                ticks += '<span>' + fmtHoraMs(globalIni + (range * t / (nTicks - 1))) + '</span>';
+            }
+            html += '<div class="tl-ticks" style="padding-left:256px;">' + ticks + '</div>';
+
+            html += '<div class="tl-footer">';
+            html += '<div>Ativo: <strong>' + fmtMS(totalAtivoMs) + '</strong></div>';
+            html += '<div>Ocioso: <strong>' + fmtMS(totalOciosoMs) + '</strong></div>';
+            html += '<div>Total: <strong>' + ((totalAtivoMs + totalOciosoMs) / 3600000).toFixed(2) + 'h</strong></div>';
+            html += '</div></div>';
+            return html;
+        }
+
         function renderResumoHistorico() {
             var div = $('resumoHistorico');
 
@@ -358,118 +453,123 @@
             var temTrocaTurno = !!(currentOM.pausada || currentOM.pausaTrocaTurno || currentOM.oficinaTrocaTurno);
             var temDesativacao = !!(currentOM.desativada || currentOM.tipoFechamento === 'desativacao');
             var temMultiSessao = !!(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 1);
-            // Mostrar bloco de rastreabilidade quando houver quebra real no fluxo
             var temRastreabilidade = temOficina || temTrocaTurno || temDesativacao || temMultiSessao;
 
-            // Se tem rastreabilidade, mostrar timeline resumida
+            var S = {
+                section: 'margin-bottom:14px;',
+                sectionTitle: 'font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888;margin-bottom:6px;',
+                card: 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;',
+                row: 'display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #f0f0f0;',
+                rowLast: 'display:flex;justify-content:space-between;align-items:center;padding:7px 10px;',
+                label: 'font-size:12px;color:#555;',
+                value: 'font-size:12px;font-weight:600;color:#222;',
+                dayHeader: 'padding:7px 10px;background:#f7f7f7;border-bottom:1px solid #e8e8e8;',
+                dayTitle: 'font-size:11px;font-weight:700;color:#333;margin-bottom:2px;',
+                dayMeta: 'font-size:11px;color:#777;',
+                execRow: 'display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-bottom:1px solid #f4f4f4;',
+                execName: 'font-size:12px;color:#222;font-weight:600;flex:1;margin-right:8px;',
+                execHH: 'font-size:11px;color:#555;white-space:nowrap;',
+                badge: 'display:inline-block;border:1px solid;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px;margin-bottom:4px;',
+            };
+
             var htmlTimeline = '';
             if(temRastreabilidade) {
-                var etapas = { CAMPO: [], OFICINA: [], MONTAGEM: [] };
-                for(var tli = 0; tli < currentOM.historicoExecucao.length; tli++) {
-                    var tlH = currentOM.historicoExecucao[tli];
-                    var tlTag = tlH.tag || 'ATIVIDADE';
-                    var etapa = 'CAMPO';
-                    if(tlTag === 'OFICINA' || tlTag === 'OFICINA_FIM' || tlTag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
-                    else if(tlTag === 'MONTAGEM') etapa = 'MONTAGEM';
-                    etapas[etapa].push(tlH);
-                }
-                var cores = { CAMPO: '#1A5276', OFICINA: '#e65100', MONTAGEM: '#2e7d32' };
-                var icones = { CAMPO: '📍', OFICINA: '🔧', MONTAGEM: '🔩' };
-                var bgColor = temDesativacao ? 'linear-gradient(135deg,#fdf3f0,#fce4dc)' : 'linear-gradient(135deg,#f0f4f8,#e3ecf5)';
-                var borderColor = temDesativacao ? '#e57373' : '#c5d5e4';
-                htmlTimeline = '<div style="margin-bottom:16px;padding:12px;background:' + bgColor + ';border-radius:12px;border:1px solid ' + borderColor + ';">';
-                htmlTimeline += '<div style="font-size:15px;font-weight:800;color:#1A5276;margin-bottom:10px;">📊 Rastreabilidade do Fluxo</div>';
+                htmlTimeline = '<div style="' + S.section + '">';
+                htmlTimeline += '<div style="' + S.sectionTitle + '">Rastreabilidade do Fluxo</div>';
 
-                // Badges de desvios identificados
-                if(temTrocaTurno) htmlTimeline += '<div style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;margin-right:4px;">🔄 Troca de Turno</div>';
-                if(temDesativacao) htmlTimeline += '<div style="display:inline-block;background:#fce4ec;border:1px solid #e91e63;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#c2185b;margin-bottom:8px;margin-right:4px;">⛔ Desativação de Equipamento</div>';
-                if(temOficina) htmlTimeline += '<div style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;margin-right:4px;">🔧 Fluxo de Oficina</div>';
-                if(temMultiSessao && !temOficina && !temTrocaTurno) htmlTimeline += '<div style="display:inline-block;background:#e8f5e9;border:1px solid #4caf50;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#2e7d32;margin-bottom:8px;">✅ Múltiplas Sessões</div>';
+                // Badges
+                var badgeParts = [];
+                if(temTrocaTurno) badgeParts.push('<span style="' + S.badge + 'background:#fff8f0;border-color:#e07800;color:#b85c00;">Troca de Turno</span>');
+                if(temDesativacao) badgeParts.push('<span style="' + S.badge + 'background:#fdf0f3;border-color:#c62828;color:#c62828;">Desativacao de Equipamento</span>');
+                if(temOficina) badgeParts.push('<span style="' + S.badge + 'background:#f0f4ff;border-color:#3a5cbf;color:#2b4aac;">Fluxo de Oficina</span>');
+                if(temMultiSessao && !temOficina && !temTrocaTurno) badgeParts.push('<span style="' + S.badge + 'background:#f0faf2;border-color:#388e3c;color:#2e7d32;">Multiplas Sessoes</span>');
+                if(badgeParts.length) htmlTimeline += '<div style="margin-bottom:6px;">' + badgeParts.join('') + '</div>';
 
-                var ordemEt = ['CAMPO', 'OFICINA', 'MONTAGEM'];
-                for(var oi = 0; oi < ordemEt.length; oi++) {
-                    var eNome = ordemEt[oi];
-                    var eArr = etapas[eNome];
-                    if(!eArr || eArr.length === 0) continue;
-                    var eHH = 0;
-                    for(var j = 0; j < eArr.length; j++) eHH += (eArr[j].hhAtividade || 0);
-                    htmlTimeline += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #d0dce8;">';
-                    htmlTimeline += '<span style="font-size:18px;">' + icones[eNome] + '</span>';
-                    htmlTimeline += '<span style="font-weight:800;color:' + cores[eNome] + ';font-size:13px;min-width:70px;">' + eNome + '</span>';
-                    htmlTimeline += '<span style="font-size:12px;color:#555;">HH Cronológico: <strong>' + eHH.toFixed(2) + 'h</strong></span>';
-                    htmlTimeline += '</div>';
-                }
+                // Visual timeline
+                htmlTimeline += '<div style="' + S.card + 'padding:6px 8px;">';
+                htmlTimeline += _buildOMTimelineHTML(currentOM.historicoExecucao);
+                htmlTimeline += '</div>';
 
-                // Desvio de desativação: mostrar resumo se existir
+                // Deactivation reason (if applicable)
                 if(temDesativacao && currentOM.desvioDesativacao) {
                     var _des = currentOM.desvioDesativacao;
-                    htmlTimeline += '<div style="margin-top:8px;padding:6px;background:#fff;border-radius:6px;border-left:4px solid #e91e63;">';
-                    htmlTimeline += '<div style="font-size:12px;font-weight:800;color:#c2185b;">⛔ Motivo da Desativação</div>';
-                    htmlTimeline += '<div style="font-size:11px;color:#555;margin-top:2px;">' + _h(_des.motivo || _des.observacao || 'Não informado') + '</div>';
-                    if(_des.hhGasto !== undefined) htmlTimeline += '<div style="font-size:11px;color:#555;">HH gasto até parada: <strong>' + _des.hhGasto.toFixed(2) + 'h</strong></div>';
+                    htmlTimeline += '<div style="padding:7px 10px;background:#fff8f8;border:1px solid #f0c0c0;border-radius:6px;margin-top:6px;">';
+                    htmlTimeline += '<div style="font-size:11px;font-weight:700;color:#b00;margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em;">Motivo da Desativacao</div>';
+                    htmlTimeline += '<div style="font-size:12px;color:#333;">' + _h(_des.motivo || _des.observacao || 'Nao informado') + '</div>';
+                    if(_des.hhGasto !== undefined) htmlTimeline += '<div style="font-size:11px;color:#777;margin-top:2px;">HH gasto ate a parada: ' + _des.hhGasto.toFixed(2) + 'h</div>';
                     htmlTimeline += '</div>';
                 }
 
                 htmlTimeline += '</div>';
             }
 
-            var html = htmlTimeline + '<div style="margin-bottom:20px;"><h4 style="color:#1A5276;margin-bottom:12px;font-size:16px;font-weight:800;">📅 Histórico por Colaborador</h4>';
-            
-            let hhTotalGeral = 0;
-            let hhNormalGeral = 0, hhExtraGeral = 0, hhNoturnoGeral = 0;
-            currentOM.historicoExecucao.forEach((hist, idx) => {
+            var html = htmlTimeline + '<div style="' + S.section + '">';
+            html += '<div style="' + S.sectionTitle + '">Historico por Colaborador</div>';
+            html += '<div style="' + S.card + '">';
+
+            var hhTotalGeral = 0;
+            var hhNormalGeral = 0, hhExtraGeral = 0, hhNoturnoGeral = 0;
+            currentOM.historicoExecucao.forEach(function(hist, idx) {
                 var numExec = hist.executantes ? hist.executantes.length : 1;
                 var hhDeslInd = hist.hhDeslocamento || 0;
                 var hhAtivInd = hist.hhAtividade || 0;
                 var hhIndiv = hhDeslInd + hhAtivInd;
-                var deslocIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var deslocFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativIni = hist.dataInicio ? new Date(hist.dataInicio).toLocaleTimeString('pt-BR') : '--:--:--';
-                var ativFim = hist.dataFim ? new Date(hist.dataFim).toLocaleTimeString('pt-BR') : '--:--:--';
+                var deslocIni = hist.deslocamentoHoraInicio ? new Date(hist.deslocamentoHoraInicio).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '--:--';
+                var deslocFim = hist.deslocamentoHoraFim ? new Date(hist.deslocamentoHoraFim).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '--:--';
+                var ativIni = hist.dataInicio ? new Date(hist.dataInicio).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '--:--';
+                var ativFim = hist.dataFim ? new Date(hist.dataFim).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '--:--';
                 var classif = classificarHoras(hist.deslocamentoHoraInicio || hist.dataInicio, hist.dataFim);
-                
-                html += '<div style="margin-bottom:10px;padding:8px;background:#f4f4f4;border-radius:8px;">';
-                html += '<div style="font-weight:800;font-size:13px;color:#1A5276;margin-bottom:6px;">Dia ' + (idx + 1) + ' - ' + hist.data + ' | 🚗 ' + deslocIni + '→' + deslocFim + ' | ⏱️ ' + ativIni + '→' + ativFim + '</div>';
-                
+                var tagLabel = hist.tag && hist.tag !== 'ATIVIDADE' ? ' · ' + hist.tag : '';
+
+                html += '<div style="' + S.dayHeader + '">';
+                html += '<div style="' + S.dayTitle + '">' + hist.data + tagLabel + '</div>';
+                html += '<div style="' + S.dayMeta + '">Desl: ' + deslocIni + '-' + deslocFim + ' &nbsp; Atv: ' + ativIni + '-' + ativFim + '</div>';
+                html += '</div>';
+
                 for(var e = 0; e < numExec; e++) {
                     var hhPessoa = hhIndiv;
                     hhTotalGeral += hhPessoa;
                     hhNormalGeral += classif.normal;
                     hhExtraGeral += classif.extra;
                     hhNoturnoGeral += classif.noturno;
-                    html += '<div style="padding:3px 6px;font-size:12px;border-bottom:1px solid #e0e0e0;">';
-                    html += '<strong>' + (hist.executantes[e] || '---') + '</strong> — ';
-                    html += '🚗' + hhDeslInd.toFixed(2) + 'h + ⏱️' + hhAtivInd.toFixed(2) + 'h = <strong>' + hhPessoa.toFixed(2) + 'h</strong>';
-                    if(classif.normal > 0) html += ' <span style="color:#2E86C1;">N:' + classif.normal + '</span>';
-                    if(classif.extra > 0) html += ' <span style="color:#f0ad4e;">E:' + classif.extra + '</span>';
-                    if(classif.noturno > 0) html += ' <span style="color:#d9534f;">Not:' + classif.noturno + '</span>';
+                    var isLastExec = (e === numExec - 1) && (idx === currentOM.historicoExecucao.length - 1);
+                    html += '<div style="' + (isLastExec ? S.rowLast : S.execRow) + '">';
+                    html += '<span style="' + S.execName + '">' + _h(hist.executantes[e] || '---') + '</span>';
+                    html += '<span style="' + S.execHH + '">Desl: ' + hhDeslInd.toFixed(2) + 'h &nbsp; Atv: ' + hhAtivInd.toFixed(2) + 'h &nbsp; <strong>' + hhPessoa.toFixed(2) + 'h</strong>';
+                    var tags = [];
+                    if(classif.normal > 0) tags.push('<span style="color:#1a5276;">N:' + classif.normal.toFixed(2) + '</span>');
+                    if(classif.extra > 0) tags.push('<span style="color:#b84c00;">E:' + classif.extra.toFixed(2) + '</span>');
+                    if(classif.noturno > 0) tags.push('<span style="color:#6a1aaa;">Not:' + classif.noturno.toFixed(2) + '</span>');
+                    if(tags.length) html += ' &nbsp;' + tags.join(' ');
+                    html += '</span>';
                     html += '</div>';
                 }
-                html += '</div>';
             });
-            
-            // Calcular tempo cronológico (janela real da atividade — sem multiplicar por executantes)
+            html += '</div></div>';
+
+            // Tempo cronológico (soma das janelas, sem multiplicar por executantes)
             var tempoCronologico = 0;
             currentOM.historicoExecucao.forEach(function(hist) {
                 tempoCronologico += (hist.hhAtividade || 0) + (hist.hhDeslocamento || 0);
             });
 
-            html += '<div style="padding:12px;background:linear-gradient(135deg, #e3f2fd, #bbdefb);border-radius:10px;">';
-            html += '<div style="font-weight:800;color:#1A5276;font-size:15px;margin-bottom:8px;">📊 Resumo de Tempo</div>';
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #90caf9;">';
-            html += '<span style="font-size:13px;color:#555;">⏱️ Tempo de Execução (Cronológico)</span>';
-            html += '<strong style="color:#1A5276;font-size:14px;">' + tempoCronologico.toFixed(2) + 'h</strong>';
-            html += '</div>';
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #90caf9;">';
-            html += '<span style="font-size:13px;color:#555;">👥 Total de HH Aplicado (soma individual)</span>';
-            html += '<strong style="color:#e65100;font-size:14px;">' + hhTotalGeral.toFixed(2) + 'h</strong>';
-            html += '</div>';
-            html += '<div style="font-size:11px;color:#777;margin-top:6px;font-style:italic;">Tempo cronológico: janela real da atividade. HH aplicado: esforço total da equipe (cronológico × executantes).</div>';
-            html += '<div style="font-size:12px;color:#555;margin-top:6px;">';
-            if(hhNormalGeral > 0) html += '<span style="color:#2E86C1;">Normal: ' + hhNormalGeral.toFixed(2) + 'h</span> ';
-            if(hhExtraGeral > 0) html += '<span style="color:#f0ad4e;">Extra: ' + hhExtraGeral.toFixed(2) + 'h</span> ';
-            if(hhNoturnoGeral > 0) html += '<span style="color:#d9534f;">Noturno: ' + hhNoturnoGeral.toFixed(2) + 'h</span>';
-            html += '</div></div></div>';
+            var tipoRows = [];
+            if(hhNormalGeral > 0) tipoRows.push('<span style="color:#1a5276;">Normal: ' + hhNormalGeral.toFixed(2) + 'h</span>');
+            if(hhExtraGeral > 0) tipoRows.push('<span style="color:#b84c00;">Extra: ' + hhExtraGeral.toFixed(2) + 'h</span>');
+            if(hhNoturnoGeral > 0) tipoRows.push('<span style="color:#6a1aaa;">Noturno: ' + hhNoturnoGeral.toFixed(2) + 'h</span>');
+
+            html += '<div style="' + S.section + '">';
+            html += '<div style="' + S.sectionTitle + '">Totais</div>';
+            html += '<div style="' + S.card + '">';
+            html += '<div style="' + S.row + '"><span style="' + S.label + '">Tempo cronologico</span><span style="' + S.value + '">' + tempoCronologico.toFixed(2) + 'h</span></div>';
+            if(tipoRows.length) {
+                html += '<div style="' + S.row + '"><span style="' + S.label + '">HH aplicado (equipe)</span><span style="font-size:12px;font-weight:700;color:#b84c00;">' + hhTotalGeral.toFixed(2) + 'h</span></div>';
+                html += '<div style="' + S.rowLast + '"><span style="' + S.label + '">Classificacao</span><span style="font-size:11px;">' + tipoRows.join(' &nbsp; ') + '</span></div>';
+            } else {
+                html += '<div style="' + S.rowLast + '"><span style="' + S.label + '">HH aplicado (equipe)</span><span style="font-size:12px;font-weight:700;color:#b84c00;">' + hhTotalGeral.toFixed(2) + 'h</span></div>';
+            }
+            html += '</div></div>';
+
             div.innerHTML = html;
         }
 
