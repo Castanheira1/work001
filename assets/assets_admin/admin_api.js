@@ -179,7 +179,7 @@ async function exportarBmExcel(){
       var all=[];
       safeParseArray(om.historico_execucao).forEach(function(h){
         var m=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray(h.materiais_usados);
-        m.forEach(function(x){all.push(x);});
+        if(m&&m.length)m.forEach(function(x){all.push(x);});
       });
       return all;
     }

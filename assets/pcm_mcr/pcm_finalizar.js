@@ -211,10 +211,10 @@
                     _calcHH(historicoAtual);
                     historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
                     historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'OFICINA';
+                    historicoAtual.tag = 'OFICINA_DEVOLUCAO';
                 }
             }
-            
+
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.retornouOficina = true;
@@ -351,12 +351,12 @@
             var coresTxt = ['#0F6E56','#185FA5','#993C1D','#534AB7','#993556','#3B6D11'];
 
             var etapas = [];
-            for(var i = 0; i < historicoExecucao.length; i++) {
-                var h = historicoExecucao[i];
+            for(var hi = 0; hi < historicoExecucao.length; hi++) {
+                var h = historicoExecucao[hi];
                 if(!h.dataInicio || !h.dataFim) continue;
                 var tag = h.tag || 'ATIVIDADE';
                 var etapa = 'CAMPO';
-                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO') etapa = 'OFICINA';
+                if(tag === 'OFICINA' || tag === 'OFICINA_FIM' || tag === 'OFICINA_TROCA_TURNO' || tag === 'OFICINA_DEVOLUCAO') etapa = 'OFICINA';
                 else if(tag === 'MONTAGEM') etapa = 'MONTAGEM';
                 var iniMs = new Date(h.dataInicio).getTime();
                 var fimMs = new Date(h.dataFim).getTime();
@@ -367,8 +367,8 @@
                     fimMs: fimMs,
                     iniStr: new Date(iniMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
                     fimStr: new Date(fimMs).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
-                    cor: cores[i % cores.length],
-                    corTxt: coresTxt[i % coresTxt.length]
+                    cor: cores[hi % cores.length],
+                    corTxt: coresTxt[hi % coresTxt.length]
                 });
             }
             if(!etapas.length) return '';
@@ -388,14 +388,14 @@
             }
 
             var totalAtivoMs = 0, totalOciosoMs = 0;
-            for(var i = 0; i < etapas.length; i++) {
-                var e = etapas[i];
+            for(var ei = 0; ei < etapas.length; ei++) {
+                var e = etapas[ei];
                 e.durMs = Math.max(e.fimMs - e.iniMs, 0);
                 totalAtivoMs += e.durMs;
                 e.leftPct = ((e.iniMs - globalIni) / range * 100).toFixed(1);
                 e.widthPct = Math.max((e.durMs / range * 100), 0.8).toFixed(1);
-                if(i < etapas.length - 1) {
-                    var gapMs = etapas[i + 1].iniMs - e.fimMs;
+                if(ei < etapas.length - 1) {
+                    var gapMs = etapas[ei + 1].iniMs - e.fimMs;
                     if(gapMs > 0) {
                         totalOciosoMs += gapMs;
                         e.gapMs = gapMs;
@@ -408,8 +408,8 @@
             var html = '<div class="tl-wrap">';
             html += '<div class="tl-row tl-hdr"><span>Etapa</span><span>Executantes</span><span>Horario</span><span>Timeline</span><span>Duracao</span></div>';
 
-            for(var i = 0; i < etapas.length; i++) {
-                var e = etapas[i];
+            for(var ri = 0; ri < etapas.length; ri++) {
+                var e = etapas[ri];
                 var execHtml = e.executantes.map(function(x){ return _h(x); }).join('<br>');
                 var barInner = '<div class="tl-bar-bg"></div>';
                 barInner += '<div class="tl-bar" style="left:' + e.leftPct + '%;width:' + e.widthPct + '%;background:' + e.cor + ';"></div>';

@@ -396,7 +396,8 @@
                     hExec.hhDeslocamento = (hExec.deslocamentoSegundos || 0) / 3600;
                     _calcHH(hExec);
                     hExec.tempoPausadoTotal = tempoPausadoTotal;
-                    hExec.tag = (hExec.tag === 'OFICINA' || hExec.tag === 'OFICINA_FIM') ? 'OFICINA_TROCA_TURNO' : 'TROCA DE TURNO';
+                    var _ofiTags = ['OFICINA','OFICINA_FIM','OFICINA_DEVOLUCAO'];
+                    hExec.tag = _ofiTags.indexOf(hExec.tag) >= 0 ? 'OFICINA_TROCA_TURNO' : 'TROCA DE TURNO';
                 }
             }
 
