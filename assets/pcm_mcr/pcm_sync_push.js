@@ -165,7 +165,7 @@
                 operador: execArr.join(', ') || om.primeiroExecutante || '',
                 executantes: execArr,
                 historico_execucao: om.historicoExecucao || [],
-                materiais_usados: om.materiaisUsados || [],
+                materiais_usados: (function(){ var _m=[]; (om.historicoExecucao||[]).forEach(function(h){ (h.materiaisUsados||[]).forEach(function(x){ _m.push(x); }); }); (om.materiaisUsados||[]).forEach(function(x){ _m.push(x); }); return _m; })(),
                 deslocamento_segundos: om._deslocSegundosSnapshot || deslocamentoSegundos || 0,
                 desloc_hora_inicio: om._deslocHoraInicio || null,
                 desloc_hora_fim: om._deslocHoraFim || null,

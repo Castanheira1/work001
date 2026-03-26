@@ -173,7 +173,16 @@ async function exportarBmExcel(){
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
     function parseHist(om){return safeParseArray(om.historico_execucao);}
-    function parseMats(om){return safeParseArray(om.materiais_usados);}
+    function parseMats(om){
+      var top=safeParseArray(om.materiais_usados);
+      if(top.length)return top;
+      var all=[];
+      safeParseArray(om.historico_execucao).forEach(function(h){
+        var m=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray(h.materiais_usados);
+        m.forEach(function(x){all.push(x);});
+      });
+      return all;
+    }
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -379,11 +388,16 @@ function viewPDF(num){closeOmModal();return verPDFOficina("OM",num);}
 function closePdfViewer(){$("pdfOverlay").classList.remove("show");document.body.style.overflow="";$("pdfViewer").innerHTML="";lastPdfBlob=null;}
 
 
-async function downloadAllPDFs(num,hasCK,hasNC){
+async function downloadAllPDFs(num,hasCK,hasNC,hasRelatorio){
+  if(!hasRelatorio){
+    adminToast("PDF não disponível — relatório não foi sincronizado para o servidor","warn",5000);
+    return;
+  }
   var prefixes=["OM"];
   if(hasCK)prefixes.push("CK");
   if(hasNC)prefixes.push("NC");
   adminToast("Baixando "+prefixes.length+" PDF(s)…","info");
+  var baixados=0;
   for(var i=0;i<prefixes.length;i++){
     var p=prefixes[i];
     var path="reports/"+p+"_"+num+".pdf";
@@ -393,10 +407,12 @@ async function downloadAllPDFs(num,hasCK,hasNC){
       var resp=await fetch(data.signedUrl);
       if(!resp.ok)continue;
       forceDownloadBlob(await resp.blob(),p+"_"+num+".pdf");
+      baixados++;
       if(i<prefixes.length-1)await new Promise(function(r){setTimeout(r,500);});
     }catch(e){ console.warn('[ADMIN] Falha ao baixar arquivo:', e); }
   }
-  adminToast("Downloads concluídos","success");
+  if(baixados>0)adminToast(baixados+" PDF(s) baixados","success");
+  else adminToast("Nenhum PDF encontrado no servidor para esta OM","warn",5000);
 }
 
 async function _mergePDFsToBlob(blobs){
@@ -432,8 +448,10 @@ async function baixarZip(){
   if(typeof pdfjsLib==="undefined"||!window.jspdf){adminToast("Bibliotecas PDF não carregadas","error");btn.disabled=false;btn.textContent="⬇ Baixar Todos (.zip)";return;}
   try{
     var zip=new JSZip();var folder=zip.folder("Relatorios_OMs");
+    var semPdf=0,adicionados=0;
     for(var i=0;i<reports.length;i++){
       var r=reports[i];
+      if(!r.has_relatorio){semPdf++;continue;}
       btn.textContent="Mesclando "+(i+1)+"/"+reports.length+" (OM "+r.num+")…";
       var prefixes=["OM"];
       if(r.has_checklist)prefixes.push("CK");
@@ -449,8 +467,10 @@ async function baixarZip(){
       }
       if(!blobs.length)continue;
       var merged=await _mergePDFsToBlob(blobs);
-      if(merged)folder.file("OM_"+r.num+"_completo.pdf",merged);
+      if(merged){folder.file("OM_"+r.num+"_completo.pdf",merged);adicionados++;}
     }
+    if(semPdf>0)adminToast(semPdf+" OM(s) sem PDF no servidor foram ignoradas","warn",4000);
+    if(!adicionados){adminToast("Nenhum PDF disponível para baixar","warn");btn.disabled=false;btn.textContent="⬇ Baixar Todos (.zip)";return;}
     btn.textContent="Compactando…";
     forceDownloadBlob(await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}}),"Relatorios_OMs.zip");
   }catch(e){adminToast("Erro ao gerar ZIP: "+e.message,"error");console.error(e);}
