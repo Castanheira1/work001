@@ -11,7 +11,6 @@
   if(pg==="bmreport")renderBMReport();
 }
 
-const ADMIN_ROUTE="admin_soberano.html";
 const FIELD_ROUTE="PCM_MCR_v5.html";
 
 function doLogout(){localStorage.removeItem(SESSION_KEY);window.location.replace(FIELD_ROUTE);}

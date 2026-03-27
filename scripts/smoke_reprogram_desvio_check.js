@@ -76,8 +76,8 @@ function run() {
   );
   assertContains(
     adminCore,
-    "const ADMIN_ROUTE=\"admin_soberano.html\";",
-    "Rota padrão do admin"
+    "const FIELD_ROUTE=\"PCM_MCR_v5.html\";",
+    "Rota de campo para redirects de autenticação"
   );
   assertContains(
     adminCore,
