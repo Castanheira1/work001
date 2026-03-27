@@ -64,8 +64,8 @@ function run() {
   );
   assertContains(
     adminCore,
-    "window.location.href=ADMIN_ROUTE",
-    "Redirects do admin apontando para rota de admin"
+    "window.location.replace(ADMIN_ROUTE)",
+    "Redirects do admin apontando para rota de admin sem empilhar histórico"
   );
 
   assertContains(desvios, "tentativa_numero", "Tentativa enviada no payload de desvio");
