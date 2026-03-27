@@ -18,7 +18,17 @@
             $('btnCancelar').style.display = 'none';
             $('btnExcluir').style.display = 'none';
             $('btnCancelarDesvio').style.display = 'none';
-            if(currentOM.desvioApontado) currentOM.desvioApontado = false;
+            if(currentOM.desvioApontado) {
+                if(typeof _registrarEventoDesvio === 'function') {
+                    _registrarEventoDesvio('NOVA_TENTATIVA_INICIADA', {
+                        ultimoDesvioCod: currentOM.ultimoDesvioCod || null,
+                        ultimoDesvioLabel: currentOM.ultimoDesvioLabel || null
+                    });
+                }
+                currentOM.desvioApontado = false;
+                currentOM.novaTentativaPendente = false;
+                currentOM.novaTentativaIniciadaEm = new Date().toISOString();
+            }
             $('timerDisplay').style.display = 'block';
             var infoDiv = $('timerDateInfo');
             if(infoDiv) { infoDiv.style.display = 'block'; infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); }
@@ -319,7 +329,7 @@
             _pushOMStatusSupabase(currentOM);
 
             // Abrir checklist de onde parou
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+            if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                 _mostrarChecklistUI(false);
             }
 

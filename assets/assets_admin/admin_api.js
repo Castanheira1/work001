@@ -367,6 +367,7 @@ async function limparTodosPDFs(){
 async function handleUploadFiles(files){
   var cli=ensureSupabaseClient();
   var escopoSel=(($("uploadEscopo")||{}).value||"").trim();
+  var modoUpload=(($("uploadModo")||{}).value||"novo").trim();
   if(!escopoSel||escopoSel==="geral"){
     adminToast("Selecione um escopo obrigatório antes do upload (não é permitido Geral).","error",5000);
     return;
@@ -377,12 +378,58 @@ async function handleUploadFiles(files){
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
     if(!num){ignorados.push(files[i].name);continue;}
-    var existsRes=await cli.from("oms").select("num,status").eq("num",num).maybeSingle();
+    var existsRes=await cli.from("oms").select("num,status,motivo_reprogramacao").eq("num",num).maybeSingle();
     if(existsRes.error){fail++;adminToast("Erro ao consultar OM "+num+": "+existsRes.error.message,"error");continue;}
-    if(existsRes.data){adminToast("OM "+num+" já existe (status: "+existsRes.data.status+") — upload recusado","warn",5000);fail++;continue;}
     var path="originais/"+num+".pdf";
     var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
     if(uploadRes.error){fail++;adminToast("Erro OM "+num+": "+uploadRes.error.message,"error");continue;}
+
+    if(modoUpload==="reprogramar"){
+      if(!existsRes.data){
+        fail++;
+        adminToast("OM "+num+" não existe para reprogramação — upload recusado","warn",5000);
+        continue;
+      }
+      if(existsRes.data.status!=="reprogramada" && !existsRes.data.motivo_reprogramacao){
+        fail++;
+        adminToast("OM "+num+" não está reprogramada (status: "+existsRes.data.status+")","warn",5000);
+        continue;
+      }
+
+      var agoraISO=new Date().toISOString();
+      var updReprog={
+        status:"enviada",
+        estado_fluxo:"preliminar",
+        escopo:escopoSel,
+        motivo_reprogramacao:null,
+        lock_device_id:null,
+        admin_unlock:false,
+        cancelada:false,
+        finalizada:false,
+        pendente_assinatura:false,
+        cliente_assinou:false,
+        fiscal_assinou:false,
+        status_oficina:null,
+        etapa_oficina:null,
+        oficina_pausada:false,
+        oficina_troca_turno:false,
+        data_inicio_oficina:null,
+        data_fim_oficina:null,
+        data_upload:agoraISO,
+        updated_at:agoraISO
+      };
+      var updRes=await cli.from("oms").update(updReprog).eq("num",num);
+      if(updRes.error){
+        fail++;
+        adminToast("Erro ao reprogramar OM "+num+": "+updRes.error.message,"error");
+      }else{
+        ok++;
+        adminToast("OM "+num+" reprogramada e reenviada ✓","success");
+      }
+      continue;
+    }
+
+    if(existsRes.data){adminToast("OM "+num+" já existe (status: "+existsRes.data.status+") — upload recusado","warn",5000);fail++;continue;}
     var insertRes=await cli.from("oms").insert({num:num,titulo:"OM "+num,status:"enviada",estado_fluxo:"preliminar",escopo:escopoSel,cancelada:false,finalizada:false,pendente_assinatura:false,admin_unlock:false,admin_validou_material:false,admin_modificou_material:false,cliente_assinou:false,fiscal_assinou:false,has_checklist:false,has_nc:false,has_relatorio:false});
     if(insertRes.error){fail++;try{await cli.storage.from("pcm-files").remove([path]);}catch(_e){console.warn('[ADMIN] Cleanup storage falhou:', _e);}adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");}
     else{ok++;adminToast("OM "+num+" enviada ✓","success");}
