@@ -14,6 +14,16 @@ function assertContains(haystack, needle, label) {
   }
 }
 
+function assertNoConflictMarkers(haystack, label) {
+  if (
+    haystack.includes("<<<<<<<") ||
+    haystack.includes("=======") ||
+    haystack.includes(">>>>>>>")
+  ) {
+    throw new Error("FALHOU: " + label + " contém marcadores de conflito de merge.");
+  }
+}
+
 function run() {
   const html = read("admin_soberano.html");
   const adminApi = read("assets/assets_admin/admin_api.js");
@@ -24,6 +34,13 @@ function run() {
   const globals = read("assets/pcm_mcr/pcm_globals.js");
   const ui = read("assets/pcm_mcr/pcm_ui.js");
   const atividade = read("assets/pcm_mcr/pcm_atividade.js");
+
+  [
+    ["assets/assets_admin/admin_api.js", adminApi],
+    ["assets/assets_admin/admin_core.js", adminCore]
+  ].forEach(function(entry) {
+    assertNoConflictMarkers(entry[1], entry[0]);
+  });
 
   assertContains(html, 'id="uploadModo"', "Filtro de upload no admin");
   assertContains(adminApi, 'modoUpload==="reprogramar"', "Branch de reprogramação no upload");
