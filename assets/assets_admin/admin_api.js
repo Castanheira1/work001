@@ -1,4 +1,4 @@
-﻿async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
+async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
 async function excluirOmComOriginal(num){var cli=ensureSupabaseClient();var omNum=safeNum(num);await removerOriginalStorage(omNum);var del=await cli.from("oms").delete().eq("num",omNum);if(del&&del.error)throw new Error(del.error.message||"Falha ao excluir OM");}
 
 async function carregarPricelist(){
@@ -403,18 +403,30 @@ async function handleUploadFiles(files){
   var cli=ensureSupabaseClient();
   var escopoSel=(($("uploadEscopo")||{}).value||"").trim();
   var modoUpload=(($("uploadModo")||{}).value||"novo").trim();
+  
   if(!escopoSel||escopoSel==="geral"){
     adminToast("Selecione um escopo obrigatório antes do upload (não é permitido Geral).","error",5000);
     return;
   }
+  
   var zone=$("uploadZone");
   if(zone)zone.innerHTML='<div class="spinner"></div><small style="margin-top:4px;display:block">Enviando '+files.length+' arquivo(s)…</small>';
+  
   var ok=0,fail=0,ignorados=[];
+  
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
     if(!num){ignorados.push(files[i].name);continue;}
+    
     var existsRes=await cli.from("oms").select("num,status,motivo_reprogramacao").eq("num",num).maybeSingle();
     if(existsRes.error){fail++;adminToast("Erro ao consultar OM "+num+": "+existsRes.error.message,"error");continue;}
+
+    // UPLOAD UNIFICADO: Feito uma única vez para ambos os modos, sem duplicar código!
+    var path="originais/"+num+".pdf";
+    var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
+    if(uploadRes.error){fail++;adminToast("Erro OM "+num+": "+uploadRes.error.message,"error");continue;}
+
+    var agoraISO=new Date().toISOString();
 
     if(modoUpload==="reprogramar"){
       if(!existsRes.data){
@@ -427,11 +439,7 @@ async function handleUploadFiles(files){
         adminToast("OM "+num+" não está reprogramada (status: "+existsRes.data.status+")","warn",5000);
         continue;
       }
-      var pathReprog="originais/"+num+".pdf";
-      var uploadResReprog=await cli.storage.from("pcm-files").upload(pathReprog,files[i],{upsert:true});
-      if(uploadResReprog.error){fail++;adminToast("Erro OM "+num+": "+uploadResReprog.error.message,"error");continue;}
 
-      var agoraISO=new Date().toISOString();
       var updReprog={
         status:"enviada",
         estado_fluxo:"preliminar",
@@ -450,9 +458,13 @@ async function handleUploadFiles(files){
         oficina_troca_turno:false,
         data_inicio_oficina:null,
         data_fim_oficina:null,
+        data_upload:agoraISO, // Restaurado da branch main
         updated_at:agoraISO
       };
+      
       var updRes=await cli.from("oms").update(updReprog).eq("num",num);
+      
+      // Fallback de segurança contra colunas inexistentes
       if(updRes.error && /column .* does not exist/i.test(String(updRes.error.message||""))){
         var updMin={
           status:"enviada",
@@ -466,10 +478,12 @@ async function handleUploadFiles(files){
           pendente_assinatura:false,
           cliente_assinou:false,
           fiscal_assinou:false,
+          data_upload:agoraISO,
           updated_at:agoraISO
         };
         updRes=await cli.from("oms").update(updMin).eq("num",num);
       }
+
       if(updRes.error){
         fail++;
         adminToast("Erro ao reprogramar OM "+num+": "+updRes.error.message,"error");
@@ -480,17 +494,31 @@ async function handleUploadFiles(files){
       continue;
     }
 
-    if(existsRes.data){adminToast("OM "+num+" já existe (status: "+existsRes.data.status+") — upload recusado","warn",5000);fail++;continue;}
-    var path="originais/"+num+".pdf";
-    var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
-    if(uploadRes.error){fail++;adminToast("Erro OM "+num+": "+uploadRes.error.message,"error");continue;}
-    var insertRes=await cli.from("oms").insert({num:num,titulo:"OM "+num,status:"enviada",estado_fluxo:"preliminar",escopo:escopoSel,cancelada:false,finalizada:false,pendente_assinatura:false,admin_unlock:false,admin_validou_material:false,admin_modificou_material:false,cliente_assinou:false,fiscal_assinou:false,has_checklist:false,has_nc:false,has_relatorio:false});
-    if(insertRes.error){fail++;try{await cli.storage.from("pcm-files").remove([path]);}catch(_e){console.warn('[ADMIN] Cleanup storage falhou:', _e);}adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");}
-    else{ok++;adminToast("OM "+num+" enviada ✓","success");}
+    // Modo "Novo"
+    if(existsRes.data){
+      adminToast("OM "+num+" já existe (status: "+existsRes.data.status+") — upload recusado","warn",5000);
+      fail++;
+      continue;
+    }
+    
+    var insertRes=await cli.from("oms").insert({
+      num:num, titulo:"OM "+num, status:"enviada", estado_fluxo:"preliminar", escopo:escopoSel, cancelada:false, finalizada:false, pendente_assinatura:false, admin_unlock:false, admin_validou_material:false, admin_modificou_material:false, cliente_assinou:false, fiscal_assinou:false, has_checklist:false, has_nc:false, has_relatorio:false
+    });
+    
+    if(insertRes.error){
+      fail++;
+      try{await cli.storage.from("pcm-files").remove([path]);}catch(_e){console.warn('[ADMIN] Cleanup storage falhou:', _e);}
+      adminToast("Erro DB OM "+num+": "+insertRes.error.message,"error");
+    }else{
+      ok++;
+      adminToast("OM "+num+" enviada ✓","success");
+    }
   }
+  
   if(zone)zone.innerHTML='<div class="upload-icon">📁</div><small>Arraste PDFs aqui ou clique para selecionar</small>';
   if(fail>0)adminToast(fail+" arquivo(s) recusado(s)/com erro","error");
   if(ignorados.length)adminToast("Cancelados: "+ignorados.join(", "),"error");
+  
   loadDashboard();
 }
 
