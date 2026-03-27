@@ -157,10 +157,6 @@ function getFilteredOms(includeConcluidas){
     var dFim=_parseDateSafe(dtFim+"T23:59:59");
     if(dFim)list=list.filter(function(o){var d=_pickDateOm(o);return d&&d<=dFim;});
   }
-  var statusManual=$("filterStatus")?$("filterStatus").value:"";
-  if(!includeConcluidas&&!_showConcluidasPainel&&!currentPipe&&!statusManual){
-    list=list.filter(function(o){return o.status!=="finalizada"&&o.status!=="cancelada";});
-  }
   return list;
 }
 
@@ -1059,7 +1055,7 @@ function adicionarMatLinha(){_matEditData.push({nome:"",descricao:"",codigo:"",q
 
 function showHabilitarDispositivo(num){
   var om=dashboardData.oms.find(function(o){return o.num===num;});if(!om)return;
-  _hdOmNum=num;_hdFalhaInicio=om.updated_at||null;
+  _hdOmNum=num;_hdFalhaInicio=om.falha_inicio_dispositivo||om.lock_device_ts||om.updated_at||null;
   $("hdOmNum").textContent=num;$("hdOmTitulo").textContent=om.titulo||"";
   var execArr=safeParseArray(om.executantes);
   $("hdExecAtual").textContent=execArr.length?execArr.join(", "):"—";

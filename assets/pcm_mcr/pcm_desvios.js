@@ -254,19 +254,38 @@
         }
         function _enviarDesvioSupabase(payload) {
             var _tok = (window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY;
+            var _headers = {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + _tok,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            };
             fetch(SUPABASE_URL + '/rest/v1/desvios', {
                 method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': 'Bearer ' + _tok,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
+                headers: _headers,
                 body: JSON.stringify(payload)
             }).then(function(resp) {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                if (resp.ok) return null;
+                return resp.text().then(function(txt) { throw new Error('HTTP ' + resp.status + ' ' + txt); });
             }).catch(function(e) {
-                console.warn('[DESVIO] Falha ao enviar, enfileirando:', e.message);
+                var msg = String((e && e.message) || '');
+                if(/tentativa_numero/i.test(msg) && payload && Object.prototype.hasOwnProperty.call(payload, 'tentativa_numero')) {
+                    var payloadCompat = Object.assign({}, payload);
+                    delete payloadCompat.tentativa_numero;
+                    return fetch(SUPABASE_URL + '/rest/v1/desvios', {
+                        method: 'POST',
+                        headers: _headers,
+                        body: JSON.stringify(payloadCompat)
+                    }).then(function(resp2) {
+                        if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+                    }).catch(function(e2) {
+                        console.warn('[DESVIO] Falha no envio compatível, enfileirando:', e2.message);
+                        if (window.PCMOffline && typeof window.PCMOffline.enqueue === 'function') {
+                            window.PCMOffline.enqueue('desvio_registrado', payloadCompat);
+                        }
+                    });
+                }
+                console.warn('[DESVIO] Falha ao enviar, enfileirando:', msg);
                 if (window.PCMOffline && typeof window.PCMOffline.enqueue === 'function') {
                     window.PCMOffline.enqueue('desvio_registrado', payload);
                 }

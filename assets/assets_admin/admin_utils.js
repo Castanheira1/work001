@@ -5,6 +5,89 @@ function safeStorageOriginalPath(num){return"originais/"+safeNum(num)+".pdf";}
 function safeMediaUrl(url){if(!url)return"";var s=String(url).trim();if(/^https?:\/\//i.test(s)||/^blob:/i.test(s)||/^data:image\//i.test(s))return s;return"";}
 function $(id){return document.getElementById(id);}
 function safeParseArray(val){try{return Array.isArray(val)?val:JSON.parse(val||"[]");}catch(e){return[];}}
+function getOmHistorico(om){
+  return safeParseArray(
+    om&&(
+      om.historico_execucao!=null?om.historico_execucao:
+      om.historicoExecucao!=null?om.historicoExecucao:
+      []
+    )
+  );
+}
+function getMaterialTotal(m){
+  if(!m)return 0;
+  var total=Number(
+    m.total!=null?m.total:
+    m.vl_total!=null?m.vl_total:
+    m.valor_total!=null?m.valor_total:
+    0
+  )||0;
+  if(total>0)return total;
+  var qtd=Number(
+    m.qtd!=null?m.qtd:
+    m.quantidade!=null?m.quantidade:
+    0
+  )||0;
+  var unit=Number(
+    m.precoUnit!=null?m.precoUnit:
+    m.preco!=null?m.preco:
+    m.valor_unitario!=null?m.valor_unitario:
+    m.vl_unitario!=null?m.vl_unitario:
+    0
+  )||0;
+  var bdiP=Number(
+    m.bdiPercentual!=null?m.bdiPercentual:
+    m.bdi_percentual!=null?m.bdi_percentual:
+    0
+  )||0;
+  var bdiV=Number(
+    m.bdiValor!=null?m.bdiValor:
+    m.bdi_valor!=null?m.bdi_valor:
+    0
+  )||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function getOmMateriais(om){
+  var top=safeParseArray(
+    om&&(
+      om.materiais_usados!=null?om.materiais_usados:
+      om.materiaisUsados!=null?om.materiaisUsados:
+      []
+    )
+  );
+  if(top.length)return top;
+  var all=[];
+  getOmHistorico(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)
+      ?h.materiaisUsados
+      :safeParseArray(
+        h.materiais_usados!=null?h.materiais_usados:
+        h.materiaisUsados!=null?h.materiaisUsados:
+        []
+      );
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function recalcOmMateriaisTotal(om){
+  var mats=getOmMateriais(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+getMaterialTotal(m);},0);
+}
+function getOmBaseDate(om){
+  var raw=(om&&(
+    om.created_at||
+    om.uploaded_at||
+    om.data_upload||
+    om.updated_at||
+    om.data_execucao||
+    om.data_finalizacao
+  ))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
 function _fmtNum(n){return n>=1000?(n/1000).toFixed(1)+"k":n.toFixed(0);}
 function _equipeLabel(o){return o.equipe||(o.primeiro_executante?"Eq. "+o.primeiro_executante:null)||"Sem equipe";}
 function _execLabel(o){var arr=safeParseArray(o.executantes);return arr.length?arr[0]:(o.primeiro_executante||"—");}
