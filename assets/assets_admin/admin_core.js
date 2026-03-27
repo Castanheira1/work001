@@ -11,20 +11,23 @@
   if(pg==="bmreport")renderBMReport();
 }
 
-function doLogout(){localStorage.removeItem(SESSION_KEY);window.location.href="PCM_MCR_v5.html";}
+const ADMIN_ROUTE="admin_soberano.html";
+const FIELD_ROUTE="PCM_MCR_v5.html";
+
+function doLogout(){localStorage.removeItem(SESSION_KEY);window.location.href=ADMIN_ROUTE;}
 
 async function verificarAdmin(){
   try{
     ensureSupabaseClient();
     const sess=getSession();
-    if(!sess){window.location.href="PCM_MCR_v5.html";return;}
+    if(!sess){window.location.href=ADMIN_ROUTE;return;}
     const res=await fetch(SUPABASE_URL+"/rest/v1/profiles?select=role,username&user_id=eq."+sess.user.id,{
       headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+sess.access_token}
     });
     if(!res.ok)throw new Error("Falha ao consultar perfil admin ("+res.status+")");
     const rows=await res.json();
     const profile=rows&&rows[0]?rows[0]:null;
-    if(!profile||profile.role!=="admin"){window.location.href="PCM_MCR_v5.html";return;}
+    if(!profile||profile.role!=="admin"){window.location.href=ADMIN_ROUTE;return;}
     await sb.auth.setSession({access_token:sess.access_token,refresh_token:sess.refresh_token||""});
     currentUser=profile.username||sess.username||"admin";
     $("app").style.display="block";
@@ -39,7 +42,7 @@ async function verificarAdmin(){
   }catch(e){
     console.error("Falha ao validar perfil admin:",e);
     alert("Falha ao validar acesso administrativo. Tente novamente.");
-    window.location.href="PCM_MCR_v5.html";
+    window.location.href=ADMIN_ROUTE;
   }
 }
 

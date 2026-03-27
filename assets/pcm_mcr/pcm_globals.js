@@ -113,7 +113,11 @@ function verificarDependencias() {
                 btnIniciarMontagem:0
             });
             _btnOficinaCk();
-            if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva)) _mostrarChecklistUI(false);
+            if (
+                !skipChecklistAuto &&
+                (currentOM.planoCod || currentOM.checklistCorretiva) &&
+                !(currentOM.checklistDados && currentOM.checklistDados.length > 0)
+            ) _mostrarChecklistUI(false);
         }
 
 

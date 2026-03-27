@@ -3,6 +3,29 @@
         var _omNumCancelDesvio = null;
         var _desvioTipoAtual = null;
 
+        function _registrarEventoDesvio(evento, dados) {
+            try {
+                if(!currentOM) return;
+                if(!currentOM.rastreabilidadeDesvios || !Array.isArray(currentOM.rastreabilidadeDesvios)) {
+                    currentOM.rastreabilidadeDesvios = [];
+                }
+                currentOM.rastreabilidadeDesvios.push({
+                    evento: evento,
+                    data: new Date().toISOString(),
+                    omNum: currentOM.num,
+                    statusAtual: currentOM.statusAtual || null,
+                    statusOficina: currentOM.statusOficina || null,
+                    etapaOficina: currentOM.etapaOficina || null,
+                    dados: dados || {}
+                });
+                if(currentOM.rastreabilidadeDesvios.length > 150) {
+                    currentOM.rastreabilidadeDesvios = currentOM.rastreabilidadeDesvios.slice(-150);
+                }
+            } catch(e) {
+                console.warn('[DESVIO] Falha ao registrar evento de rastreabilidade:', e && e.message ? e.message : e);
+            }
+        }
+
         var DESVIO_TIPOS = {
             '3.1': { cod: '3.1', label: 'Local Fechado', icon: '🔒' },
             '3.2': { cod: '3.2', label: 'Local Obstruído por Móvel', icon: '🪑' },
@@ -231,19 +254,38 @@
         }
         function _enviarDesvioSupabase(payload) {
             var _tok = (window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY;
+            var _headers = {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + _tok,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            };
             fetch(SUPABASE_URL + '/rest/v1/desvios', {
                 method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': 'Bearer ' + _tok,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
+                headers: _headers,
                 body: JSON.stringify(payload)
             }).then(function(resp) {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                if (resp.ok) return null;
+                return resp.text().then(function(txt) { throw new Error('HTTP ' + resp.status + ' ' + txt); });
             }).catch(function(e) {
-                console.warn('[DESVIO] Falha ao enviar, enfileirando:', e.message);
+                var msg = String((e && e.message) || '');
+                if(/tentativa_numero/i.test(msg) && payload && Object.prototype.hasOwnProperty.call(payload, 'tentativa_numero')) {
+                    var payloadCompat = Object.assign({}, payload);
+                    delete payloadCompat.tentativa_numero;
+                    return fetch(SUPABASE_URL + '/rest/v1/desvios', {
+                        method: 'POST',
+                        headers: _headers,
+                        body: JSON.stringify(payloadCompat)
+                    }).then(function(resp2) {
+                        if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+                    }).catch(function(e2) {
+                        console.warn('[DESVIO] Falha no envio compatível, enfileirando:', e2.message);
+                        if (window.PCMOffline && typeof window.PCMOffline.enqueue === 'function') {
+                            window.PCMOffline.enqueue('desvio_registrado', payloadCompat);
+                        }
+                    });
+                }
+                console.warn('[DESVIO] Falha ao enviar, enfileirando:', msg);
                 if (window.PCMOffline && typeof window.PCMOffline.enqueue === 'function') {
                     window.PCMOffline.enqueue('desvio_registrado', payload);
                 }
@@ -288,7 +330,8 @@
                 data: new Date().toISOString(),
                 executantes: executantesNomes.slice(),
                 tempoSegundos: tempoTotalDesvio,
-                mesRef: new Date().toISOString().substring(0, 7)
+                mesRef: new Date().toISOString().substring(0, 7),
+                tentativaNumero: ((currentOM.desviosRegistrados && currentOM.desviosRegistrados.length) || 0) + 1
             };
 
             _salvarDesvioLocal(rec);
@@ -312,13 +355,24 @@
                 executantes: rec.executantes || [],
                 mes_ref: rec.mesRef,
                 tempo_segundos: rec.tempoSegundos || 0,
+                tentativa_numero: rec.tentativaNumero || 1,
                 registrado_por: deviceId || '',
                 origem: 'campo'
             });
 
             _gravarDashboardLog('DESVIO', currentOM);
+            _registrarEventoDesvio('DESVIO_REGISTRADO', {
+                tipoCod: rec.tipoCod,
+                tipoLabel: rec.tipoLabel,
+                tentativaNumero: rec.tentativaNumero,
+                tempoSegundos: rec.tempoSegundos
+            });
 
             currentOM.desvioApontado = true;
+            currentOM.novaTentativaPendente = true;
+            currentOM.novaTentativaSolicitadaEm = new Date().toISOString();
+            currentOM.ultimoDesvioCod = rec.tipoCod;
+            currentOM.ultimoDesvioLabel = rec.tipoLabel;
             currentOM.statusAtual = null;
             currentOM.lockDeviceId = null;
             deslocamentoSegundos = 0;
@@ -330,6 +384,7 @@
             localStorage.removeItem(STORAGE_KEY_CURRENT);
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
+            setTimeout(function() { _uploadPDFRelatorio(currentOM.num); }, 600);
 
             hideDesvioLocalFechado();
             alert('⚠️ Desvio ' + info.cod + ' registrado.\n\nTAG: ' + tagEquip + '\nTempo: ' + _formatarTempo(tempoTotalDesvio) + '\n\nOM disponível para nova tentativa.');
@@ -356,6 +411,7 @@
 
             if(escolha) {
                 currentOM.pendenteAssinatura = true;
+                _registrarEventoDesvio('OM_CANCELADA_COM_DESVIO', { assinaturaFiscal: true, desvio: dvInfo });
                 salvarOMs();
                 _pushOMStatusSupabase(currentOM);
                 _gravarDashboardLog('CANCELADO_DESVIO', currentOM);
@@ -364,6 +420,7 @@
                 filtrarOMs();
             } else {
                 currentOM.pendenteAssinatura = false;
+                _registrarEventoDesvio('OM_CANCELADA_COM_DESVIO', { assinaturaFiscal: false, desvio: dvInfo });
                 gerarEArmazenarPDF();
                 salvarOMs();
                 _pushOMStatusSupabase(currentOM);
@@ -762,6 +819,7 @@
                         [{ content: 'OM', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe(rec.omNum || '---') }],
                         [{ content: 'Data/Hora', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: new Date(rec.data).toLocaleString('pt-BR') }],
                         [{ content: 'Tipo Desvio', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe(rec.tipoLabel || rec.tipo || '---') }],
+                        [{ content: 'Tentativa', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: String(rec.tentativaNumero || 1) }],
                         [{ content: 'TAG Equipamento', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe(rec.tagEquipamento || '---') }],
                         [{ content: 'Local', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe((rec.localInstalacao || '') + (rec.descLocal ? ' - ' + rec.descLocal : '')) }],
                         [{ content: 'Executantes', styles: { fontStyle: 'bold', textColor: [100,100,100], fillColor: [248,248,248] } }, { content: _pdfTextSafe((rec.executantes || []).join(', ') || '---') }],

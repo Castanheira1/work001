@@ -268,7 +268,7 @@
                 $('timerDateInfo').style.display = 'none';
                 $('timerAtivDateInfo').style.display = 'none';
                 _btnOficinaCk();
-                if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                     _mostrarChecklistUI(true);
                 }
             }
