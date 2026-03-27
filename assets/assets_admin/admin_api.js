@@ -51,25 +51,61 @@ async function onBMFilterChange(){
   $("bmPeriodoLabel").textContent="⏳ Carregando BM "+_selectedBM+"...";
   try{
     var cli=ensureSupabaseClient();
-    var{data:hhRows}=await cli.from("bm_hh").select("*").eq("bm_numero",_selectedBM);
-    var{data:matRows}=await cli.from("bm_materiais").select("*").eq("bm_numero",_selectedBM);
+    var hhRes=await cli.from("bm_hh").select("*").eq("bm_numero",_selectedBM);
+    var matRes=await cli.from("bm_materiais").select("*").eq("bm_numero",_selectedBM);
+    if(hhRes.error)throw hhRes.error;
+    if(matRes.error)throw matRes.error;
+    var hhRows=hhRes.data||[];
+    var matRows=matRes.data||[];
     var omMap={};
-    (hhRows||[]).forEach(function(r){
-      if(!omMap[r.om_num])omMap[r.om_num]={num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:r.equipe||"",escopo:r.escopo||"geral",status:r.status||"finalizada",hh_total:r.hh_total||0,materiais_total:r.materiais_total||0,has_relatorio:true,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:r.executante||"",materiais_usados:[],updated_at:r.created_at};
+    hhRows.forEach(function(r){
+      if(!omMap[r.om_num]){
+        omMap[r.om_num]={
+          num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:r.equipe||"",escopo:r.escopo||"geral",
+          status:r.status||"finalizada",hh_total:Number(r.hh_total||0),materiais_total:Number(r.materiais_total||0),
+          has_relatorio:false,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:r.executante||"",
+          materiais_usados:[],updated_at:r.created_at||null
+        };
+      }
     });
-    (matRows||[]).forEach(function(r){
-      if(!omMap[r.om_num])omMap[r.om_num]={num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:"",escopo:"geral",status:"finalizada",hh_total:0,materiais_total:0,has_relatorio:true,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:"",materiais_usados:[],updated_at:r.created_at};
-      omMap[r.om_num].materiais_usados.push({codigo:r.codigo,nome:r.descricao,descricao:r.descricao,tipo:r.ct2,unidade:r.unidade,qtd:r.qtd,precoUnit:r.vl_unitario,preco:r.vl_unitario,total:r.vl_total,bdiPercentual:r.bdi_percentual,bdiValor:r.bdi_valor,cc:r.cc});
-      omMap[r.om_num].materiais_total+=Number(r.vl_total||0);
+    matRows.forEach(function(r){
+      if(!omMap[r.om_num]){
+        omMap[r.om_num]={
+          num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:"",escopo:"geral",status:"finalizada",hh_total:0,materiais_total:0,
+          has_relatorio:false,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:"",
+          materiais_usados:[],updated_at:r.created_at||null
+        };
+      }
+      omMap[r.om_num].materiais_usados.push({
+        codigo:r.codigo,nome:r.descricao,descricao:r.descricao,tipo:r.ct2,unidade:r.unidade,qtd:r.qtd,
+        precoUnit:r.vl_unitario,preco:r.vl_unitario,total:r.vl_total,bdiPercentual:r.bdi_percentual,bdiValor:r.bdi_valor,cc:r.cc
+      });
     });
-    var omsVirtuais=Object.values(omMap);
+    var nums=Object.keys(omMap),liveOms=[],liveDesvios=[];
+    if(nums.length){
+      var liveRes=await cli.from("oms").select("*").in("num",nums);
+      if(liveRes.error)throw liveRes.error;
+      liveOms=liveRes.data||[];
+      var desvRes=await cli.from("desvios").select("*").in("om_num",nums).order("created_at",{ascending:false});
+      if(desvRes.error)throw desvRes.error;
+      liveDesvios=desvRes.data||[];
+    }
+    var liveByNum={};liveOms.forEach(function(o){liveByNum[String(o.num)]=o;});
+    var omsVirtuais=nums.map(function(num){
+      var base=omMap[num],live=liveByNum[String(num)]||{};
+      return Object.assign({},live,base,{
+        status:live.status||base.status||"finalizada",
+        has_relatorio:!!live.has_relatorio,has_checklist:!!live.has_checklist,has_nc:!!live.has_nc,has_fotos:!!live.has_fotos,
+        materiais_total:recalcOmMateriaisTotal(base)
+      });
+    });
     dashboardData.oms=omsVirtuais;
-    dashboardData.reports=omsVirtuais.filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
-    dashboardData.desvios=[];
+    dashboardData.reports=omsVirtuais.filter(function(o){return(o.status==="finalizada"||o.status==="cancelada")&&o.has_relatorio;});
+    dashboardData.desvios=liveDesvios;
     populateEquipeFilter();
     renderAll();
-    var bmInfo=(hhRows&&hhRows[0])?hhRows[0]:null;
-    $("bmPeriodoLabel").textContent="BM "+_selectedBM+(bmInfo?" | "+bmInfo.bm_data_inicio+" a "+bmInfo.bm_data_fim:"")+" | "+omsVirtuais.length+" OMs | "+(hhRows||[]).length+" HH | "+(matRows||[]).length+" materiais";
+    var bmInfo=hhRows[0]||matRows[0]||null;
+    $("bmPeriodoLabel").textContent="BM "+_selectedBM+(bmInfo?" | "+(bmInfo.bm_data_inicio||"")+" a "+(bmInfo.bm_data_fim||""):"")+" | "+omsVirtuais.length+" OMs | "+hhRows.length+" HH | "+matRows.length+" materiais";
   }catch(e){$("bmPeriodoLabel").textContent="Erro: "+e.message;console.error(e);}
 }
 
@@ -103,14 +139,7 @@ async function loadDashboard(silent){
     ]);
     if(omsError)throw omsError;
     if(desviosError)throw desviosError;
-    dashboardData.oms=oms||[];
-    // Recalcular materiais_total se campo vazio mas materiais_usados tem dados
-    dashboardData.oms.forEach(function(o){
-      if(!o.materiais_total||Number(o.materiais_total)===0){
-        var mats=safeParseArray(o.materiais_usados);
-        if(mats.length>0){var t=0;mats.forEach(function(m){t+=Number(m.total||0);});o.materiais_total=t;}
-      }
-    });
+    dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=recalcOmMateriaisTotal(o);return o;});
     dashboardData.reports=(oms||[]).filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
     dashboardData.desvios=desvios||[];
     populateEquipeFilter();
@@ -165,34 +194,39 @@ async function salvarConfigBDI(){
 }
 
 async function exportarBmExcel(){
-  var bmNum=$("cfgBmNumero").value.trim();
-  if(!bmNum){adminToast("Configure o N° BM primeiro","warn");return;}
+  var bmNum=(($("filterBM")&&$("filterBM").value)||$("cfgBmNumero").value||"").trim();
+  if(!bmNum){adminToast("Configure ou selecione o N° BM primeiro","warn");return;}
   if(typeof XLSX==="undefined"){adminToast("XLSX lib não carregada","error");return;}
   try{
-    const[{data:oms,error},{data:cfgRows}]=await Promise.all([
-      sb.from("oms").select("*").order("updated_at",{ascending:false}),
-      sb.from("config").select("*")
-    ]);
-    if(error)throw error;
-    if(!oms||!oms.length){adminToast("Nenhuma OM encontrada","warn");return;}
-    var cfgMap={};(cfgRows||[]).forEach(function(r){cfgMap[r.chave]=r.valor;});
+    var cfgRes=await sb.from("config").select("*");
+    if(cfgRes.error)throw cfgRes.error;
+    var cfgRows=cfgRes.data||[];
+    var cfgMap={};cfgRows.forEach(function(r){cfgMap[r.chave]=r.valor;});
     var configBDI=parseFloat(cfgMap.bdi_percentual||0);
     var configTipoSol=cfgMap.tipo_solicitacao||"Climatização e Refrigeração";
-    var bmDi=cfgMap.bm_data_inicio||"";var bmDf=cfgMap.bm_data_fim||"";
+    var bmDi=cfgMap.bm_data_inicio||"",bmDf=cfgMap.bm_data_fim||"";
+    var oms=[];
+    if(_selectedBM&&String(_selectedBM)===String(bmNum)&&(dashboardData.oms||[]).length){
+      oms=JSON.parse(JSON.stringify(dashboardData.oms));
+    }else{
+      var omsRes=await sb.from("oms").select("*").order("updated_at",{ascending:false});
+      if(omsRes.error)throw omsRes.error;
+      oms=(omsRes.data||[]).filter(function(om){
+        var d=getOmBaseDate(om);
+        if(!bmDi&&!bmDf)return true;
+        if(!d)return false;
+        if(bmDi&&d<new Date(bmDi+"T00:00:00"))return false;
+        if(bmDf&&d>new Date(bmDf+"T23:59:59"))return false;
+        return true;
+      });
+    }
+    oms=oms.map(function(om){om.materiais_total=recalcOmMateriaisTotal(om);return om;});
+    if(!oms.length){adminToast("Nenhuma OM encontrada para o BM informado","warn");return;}
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
-    function parseHist(om){return safeParseArray(om.historico_execucao);}
-    function parseMats(om){
-      var top=safeParseArray(om.materiais_usados);
-      if(top.length)return top;
-      var all=[];
-      safeParseArray(om.historico_execucao).forEach(function(h){
-        var m=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray(h.materiais_usados);
-        if(m&&m.length)m.forEach(function(x){all.push(x);});
-      });
-      return all;
-    }
+    function parseHist(om){return getOmHistorico(om);}
+    function parseMats(om){return getOmMateriais(om);}
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -270,7 +304,8 @@ async function exportarBmExcel(){
         var vUnit=parseFloat(m.precoUnit||m.preco||m.valor_unitario||0);
         var bdiP=parseFloat(m.bdiPercentual||0);
         var bdiV=vUnit*(bdiP/100);
-        var vlTotal=qtd*(vUnit+bdiV);
+        var vlTotal=getMaterialTotal(m);
+        if(!vlTotal)vlTotal=qtd*(vUnit+bdiV);
         totalMat+=vlTotal;matCount++;
         matData.push([om.num||"",om.titulo||"",configTipoSol,m.codigo||"",m.tipo||"Pricelist",m.nome||m.descricao||"",m.unidade||"UN",qtd,vUnit>0?vUnit:0,bdiV>0?bdiV:0,vlTotal>0?vlTotal:0]);
         bmMatRows.push({bm_numero:bmNum,bm_data_inicio:bmDi,bm_data_fim:bmDf,om_num:om.num||"",titulo_om:om.titulo||"",tipo_solicitacao:configTipoSol,codigo:m.codigo||"",ct2:m.tipo||"Pricelist",descricao:m.nome||m.descricao||"",unidade:m.unidade||"UN",qtd:qtd,vl_unitario:vUnit,bdi_percentual:bdiP,bdi_valor:bdiV,vl_total:vlTotal,cc:m.cc||om.cc||""});
@@ -367,6 +402,7 @@ async function limparTodosPDFs(){
 async function handleUploadFiles(files){
   var cli=ensureSupabaseClient();
   var escopoSel=(($("uploadEscopo")||{}).value||"").trim();
+  var modoUpload=(($("uploadModo")||{}).value||"novo").trim();
   if(!escopoSel||escopoSel==="geral"){
     adminToast("Selecione um escopo obrigatório antes do upload (não é permitido Geral).","error",5000);
     return;
@@ -377,8 +413,73 @@ async function handleUploadFiles(files){
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
     if(!num){ignorados.push(files[i].name);continue;}
-    var existsRes=await cli.from("oms").select("num,status").eq("num",num).maybeSingle();
+    var existsRes=await cli.from("oms").select("num,status,motivo_reprogramacao").eq("num",num).maybeSingle();
     if(existsRes.error){fail++;adminToast("Erro ao consultar OM "+num+": "+existsRes.error.message,"error");continue;}
+
+    if(modoUpload==="reprogramar"){
+      if(!existsRes.data){
+        fail++;
+        adminToast("OM "+num+" não existe para reprogramação — upload recusado","warn",5000);
+        continue;
+      }
+      if(existsRes.data.status!=="reprogramada" && !existsRes.data.motivo_reprogramacao){
+        fail++;
+        adminToast("OM "+num+" não está reprogramada (status: "+existsRes.data.status+")","warn",5000);
+        continue;
+      }
+      var pathReprog="originais/"+num+".pdf";
+      var uploadResReprog=await cli.storage.from("pcm-files").upload(pathReprog,files[i],{upsert:true});
+      if(uploadResReprog.error){fail++;adminToast("Erro OM "+num+": "+uploadResReprog.error.message,"error");continue;}
+
+      var agoraISO=new Date().toISOString();
+      var updReprog={
+        status:"enviada",
+        estado_fluxo:"preliminar",
+        escopo:escopoSel,
+        motivo_reprogramacao:null,
+        lock_device_id:null,
+        admin_unlock:false,
+        cancelada:false,
+        finalizada:false,
+        pendente_assinatura:false,
+        cliente_assinou:false,
+        fiscal_assinou:false,
+        status_oficina:null,
+        etapa_oficina:null,
+        oficina_pausada:false,
+        oficina_troca_turno:false,
+        data_inicio_oficina:null,
+        data_fim_oficina:null,
+        updated_at:agoraISO
+      };
+      var updRes=await cli.from("oms").update(updReprog).eq("num",num);
+      if(updRes.error && /column .* does not exist/i.test(String(updRes.error.message||""))){
+        var updMin={
+          status:"enviada",
+          estado_fluxo:"preliminar",
+          escopo:escopoSel,
+          motivo_reprogramacao:null,
+          lock_device_id:null,
+          admin_unlock:false,
+          cancelada:false,
+          finalizada:false,
+          pendente_assinatura:false,
+          cliente_assinou:false,
+          fiscal_assinou:false,
+          updated_at:agoraISO
+        };
+        updRes=await cli.from("oms").update(updMin).eq("num",num);
+      }
+      if(updRes.error){
+        fail++;
+        adminToast("Erro ao reprogramar OM "+num+": "+updRes.error.message,"error");
+      }else{
+        ok++;
+        adminToast("OM "+num+" reprogramada e reenviada ✓","success");
+      }
+      continue;
+    }
+
     if(existsRes.data){adminToast("OM "+num+" já existe (status: "+existsRes.data.status+") — upload recusado","warn",5000);fail++;continue;}
     var path="originais/"+num+".pdf";
     var uploadRes=await cli.storage.from("pcm-files").upload(path,files[i],{upsert:true});
