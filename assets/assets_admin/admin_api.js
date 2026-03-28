@@ -1,4 +1,4 @@
-﻿async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
+async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
 async function excluirOmComOriginal(num){var cli=ensureSupabaseClient();var omNum=safeNum(num);await removerOriginalStorage(omNum);var del=await cli.from("oms").delete().eq("num",omNum);if(del&&del.error)throw new Error(del.error.message||"Falha ao excluir OM");}
 
 async function carregarPricelist(){
@@ -409,6 +409,7 @@ async function handleUploadFiles(files){
   }
   var zone=$("uploadZone");
   if(zone)zone.innerHTML='<div class="spinner"></div><small style="margin-top:4px;display:block">Enviando '+files.length+' arquivo(s)…</small>';
+  
   var ok=0,fail=0,ignorados=[];
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
@@ -491,6 +492,7 @@ async function handleUploadFiles(files){
   if(zone)zone.innerHTML='<div class="upload-icon">📁</div><small>Arraste PDFs aqui ou clique para selecionar</small>';
   if(fail>0)adminToast(fail+" arquivo(s) recusado(s)/com erro","error");
   if(ignorados.length)adminToast("Cancelados: "+ignorados.join(", "),"error");
+  
   loadDashboard();
 }
 
