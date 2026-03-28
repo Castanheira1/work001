@@ -449,6 +449,7 @@ async function handleUploadFiles(files){
   }
   var zone=$("uploadZone");
   if(zone)zone.innerHTML='<div class="spinner"></div><small style="margin-top:4px;display:block">Enviando '+files.length+' arquivo(s)…</small>';
+  
   var ok=0,fail=0,ignorados=[];
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
@@ -531,6 +532,7 @@ async function handleUploadFiles(files){
   if(zone)zone.innerHTML='<div class="upload-icon">📁</div><small>Arraste PDFs aqui ou clique para selecionar</small>';
   if(fail>0)adminToast(fail+" arquivo(s) recusado(s)/com erro","error");
   if(ignorados.length)adminToast("Cancelados: "+ignorados.join(", "),"error");
+  
   loadDashboard();
 }
 
