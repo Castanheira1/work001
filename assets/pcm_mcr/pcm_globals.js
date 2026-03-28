@@ -87,11 +87,23 @@ function verificarDependencias() {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:1 });
                 return;
             }
-            // Fluxo v2: em oficina sem atividade iniciada - mostrar botoes oficina
+            // Fluxo v2: em oficina sem atividade iniciada -> mostrar botao para iniciar
+            // Só mostra "Finalizar na oficina" quando atividade da etapa OFICINA já foi iniciada
+            var emEtapaOficina = currentOM.etapaOficina === ETAPA_OFICINA.OFICINA;
+            var atividadeOficinaIniciada = emEtapaOficina && (currentOM.statusAtual === 'iniciada' || atividadeJaIniciada);
             if (currentOM.emOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:1, btnIniciarMontagem:0 });
+                _setBtns({
+                    btnOficina: atividadeOficinaIniciada ? 0 : 1,
+                    btnDevolverEquip:0,
+                    btnChecklist:0,
+                    btnFinalizarOficina: atividadeOficinaIniciada ? 1 : 0,
+                    btnIniciarMontagem:0
+                });
             } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
+                // Na montagem após retorno da oficina, checklist deve permanecer acessível
+                // para complementar Foto DEPOIS/edições antes de devolver equipamento.
+                var checklistHabilitado = !!(currentOM.planoCod || currentOM.checklistCorretiva);
+                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist: checklistHabilitado ? 1 : 0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.planoCod || currentOM.checklistCorretiva) {
@@ -113,7 +125,11 @@ function verificarDependencias() {
                 btnIniciarMontagem:0
             });
             _btnOficinaCk();
-            if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva)) _mostrarChecklistUI(false);
+            if (
+                !skipChecklistAuto &&
+                (currentOM.planoCod || currentOM.checklistCorretiva) &&
+                !(currentOM.checklistDados && currentOM.checklistDados.length > 0)
+            ) _mostrarChecklistUI(false);
         }
 
 
