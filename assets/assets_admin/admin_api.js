@@ -1,5 +1,45 @@
-async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
+﻿async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
 async function excluirOmComOriginal(num){var cli=ensureSupabaseClient();var omNum=safeNum(num);await removerOriginalStorage(omNum);var del=await cli.from("oms").delete().eq("num",omNum);if(del&&del.error)throw new Error(del.error.message||"Falha ao excluir OM");}
+
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
 
 async function carregarPricelist(){
   try{
@@ -96,7 +136,7 @@ async function onBMFilterChange(){
       return Object.assign({},live,base,{
         status:live.status||base.status||"finalizada",
         has_relatorio:!!live.has_relatorio,has_checklist:!!live.has_checklist,has_nc:!!live.has_nc,has_fotos:!!live.has_fotos,
-        materiais_total:recalcOmMateriaisTotal(base)
+        materiais_total:_recalcOmMateriaisTotalSafe(base)
       });
     });
     dashboardData.oms=omsVirtuais;
@@ -139,7 +179,7 @@ async function loadDashboard(silent){
     ]);
     if(omsError)throw omsError;
     if(desviosError)throw desviosError;
-    dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=recalcOmMateriaisTotal(o);return o;});
+    dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=_recalcOmMateriaisTotalSafe(o);return o;});
     dashboardData.reports=(oms||[]).filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
     dashboardData.desvios=desvios||[];
     populateEquipeFilter();
@@ -212,7 +252,7 @@ async function exportarBmExcel(){
       var omsRes=await sb.from("oms").select("*").order("updated_at",{ascending:false});
       if(omsRes.error)throw omsRes.error;
       oms=(omsRes.data||[]).filter(function(om){
-        var d=getOmBaseDate(om);
+        var d=_getOmBaseDateSafe(om);
         if(!bmDi&&!bmDf)return true;
         if(!d)return false;
         if(bmDi&&d<new Date(bmDi+"T00:00:00"))return false;
@@ -220,13 +260,13 @@ async function exportarBmExcel(){
         return true;
       });
     }
-    oms=oms.map(function(om){om.materiais_total=recalcOmMateriaisTotal(om);return om;});
+    oms=oms.map(function(om){om.materiais_total=_recalcOmMateriaisTotalSafe(om);return om;});
     if(!oms.length){adminToast("Nenhuma OM encontrada para o BM informado","warn");return;}
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
     function fmtDtBR(dt){if(!dt)return"";return dt.toLocaleDateString("pt-BR");}
     function fmtHr(dt){if(!dt)return"";return dt.toLocaleTimeString("pt-BR");}
-    function parseHist(om){return getOmHistorico(om);}
-    function parseMats(om){return getOmMateriais(om);}
+    function parseHist(om){return _getOmHistoricoSafe(om);}
+    function parseMats(om){return _getOmMateriaisSafe(om);}
     var _hdrStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"1A5276"}},alignment:{horizontal:"center",vertical:"center",wrapText:true},border:{top:{style:"thin",color:{rgb:"0D3B56"}},bottom:{style:"thin",color:{rgb:"0D3B56"}},left:{style:"thin",color:{rgb:"0D3B56"}},right:{style:"thin",color:{rgb:"0D3B56"}}}};
     var _totStyle={font:{bold:true,color:{rgb:"FFFFFF"},sz:11,name:"Calibri"},fill:{fgColor:{rgb:"2E86C1"}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"1A5276"}},bottom:{style:"thin",color:{rgb:"1A5276"}},left:{style:"thin",color:{rgb:"1A5276"}},right:{style:"thin",color:{rgb:"1A5276"}}}};
     var _bodyStyle={font:{sz:10,name:"Calibri"},border:{top:{style:"hair",color:{rgb:"CCCCCC"}},bottom:{style:"hair",color:{rgb:"CCCCCC"}},left:{style:"hair",color:{rgb:"CCCCCC"}},right:{style:"hair",color:{rgb:"CCCCCC"}}}};
@@ -304,7 +344,7 @@ async function exportarBmExcel(){
         var vUnit=parseFloat(m.precoUnit||m.preco||m.valor_unitario||0);
         var bdiP=parseFloat(m.bdiPercentual||0);
         var bdiV=vUnit*(bdiP/100);
-        var vlTotal=getMaterialTotal(m);
+        var vlTotal=_getMaterialTotalSafe(m);
         if(!vlTotal)vlTotal=qtd*(vUnit+bdiV);
         totalMat+=vlTotal;matCount++;
         matData.push([om.num||"",om.titulo||"",configTipoSol,m.codigo||"",m.tipo||"Pricelist",m.nome||m.descricao||"",m.unidade||"UN",qtd,vUnit>0?vUnit:0,bdiV>0?bdiV:0,vlTotal>0?vlTotal:0]);

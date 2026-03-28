@@ -51,7 +51,7 @@ function run() {
   );
   assertContains(
     adminApi,
-    "dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=recalcOmMateriaisTotal(o);return o;});",
+    "dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=_recalcOmMateriaisTotalSafe(o);return o;});",
     "Recálculo robusto de materiais no loadDashboard"
   );
   assertContains(
