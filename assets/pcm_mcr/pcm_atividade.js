@@ -300,6 +300,9 @@
             currentOM.dataInicioOficina = new Date().toISOString();
             currentOM.lockDeviceId = deviceId;
             currentOM.oficinaPausada = false;
+            // Limpa estados residuais de devolução ao iniciar atividade na oficina
+            currentOM.retornouOficina = false;
+            currentOM.devolvendoEquipamento = false;
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             currentOM.historicoExecucao.push({
