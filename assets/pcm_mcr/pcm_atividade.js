@@ -424,6 +424,9 @@
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
+            // Ao iniciar montagem, sai do estado "em devolução" (deslocamento)
+            // para reabilitar os botões de checklist/finalização do fluxo.
+            currentOM.devolvendoEquipamento = false;
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             currentOM.historicoExecucao.push({
