@@ -99,11 +99,16 @@ function verificarDependencias() {
                     btnFinalizarOficina: atividadeOficinaIniciada ? 1 : 0,
                     btnIniciarMontagem:0
                 });
-            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento && currentOM.statusAtual !== 'iniciada') {
                 // Na montagem após retorno da oficina, checklist deve permanecer acessível
                 // para complementar Foto DEPOIS/edições antes de devolver equipamento.
                 var checklistHabilitado = !!(currentOM.planoCod || currentOM.checklistCorretiva);
                 _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist: checklistHabilitado ? 1 : 0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento && currentOM.statusAtual === 'iniciada') {
+                // Em atividade de montagem em andamento, o fechamento segue pelo botão FINALIZAR.
+                // Mantém checklist acessível quando habilitado, sem exibir "Devolver equipamento".
+                var checklistHabilitadoMontagem = !!(currentOM.planoCod || currentOM.checklistCorretiva);
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist: checklistHabilitadoMontagem ? 1 : 0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.planoCod || currentOM.checklistCorretiva) {
@@ -115,7 +120,13 @@ function verificarDependencias() {
 
         function _uiAtividade(skipChecklistAuto) {
             var naOficina = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
-            var emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
+            // Durante montagem (retornouOficina + atividade iniciada), o botão FINALIZAR deve ficar visível
+            // para seguir para assinatura/finalização.
+            var emFluxoOficina = !!(currentOM && (
+                currentOM.emOficina ||
+                currentOM.devolvendoEquipamento ||
+                (currentOM.retornouOficina && currentOM.statusAtual !== 'iniciada')
+            ));
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:'flex',
                 btnRowExecOficina:'flex', btnFinalizar: emFluxoOficina ? 0 : 1,
