@@ -144,6 +144,13 @@
                 <option value="corretiva">🔧 Corretiva</option>
               </select>
             </div>
+            <div style="margin-bottom:10px">
+              <label class="field-label">Filtro de Upload</label>
+              <select id="uploadModo" class="filter-select" style="width:100%">
+                <option value="novo">📥 Novo upload (OM nova)</option>
+                <option value="reprogramar">🔄 Reprogramar (OM já existente)</option>
+              </select>
+            </div>
             <input type="file" id="fileInputOms" accept="application/pdf" multiple style="display:none">
             <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInputOms').click()">
               <div class="upload-icon">📁</div>
