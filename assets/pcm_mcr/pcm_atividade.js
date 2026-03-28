@@ -244,8 +244,11 @@
         }
 
         function toggleChecklistCorretiva() {
-            if(currentOM.planoCod) return;
-            if(currentOM.checklistCorretiva) return;
+            // Se checklist já estiver habilitado (plano ou corretiva), o botão deve abrir a UI
+            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                _mostrarChecklistUI(true);
+                return;
+            }
             if(!confirm('⚠️ Habilitar checklist nesta OM corretiva?\n\nApós habilitar, o checklist ficará disponível e não poderá ser desativado.')) return;
             currentOM.checklistCorretiva = true;
             $('btnChecklist').style.display = 'none';
