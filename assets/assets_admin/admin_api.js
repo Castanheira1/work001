@@ -41,6 +41,206 @@ function _getOmBaseDateSafe(om){
   return isNaN(d.getTime())?null:d;
 }
 
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
+
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
+
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
+
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
+
+function _getOmHistoricoSafe(om){
+  if(typeof getOmHistorico==="function")return getOmHistorico(om);
+  return safeParseArray((om&&om.historico_execucao)||[]);
+}
+function _getOmMateriaisSafe(om){
+  if(typeof getOmMateriais==="function")return getOmMateriais(om);
+  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
+  if(top.length)return top;
+  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
+    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
+    (mats||[]).forEach(function(m){all.push(m);});
+  });
+  return all;
+}
+function _getMaterialTotalSafe(m){
+  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
+  if(!m)return 0;
+  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
+  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
+  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
+  if(total>0)return total;
+  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
+  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
+  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
+  return qtd*(unit+bdiV);
+}
+function _recalcOmMateriaisTotalSafe(om){
+  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
+  var mats=_getOmMateriaisSafe(om);
+  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
+  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
+}
+function _getOmBaseDateSafe(om){
+  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
+  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
+  if(!raw)return null;
+  var d=new Date(raw);
+  return isNaN(d.getTime())?null:d;
+}
+
 async function carregarPricelist(){
   try{
     var cli=ensureSupabaseClient();
@@ -449,6 +649,7 @@ async function handleUploadFiles(files){
   }
   var zone=$("uploadZone");
   if(zone)zone.innerHTML='<div class="spinner"></div><small style="margin-top:4px;display:block">Enviando '+files.length+' arquivo(s)…</small>';
+  
   var ok=0,fail=0,ignorados=[];
   for(var i=0;i<files.length;i++){
     var num=await extrairNumOM(files[i]);
@@ -531,6 +732,7 @@ async function handleUploadFiles(files){
   if(zone)zone.innerHTML='<div class="upload-icon">📁</div><small>Arraste PDFs aqui ou clique para selecionar</small>';
   if(fail>0)adminToast(fail+" arquivo(s) recusado(s)/com erro","error");
   if(ignorados.length)adminToast("Cancelados: "+ignorados.join(", "),"error");
+  
   loadDashboard();
 }
 
