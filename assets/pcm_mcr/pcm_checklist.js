@@ -151,14 +151,14 @@
             if(isOficina || forcarAberto) {
                 $('checklistContent').style.display = 'block';
                 $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = isOficina ? 'none' : 'block';
+                $('btnSalvarChecklist').style.display = _podeEditarChecklistAgora() ? 'block' : 'none';
                 $('btnEditarChecklist').style.display = 'none';
             } else if(currentOM.checklistDados && currentOM.checklistDados.length > 0) {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = _podeEditarChecklistAgora() ? 'block' : 'none';
-                $('btnEditarChecklist').style.display = _podeEditarChecklistAgora() ? 'none' : 'block';
-                $('checklistSection').textContent = '📋 Checklist de Manutenção (continuando...)';
+                $('checklistContent').style.display = 'none';
+                $('checklistContent').innerHTML = '';
+                $('btnSalvarChecklist').style.display = 'none';
+                $('btnEditarChecklist').style.display = 'block';
+                $('checklistSection').textContent = '📋 Checklist Salvo ✅';
             } else {
                 $('checklistContent').style.display = 'block';
                 $('checklistContent').innerHTML = renderChecklist();

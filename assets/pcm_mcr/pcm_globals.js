@@ -60,6 +60,33 @@ function verificarDependencias() {
             return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         }
 
+        function _dedupHistoricoExecucao(om) {
+            if(!om || !Array.isArray(om.historicoExecucao) || om.historicoExecucao.length < 2) return 0;
+            var seen = {};
+            var novo = [];
+            var removidos = 0;
+            for(var i = 0; i < om.historicoExecucao.length; i++) {
+                var h = om.historicoExecucao[i] || {};
+                var key = [
+                    h.tag || '',
+                    h.dataInicio || '',
+                    h.dataFim || '',
+                    Array.isArray(h.executantes) ? h.executantes.join('|') : '',
+                    h.deslocamentoSegundos || 0,
+                    h.hhAtividade || 0,
+                    h.hhDeslocamento || 0
+                ].join('||');
+                if(seen[key]) {
+                    removidos++;
+                    continue;
+                }
+                seen[key] = 1;
+                novo.push(h);
+            }
+            if(removidos > 0) om.historicoExecucao = novo;
+            return removidos;
+        }
+
         function _setBtns(map) {
             for (var id in map) {
                 var el = $(id);
