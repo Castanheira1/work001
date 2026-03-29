@@ -87,11 +87,17 @@ function verificarDependencias() {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:1 });
                 return;
             }
-            // Fluxo v2: em oficina sem atividade iniciada - mostrar botoes oficina
+            // Fluxo v2: em oficina - só mostra "Finalizar na oficina" após atividade iniciada
+            var emEtapaOficina = currentOM.etapaOficina === ETAPA_OFICINA.OFICINA;
+            var atividadeOficinaIniciada = emEtapaOficina && (currentOM.statusAtual === 'iniciada' || atividadeJaIniciada);
             if (currentOM.emOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:1, btnIniciarMontagem:0 });
-            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento) {
-                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina: atividadeOficinaIniciada ? 1 : 0, btnIniciarMontagem:0 });
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento && currentOM.statusAtual !== 'iniciada') {
+                var checklistHabilitado = !!(currentOM.planoCod || currentOM.checklistCorretiva);
+                _setBtns({ btnOficina:0, btnDevolverEquip:1, btnChecklist: checklistHabilitado ? 1 : 0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
+            } else if (currentOM.retornouOficina && !currentOM.devolvendoEquipamento && currentOM.statusAtual === 'iniciada') {
+                var checklistHabilitadoMontagem = !!(currentOM.planoCod || currentOM.checklistCorretiva);
+                _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist: checklistHabilitadoMontagem ? 1 : 0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.planoCod || currentOM.checklistCorretiva) {
@@ -103,7 +109,11 @@ function verificarDependencias() {
 
         function _uiAtividade(skipChecklistAuto) {
             var naOficina = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
-            var emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
+            var emFluxoOficina = !!(currentOM && (
+                currentOM.emOficina ||
+                currentOM.devolvendoEquipamento ||
+                (currentOM.retornouOficina && currentOM.statusAtual !== 'iniciada')
+            ));
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:'flex',
                 btnRowExecOficina:'flex', btnFinalizar: emFluxoOficina ? 0 : 1,
@@ -113,7 +123,7 @@ function verificarDependencias() {
                 btnIniciarMontagem:0
             });
             _btnOficinaCk();
-            if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva)) _mostrarChecklistUI(false);
+            if (!skipChecklistAuto && (currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) _mostrarChecklistUI(false);
         }
 
 

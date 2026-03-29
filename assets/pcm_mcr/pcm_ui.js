@@ -169,7 +169,9 @@
             omAssinada = false;
             atividadeJaIniciada = false;
             isCancelamento = false;
-            
+            $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
+            $('btnIniciar').onclick = function() { showExecutantes(); };
+
             $('detailTitulo').textContent = currentOM.titulo;
             $('detailOM').textContent = 'Nº OM: ' + currentOM.num;
             $('detailCC').textContent = currentOM.cc;
@@ -261,6 +263,8 @@
                 $('btnDeslocamento').style.display = 'none';
                 $('btnIniciar').style.display = 'block';
                 $('btnIniciar').disabled = false;
+                $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
+                $('btnIniciar').onclick = function() { showExecutantesOficina(); };
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
                 $('timerDisplay').style.display = 'none';

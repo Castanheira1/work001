@@ -290,6 +290,9 @@
             currentOM.dataInicioOficina = new Date().toISOString();
             currentOM.lockDeviceId = deviceId;
             currentOM.oficinaPausada = false;
+            // Limpa estados residuais de devolução ao iniciar atividade na oficina
+            currentOM.retornouOficina = false;
+            currentOM.devolvendoEquipamento = false;
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             currentOM.historicoExecucao.push({
@@ -318,8 +321,8 @@
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
-            // Abrir checklist de onde parou
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+            // Abrir checklist de onde parou (apenas se ainda não há dados salvos)
+            if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                 _mostrarChecklistUI(false);
             }
 
@@ -408,6 +411,8 @@
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
+            // Ao iniciar montagem, sai do estado de deslocamento para reabilitar botões de finalização
+            currentOM.devolvendoEquipamento = false;
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             currentOM.historicoExecucao.push({
