@@ -106,6 +106,13 @@
         }
 
         function salvarExecutantes() {
+            if(window._salvandoExecutantes) {
+                console.warn('[PCM] salvarExecutantes ignorado: operação já em andamento.');
+                return;
+            }
+            window._salvandoExecutantes = true;
+            setTimeout(function(){ window._salvandoExecutantes = false; }, 1200);
+
             // Redirecionar para modos especiais
             if(window._modoExecutantesOficina) {
                 window._modoExecutantesOficina = false;
