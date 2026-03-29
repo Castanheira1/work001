@@ -145,6 +145,11 @@
                 }
             }
             currentOM = alvoOM;
+            var _dupRemovidos = _dedupHistoricoExecucao(currentOM);
+            if(_dupRemovidos > 0) {
+                console.warn('[PCM] Histórico duplicado detectado e normalizado:', _dupRemovidos, 'registro(s). OM', currentOM.num);
+                salvarOMAtual();
+            }
             
             if(currentOM.lockDeviceId && currentOM.lockDeviceId !== deviceId) {
                 var rec = await _verificarAdminUnlockParaOM(currentOM.num);
@@ -169,6 +174,8 @@
             omAssinada = false;
             atividadeJaIniciada = false;
             isCancelamento = false;
+            $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
+            $('btnIniciar').onclick = function() { showExecutantes(); };
             
             $('detailTitulo').textContent = currentOM.titulo;
             $('detailOM').textContent = 'Nº OM: ' + currentOM.num;
@@ -261,6 +268,8 @@
                 $('btnDeslocamento').style.display = 'none';
                 $('btnIniciar').style.display = 'block';
                 $('btnIniciar').disabled = false;
+                $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
+                $('btnIniciar').onclick = function() { showExecutantesOficina(); };
                 $('btnCancelar').style.display = 'none';
                 $('btnExcluir').style.display = 'none';
                 $('timerDisplay').style.display = 'none';
@@ -268,7 +277,7 @@
                 $('timerDateInfo').style.display = 'none';
                 $('timerAtivDateInfo').style.display = 'none';
                 _btnOficinaCk();
-                if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                     _mostrarChecklistUI(true);
                 }
             }

@@ -4,8 +4,11 @@
   var MAX_ITEMS_PER_BATCH = 2;
   var MAX_PDF_PAYLOAD_BYTES = 3 * 1024 * 1024;
   var IDB_OPEN_TIMEOUT_MS = 5000;
+  var SYNC_ENDPOINT_BACKOFF_MAX_MS = 5 * 60 * 1000;
 
   var syncing = false;
+  var syncEndpointFailureCount = 0;
+  var syncEndpointBackoffUntil = 0;
 
   function getSyncEndpoint() {
     return (window.ENV && window.ENV.SYNC_ENDPOINT) || window.SYNC_ENDPOINT || DEFAULT_SYNC_ENDPOINT;
@@ -13,6 +16,22 @@
 
   function log() {
     try { console.log.apply(console, ['[SYNC]'].concat([].slice.call(arguments))); } catch (e) {}
+  }
+
+  function nowMs() {
+    return Date.now ? Date.now() : new Date().getTime();
+  }
+
+  function _registrarFalhaEndpoint(err) {
+    syncEndpointFailureCount = Math.min(syncEndpointFailureCount + 1, 6);
+    var wait = Math.min(Math.pow(2, syncEndpointFailureCount) * 1000, SYNC_ENDPOINT_BACKOFF_MAX_MS);
+    syncEndpointBackoffUntil = nowMs() + wait;
+    log('endpoint sync em backoff por ' + Math.round(wait / 1000) + 's:', (err && err.message) ? err.message : err);
+  }
+
+  function _resetFalhaEndpoint() {
+    syncEndpointFailureCount = 0;
+    syncEndpointBackoffUntil = 0;
   }
 
   function isOnline() {
@@ -545,10 +564,21 @@
     };
     if (ctrl) req.signal = ctrl.signal;
     return fetch(getSyncEndpoint(), req).then(function (resp) {
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      if (!resp.ok) {
+        var errHttp = new Error('HTTP ' + resp.status);
+        if (resp.status >= 500) _registrarFalhaEndpoint(errHttp);
+        throw errHttp;
+      }
       return resp.text().then(function (t) {
+        _resetFalhaEndpoint();
         try { return JSON.parse(t || '{}'); } catch (e) { return { ok: true }; }
       });
+    }).catch(function (err) {
+      // Falhas de rede (ex.: ERR_CONNECTION_RESET / timeout) entram em backoff.
+      if (err && (err.name === 'AbortError' || /Failed to fetch|NetworkError|fetch/i.test(String(err.message || '')))) {
+        _registrarFalhaEndpoint(err);
+      }
+      throw err;
     }).finally(function () {
       if (timer) clearTimeout(timer);
     });
@@ -940,6 +970,18 @@
 
     syncing = true;
     log('sync start');
+
+    if (syncEndpointBackoffUntil > nowMs()) {
+      var rest = Math.ceil((syncEndpointBackoffUntil - nowMs()) / 1000);
+      log('sync pulado: endpoint em backoff (' + rest + 's restantes)');
+      return Promise.resolve()
+        .finally(function () {
+          syncing = false;
+          log('sync end');
+          flushDesvioOutbox();
+          flushOMOutbox();
+        });
+    }
 
     return getAllOutbox()
       .then(function (items) {
