@@ -341,7 +341,7 @@
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
-            // Abrir checklist de onde parou
+            // Abrir checklist de onde parou (apenas se ainda não há dados salvos)
             if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                 _mostrarChecklistUI(false);
             }
@@ -431,8 +431,7 @@
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
-            // Ao iniciar montagem, sai do estado "em devolução" (deslocamento)
-            // para reabilitar os botões de checklist/finalização do fluxo.
+            // Ao iniciar montagem, sai do estado de deslocamento para reabilitar botões de finalização
             currentOM.devolvendoEquipamento = false;
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];

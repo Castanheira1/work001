@@ -176,7 +176,7 @@
             isCancelamento = false;
             $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
             $('btnIniciar').onclick = function() { showExecutantes(); };
-            
+
             $('detailTitulo').textContent = currentOM.titulo;
             $('detailOM').textContent = 'Nº OM: ' + currentOM.num;
             $('detailCC').textContent = currentOM.cc;
