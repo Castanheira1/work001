@@ -365,7 +365,10 @@
             _pushOMStatusSupabase(currentOM);
 
             hideDesvioLocalFechado();
-            _abrirDecisaoDesvio(rec, info);
+            executantesNomes = [];
+            materiaisUsados = [];
+            hideDetail();
+            filtrarOMs();
         }
 
         function _enviarDesviosPendentes() {
