@@ -334,33 +334,14 @@
                 tentativaNumero: ((currentOM.desviosRegistrados && currentOM.desviosRegistrados.length) || 0) + 1
             };
 
+            // Marcar como pendente de upload — só vai para o SQL se o usuário cancelar definitivamente
+            rec.pendente_upload = true;
+
             _salvarDesvioLocal(rec);
             if(!currentOM.desviosRegistrados) currentOM.desviosRegistrados = [];
             currentOM.desviosRegistrados.push(rec);
             _gerarPDFDesvio(rec, info.cod + ' - ' + info.label.toUpperCase());
 
-            var acum = JSON.parse(localStorage.getItem(STORAGE_KEY_DESVIOS_ACUM) || '[]');
-            acum.push(rec);
-            localStorage.setItem(STORAGE_KEY_DESVIOS_ACUM, JSON.stringify(acum));
-
-            _enviarDesvioSupabase({
-                om_num: rec.omNum,
-                tipo: rec.tipo,
-                tipo_cod: rec.tipoCod,
-                tipo_label: rec.tipoLabel,
-                tag_equipamento: rec.tagEquipamento || '',
-                local_instalacao: rec.localInstalacao || '',
-                desc_local: rec.descLocal || '',
-                observacao: rec.observacao || '',
-                executantes: rec.executantes || [],
-                mes_ref: rec.mesRef,
-                tempo_segundos: rec.tempoSegundos || 0,
-                tentativa_numero: rec.tentativaNumero || 1,
-                registrado_por: deviceId || '',
-                origem: 'campo'
-            });
-
-            _gravarDashboardLog('DESVIO', currentOM);
             _registrarEventoDesvio('DESVIO_REGISTRADO', {
                 tipoCod: rec.tipoCod,
                 tipoLabel: rec.tipoLabel,
@@ -378,22 +359,40 @@
             deslocamentoSegundos = 0;
             atividadeSegundos = 0;
             tempoPausadoTotal = 0;
-            executantesNomes = [];
-            materiaisUsados = [];
             atividadeJaIniciada = false;
             localStorage.removeItem(STORAGE_KEY_CURRENT);
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
-            setTimeout(function() { _uploadPDFRelatorio(currentOM.num); }, 600);
 
             hideDesvioLocalFechado();
-            alert('⚠️ Desvio ' + info.cod + ' registrado.\n\nTAG: ' + tagEquip + '\nTempo: ' + _formatarTempo(tempoTotalDesvio) + '\n\nOM disponível para nova tentativa.');
-            hideDetail();
-            filtrarOMs();
+            _abrirDecisaoDesvio(rec, info);
+        }
+
+        function _enviarDesviosPendentes() {
+            var pendentes = (currentOM.desviosRegistrados || []).filter(function(d){ return d.pendente_upload; });
+            if(!pendentes.length) return;
+            pendentes.forEach(function(d) {
+                d.pendente_upload = false;
+                _enviarDesvioSupabase({
+                    om_num: d.omNum, tipo: d.tipo, tipo_cod: d.tipoCod, tipo_label: d.tipoLabel,
+                    tag_equipamento: d.tagEquipamento||'', local_instalacao: d.localInstalacao||'',
+                    desc_local: d.descLocal||'', observacao: d.observacao||'',
+                    executantes: d.executantes||[], mes_ref: d.mesRef,
+                    tempo_segundos: d.tempoSegundos||0, tentativa_numero: d.tentativaNumero||1,
+                    registrado_por: deviceId||'', origem: 'campo'
+                });
+            });
+            _gravarDashboardLog('DESVIO', currentOM);
+            var acum = JSON.parse(localStorage.getItem(STORAGE_KEY_DESVIOS_ACUM)||'[]');
+            pendentes.forEach(function(d){ acum.push(d); });
+            localStorage.setItem(STORAGE_KEY_DESVIOS_ACUM, JSON.stringify(acum));
+            setTimeout(function(){ _uploadPDFRelatorio(currentOM.num); }, 600);
         }
 
         function cancelarComDesvio() {
             if(!currentOM || !currentOM.desvioApontado) return;
+            // Enviar ao Supabase quaisquer desvios ainda pendentes de upload
+            _enviarDesviosPendentes();
             var lastDv = (currentOM.desviosRegistrados && currentOM.desviosRegistrados.length > 0) ? currentOM.desviosRegistrados[currentOM.desviosRegistrados.length - 1] : null;
             var dvInfo = lastDv ? (lastDv.tipoCod || '') + ' — ' + (lastDv.tipoLabel || '') : 'Desvio registrado';
             var escolha = confirm('❌ CANCELAR OM COM DESVIO\n\nDesvio: ' + dvInfo + '\n\nDeseja solicitar assinatura do fiscal?\n\n[OK] = Com assinatura fiscal\n[Cancelar] = Sem assinatura (pendente)');
@@ -431,6 +430,60 @@
                 filtrarOMs();
             }
         }
+
+        // --- Decisão pós-desvio: Nova Tentativa vs Cancelar ---
+        var _desvioRecDecisao = null;
+
+        function _abrirDecisaoDesvio(rec, info) {
+            _desvioRecDecisao = rec;
+            var titulo = (info.icon || '⚠️') + ' ' + info.cod + ' — ' + info.label;
+            $('decisaoDesvioTitulo').textContent = titulo;
+            $('decisaoDesvioResumo').innerHTML =
+                '<b>TAG:</b> ' + (rec.tagEquipamento || '---') + '<br>' +
+                '<b>Tempo:</b> ' + _formatarTempo(rec.tempoSegundos) + '<br>' +
+                (rec.observacao ? '<b>Obs:</b> ' + rec.observacao : '');
+            $('popupDecisaoDesvio').classList.add('active');
+        }
+
+        function _confirmarNovaTentativa() {
+            $('popupDecisaoDesvio').classList.remove('active');
+            var mesmaEquipe = confirm(
+                '🔄 NOVA TENTATIVA\n\n' +
+                'A mesma equipe vai retornar ao local?\n\n' +
+                '[OK] = Sim, mesma equipe\n[Cancelar] = Não, equipe diferente'
+            );
+            if(mesmaEquipe) {
+                currentOM.desvioProxExecs = executantesNomes.length > 0
+                    ? executantesNomes.slice()
+                    : (currentOM.desviosRegistrados && currentOM.desviosRegistrados.length > 0
+                        ? (currentOM.desviosRegistrados[currentOM.desviosRegistrados.length - 1].executantes || []).slice()
+                        : []);
+                currentOM.desvioMesmaEquipe = true;
+                var jaNoLocal = confirm(
+                    'A equipe já está no local?\n\n' +
+                    '[OK] = Sim (não conta novo deslocamento)\n[Cancelar] = Não (vai se deslocar novamente)'
+                );
+                currentOM.desvioProxSemDesl = jaNoLocal;
+            } else {
+                currentOM.desvioProxExecs = [];
+                currentOM.desvioMesmaEquipe = false;
+                currentOM.desvioProxSemDesl = false;
+            }
+            // Desvio temporário: NÃO envia ao Supabase
+            executantesNomes = [];
+            materiaisUsados = [];
+            salvarOMs();
+            hideDetail();
+            filtrarOMs();
+        }
+
+        function _confirmarCancelarDesvio() {
+            $('popupDecisaoDesvio').classList.remove('active');
+            // Cancelamento definitivo: enviar desvios pendentes e cancelar a OM
+            _enviarDesviosPendentes();
+            cancelarComDesvio();
+        }
+        // --- Fim decisão pós-desvio ---
 
         function executarReprogramar() {
             $('reprogramarMotivo').value = '';
