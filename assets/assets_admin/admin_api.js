@@ -1,245 +1,6 @@
 ﻿async function removerOriginalStorage(num){var cli=ensureSupabaseClient();var result=await cli.storage.from("pcm-files").remove([safeStorageOriginalPath(num)]);if(result&&result.error){var msg=String(result.error.message||"Falha ao remover original");if(!/not found|object not found|not exist|não encontrado|404/i.test(msg))throw new Error(msg);}return true;}
 async function excluirOmComOriginal(num){var cli=ensureSupabaseClient();var omNum=safeNum(num);await removerOriginalStorage(omNum);var del=await cli.from("oms").delete().eq("num",omNum);if(del&&del.error)throw new Error(del.error.message||"Falha ao excluir OM");}
 
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
-
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
-
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
-
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
-
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
-
-function _getOmHistoricoSafe(om){
-  if(typeof getOmHistorico==="function")return getOmHistorico(om);
-  return safeParseArray((om&&om.historico_execucao)||[]);
-}
-function _getOmMateriaisSafe(om){
-  if(typeof getOmMateriais==="function")return getOmMateriais(om);
-  var top=safeParseArray((om&&(om.materiais_usados!=null?om.materiais_usados:om.materiaisUsados))||[]);
-  if(top.length)return top;
-  var all=[];_getOmHistoricoSafe(om).forEach(function(h){
-    var mats=Array.isArray(h.materiaisUsados)?h.materiaisUsados:safeParseArray((h&&(h.materiais_usados!=null?h.materiais_usados:h.materiaisUsados))||[]);
-    (mats||[]).forEach(function(m){all.push(m);});
-  });
-  return all;
-}
-function _getMaterialTotalSafe(m){
-  if(typeof getMaterialTotal==="function")return getMaterialTotal(m);
-  if(!m)return 0;
-  var qtd=Number(m.qtd!=null?m.qtd:(m.quantidade!=null?m.quantidade:0))||0;
-  var unit=Number(m.precoUnit!=null?m.precoUnit:(m.preco!=null?m.preco:(m.valor_unitario!=null?m.valor_unitario:(m.vl_unitario||0))))||0;
-  var total=Number(m.total!=null?m.total:(m.vl_total!=null?m.vl_total:(m.valor_total||0)))||0;
-  if(total>0)return total;
-  var bdiP=Number(m.bdiPercentual!=null?m.bdiPercentual:(m.bdi_percentual||0))||0;
-  var bdiV=Number(m.bdiValor!=null?m.bdiValor:(m.bdi_valor||0))||0;
-  if(!bdiV&&bdiP>0)bdiV=unit*(bdiP/100);
-  return qtd*(unit+bdiV);
-}
-function _recalcOmMateriaisTotalSafe(om){
-  if(typeof recalcOmMateriaisTotal==="function")return recalcOmMateriaisTotal(om);
-  var mats=_getOmMateriaisSafe(om);
-  if(!mats.length)return Number((om&&om.materiais_total)||0)||0;
-  return mats.reduce(function(acc,m){return acc+_getMaterialTotalSafe(m);},0);
-}
-function _getOmBaseDateSafe(om){
-  if(typeof getOmBaseDate==="function")return getOmBaseDate(om);
-  var raw=(om&&(om.created_at||om.uploaded_at||om.data_upload||om.updated_at||om.data_execucao||om.data_finalizacao))||"";
-  if(!raw)return null;
-  var d=new Date(raw);
-  return isNaN(d.getTime())?null:d;
-}
 
 function _getOmHistoricoSafe(om){
   if(typeof getOmHistorico==="function")return getOmHistorico(om);
@@ -703,7 +464,7 @@ async function handleUploadFiles(files){
         adminToast("OM "+num+" não existe para reprogramação — upload recusado","warn",5000);
         continue;
       }
-      if(existsRes.data.status!=="reprogramada" && !existsRes.data.motivo_reprogramacao){
+      if(existsRes.data.status!=="reprogramada"){
         fail++;
         adminToast("OM "+num+" não está reprogramada (status: "+existsRes.data.status+")","warn",5000);
         continue;
@@ -943,7 +704,7 @@ async function salvarMateriaisAdmin(){
     var totalAnterior=_matEditOriginal.reduce(function(acc,m){return acc+parseFloat(m.total||0);},0);
     var{error}=await sb.from("oms").update({materiais_usados:normalized,materiais_total:total,admin_modificou_material:true,admin_validou_material:true,estado_fluxo:"alterada_admin",updated_at:new Date().toISOString()}).eq("num",matEditOM);
     if(error)throw error;
-    await sb.from("desvios").insert({om_num:matEditOM,tipo:"MATERIAL ALTERADO ADMIN",descricao:"Materiais editados pelo admin. Antes: "+_matEditOriginal.length+" itens (R$ "+totalAnterior.toFixed(2)+") → Depois: "+normalized.length+" itens (R$ "+total.toFixed(2)+")",registrado_por:currentUser||"admin",created_at:new Date().toISOString()}).then(function(){}).catch(function(){});
+    sb.from("desvios").insert({om_num:matEditOM,tipo:"MATERIAL ALTERADO ADMIN",descricao:"Materiais editados pelo admin. Antes: "+_matEditOriginal.length+" itens (R$ "+totalAnterior.toFixed(2)+") → Depois: "+normalized.length+" itens (R$ "+total.toFixed(2)+")",registrado_por:currentUser||"admin",created_at:new Date().toISOString()}).catch(function(e){console.warn("[ADMIN] Desvio log falhou:",e);});
     adminToast("Materiais da OM "+matEditOM+" atualizados — log registrado","success");
     document.getElementById("matEditModal").style.display="none";
     matEditOM=null;
@@ -957,7 +718,7 @@ async function loadFluxo(){
     var{data:oms,error}=await sb.from("oms").select("*").eq("cancelada",false);
     if(error)throw error;
     var all=oms||[];
-    fluxoData.b1=all.filter(function(o){var mat=Array.isArray(o.materiais_usados)?o.materiais_usados:[];return mat.length>0&&!o.admin_validou_material&&!o.cancelada&&(o.status==="pendente_assinatura"||o.status==="finalizada");});
+    fluxoData.b1=all.filter(function(o){var mat=safeParseArray(o.materiais_usados||[]);return mat.length>0&&!o.admin_validou_material&&!o.cancelada&&(o.status==="pendente_assinatura"||o.status==="finalizada");});
     fluxoData.b2=all.filter(function(o){return o.admin_modificou_material&&o.estado_fluxo==="alterada_admin"&&!o.cancelada;});
     fluxoData.b3=all.filter(function(o){return o.estado_fluxo==="devolvida_admin";});
     fluxoData.b4=all.filter(function(o){return(o.status==="pendente_assinatura"||o.status==="finalizada")&&!o.cliente_assinou&&!o.cancelada&&!o.fiscal_assinou;});
