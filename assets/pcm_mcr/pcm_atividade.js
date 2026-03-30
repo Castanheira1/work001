@@ -321,8 +321,8 @@
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
-            // Abrir checklist de onde parou (apenas se ainda não há dados salvos)
-            if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
+            // Abrir checklist sempre na oficina (mecânico precisa ver item anormal e postar foto do depois)
+            if(currentOM.planoCod || currentOM.checklistCorretiva) {
                 _mostrarChecklistUI(false);
             }
 
@@ -435,8 +435,11 @@
             $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
             $('btnIniciar').onclick = null;
 
-            // Na montagem (retorno da oficina): não abrir checklist automaticamente,
-            // mas mantê-lo acessível via botão "Editar Checklist"
+            // Definir statusAtual ANTES de _uiAtividade para que emFluxoOficina=false → btnFinalizar visível
+            currentOM.statusAtual = 'iniciada';
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
+
+            // Na montagem: mostrar checklist via botão EDITAR CHECKLIST (não abrir automaticamente)
             _uiAtividade(true); // skipChecklistAuto = true
             if(currentOM.planoCod || currentOM.checklistCorretiva) {
                 $('checklistSection').style.display = 'block';
@@ -450,9 +453,6 @@
 
             iniciarCronometroAtividade();
             renderHistoricoExecucao();
-
-            currentOM.statusAtual = 'iniciada';
-            currentOM.primeiroExecutante = executantesNomes[0] || '';
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
