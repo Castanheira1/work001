@@ -433,6 +433,16 @@
         </div>
     </div>
 
+    <div class="popup" id="popupDecisaoDesvio">
+        <div class="popup-content" style="max-width:380px;margin:auto;">
+            <h3 id="decisaoDesvioTitulo" style="color:#c62828;font-size:clamp(15px,4vw,18px);margin-bottom:10px;">⚠️ Desvio registrado</h3>
+            <div id="decisaoDesvioResumo" style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:14px;font-size:clamp(11px,3vw,13px);color:#333;line-height:1.7;"></div>
+            <p style="font-weight:700;font-size:clamp(13px,3.5vw,15px);margin:0 0 10px;color:#333;">O que fazer com esta OM?</p>
+            <button onclick="_confirmarNovaTentativa()" style="width:100%;padding:clamp(12px,3vw,15px);background:#1A5276;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:clamp(13px,3.5vw,15px);cursor:pointer;margin-bottom:10px;">🔄 Nova Tentativa</button>
+            <button onclick="_confirmarCancelarDesvio()" style="width:100%;padding:clamp(12px,3vw,15px);background:#c62828;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:clamp(13px,3.5vw,15px);cursor:pointer;">❌ Cancelar OM definitivamente</button>
+        </div>
+    </div>
+
     <div class="popup" id="popupReprogramar">
         <div class="popup-content" style="max-width:400px;margin:auto;">
             <h3 style="color:#1565c0;font-size:clamp(15px,4vw,18px);">🔄 Reprogramar OM</h3>

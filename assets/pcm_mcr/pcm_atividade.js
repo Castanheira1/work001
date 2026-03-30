@@ -48,6 +48,13 @@
         }
 
         function showExecutantes() {
+            // Pré-preencher equipe da tentativa anterior (pós-desvio mesma equipe)
+            if(currentOM && currentOM.desvioMesmaEquipe && currentOM.desvioProxExecs && currentOM.desvioProxExecs.length > 0) {
+                executantesNomes = currentOM.desvioProxExecs.slice();
+                currentOM.desvioProxExecs = null;
+                currentOM.desvioMesmaEquipe = false;
+            }
+
             // Redirecionar para modos especiais
             if(window._modoExecutantesOficina) {
                 return; // ja esta no popup
@@ -66,6 +73,15 @@
                 deslocamentoMinutos = 0;
                 currentOM._deslocHoraInicio = null;
                 currentOM._deslocHoraFim = null;
+            } else if(currentOM && currentOM.desvioProxSemDesl) {
+                // Mesma equipe já estava no local: sem deslocamento para essa tentativa
+                if(timerInterval) clearInterval(timerInterval);
+                deslocamentoSegundos = 0;
+                deslocamentoMinutos = 0;
+                var _agora = new Date().toISOString();
+                currentOM._deslocHoraInicio = _agora;
+                currentOM._deslocHoraFim = _agora;
+                currentOM.desvioProxSemDesl = false;
             } else {
                 if(timerInterval) clearInterval(timerInterval);
                 deslocamentoSegundos = Math.floor((new Date() - deslocamentoInicio) / 1000);
