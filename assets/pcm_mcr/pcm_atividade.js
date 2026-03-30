@@ -18,7 +18,17 @@
             $('btnCancelar').style.display = 'none';
             $('btnExcluir').style.display = 'none';
             $('btnCancelarDesvio').style.display = 'none';
-            if(currentOM.desvioApontado) currentOM.desvioApontado = false;
+            if(currentOM.desvioApontado) {
+                if(typeof _registrarEventoDesvio === 'function') {
+                    _registrarEventoDesvio('NOVA_TENTATIVA_INICIADA', {
+                        ultimoDesvioCod: currentOM.ultimoDesvioCod || null,
+                        ultimoDesvioLabel: currentOM.ultimoDesvioLabel || null
+                    });
+                }
+                currentOM.desvioApontado = false;
+                currentOM.novaTentativaPendente = false;
+                currentOM.novaTentativaIniciadaEm = new Date().toISOString();
+            }
             $('timerDisplay').style.display = 'block';
             var infoDiv = $('timerDateInfo');
             if(infoDiv) { infoDiv.style.display = 'block'; infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); }
@@ -96,6 +106,13 @@
         }
 
         function salvarExecutantes() {
+            if(window._salvandoExecutantes) {
+                console.warn('[PCM] salvarExecutantes ignorado: operação já em andamento.');
+                return;
+            }
+            window._salvandoExecutantes = true;
+            setTimeout(function(){ window._salvandoExecutantes = false; }, 1200);
+
             // Redirecionar para modos especiais
             if(window._modoExecutantesOficina) {
                 window._modoExecutantesOficina = false;
@@ -234,8 +251,11 @@
         }
 
         function toggleChecklistCorretiva() {
-            if(currentOM.planoCod) return;
-            if(currentOM.checklistCorretiva) return;
+            // Se checklist já estiver habilitado (plano ou corretiva), o botão deve abrir a UI
+            if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                _mostrarChecklistUI(true);
+                return;
+            }
             if(!confirm('⚠️ Habilitar checklist nesta OM corretiva?\n\nApós habilitar, o checklist ficará disponível e não poderá ser desativado.')) return;
             currentOM.checklistCorretiva = true;
             $('btnChecklist').style.display = 'none';

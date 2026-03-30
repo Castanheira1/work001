@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "task": "code_review",
+  "context": {
+    "project": "Domo de Ferro - MCR",
+    "branch": "current",
+    "base_branch": "main"
+  },
+  "scope": {
+    "include": ["assets/pcm_mcr/**/*.js", "sync-api/**/*.js", "*.md"],
+    "exclude": ["assets/vendor/**", "node_modules/**"]
+  },
+  "checks": [
+    {
+      "id": "syntax-js",
+      "description": "Validar sintaxe JavaScript",
+      "commands": [
+        "node --check assets/pcm_mcr/pcm_init.js",
+        "node --check sync-api/server.js"
+      ],
+      "on_fail": "fail"
+    },
+    {
+      "id": "security-secrets",
+      "description": "Buscar segredos hardcoded",
+      "commands": [
+        "rg -n \"(SUPABASE_ANON_KEY|SENHA_FISCAL|API_KEY|TOKEN|SECRET)\""
+      ],
+      "on_fail": "warn"
+    },
+    {
+      "id": "offline-flow",
+      "description": "Verificar tratamento de sync/offline",
+      "commands": [
+        "rg -n \"(offline|sync|retry|timeout|fallback)\" assets/pcm_mcr"
+      ],
+      "on_fail": "warn"
+    }
+  ],
+  "output": {
+    "write_file": true,
+    "path": "docs/review-report.md",
+    "format": "markdown"
+  }
+}

@@ -145,6 +145,11 @@
                 }
             }
             currentOM = alvoOM;
+            var _dupRemovidos = _dedupHistoricoExecucao(currentOM);
+            if(_dupRemovidos > 0) {
+                console.warn('[PCM] Histórico duplicado detectado e normalizado:', _dupRemovidos, 'registro(s). OM', currentOM.num);
+                salvarOMAtual();
+            }
             
             if(currentOM.lockDeviceId && currentOM.lockDeviceId !== deviceId) {
                 var rec = await _verificarAdminUnlockParaOM(currentOM.num);
@@ -272,7 +277,7 @@
                 $('timerDateInfo').style.display = 'none';
                 $('timerAtivDateInfo').style.display = 'none';
                 _btnOficinaCk();
-                if(currentOM.planoCod || currentOM.checklistCorretiva) {
+                if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
                     _mostrarChecklistUI(true);
                 }
             }
