@@ -394,10 +394,7 @@
             async function _uploadBlob(pdfBase64, path) {
                 if(!pdfBase64) return false;
                 var raw = pdfBase64.indexOf(',') >= 0 ? pdfBase64.split(',')[1] : pdfBase64;
-                var bin = atob(raw);
-                var bytes = new Uint8Array(bin.length);
-                for(var _i=0; _i<bin.length; _i++) bytes[_i] = bin.charCodeAt(_i);
-                var blob = new Blob([bytes], {type:'application/pdf'});
+                var blob = await fetch('data:application/pdf;base64,' + raw).then(function(r){ return r.blob(); });
                 var _token = (window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY;
                 var resp = await fetch(SUPABASE_URL + '/storage/v1/object/pcm-files/' + path, {
                     method: 'POST',
@@ -421,17 +418,21 @@
                 var _token = (window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY;
                 var patch = {};
 
-                var relPdf = await _getPdfByPrefix('rel_');
-                if(relPdf) { var ok = await _uploadBlob(relPdf, 'reports/OM_' + omNum + '.pdf'); if(ok) patch.has_relatorio = true; }
-
-                var ckPdf = await _getPdfByPrefix('ck_');
-                if(ckPdf) { var ok2 = await _uploadBlob(ckPdf, 'reports/CK_' + omNum + '.pdf'); if(ok2) patch.has_checklist = true; }
-
-                var ncPdf = await _getPdfByPrefix('nc_');
-                if(ncPdf) { var ok3 = await _uploadBlob(ncPdf, 'reports/NC_' + omNum + '.pdf'); if(ok3) patch.has_nc = true; }
-
-                var devPdf = await _getPdfByPrefix('dev_');
-                if(devPdf) { await _uploadBlob(devPdf, 'desvios/DEV_' + omNum + '.pdf'); }
+                var pdfs = await Promise.all([
+                    _getPdfByPrefix('rel_'),
+                    _getPdfByPrefix('ck_'),
+                    _getPdfByPrefix('nc_'),
+                    _getPdfByPrefix('dev_')
+                ]);
+                var results = await Promise.all([
+                    pdfs[0] ? _uploadBlob(pdfs[0], 'reports/OM_' + omNum + '.pdf') : Promise.resolve(false),
+                    pdfs[1] ? _uploadBlob(pdfs[1], 'reports/CK_' + omNum + '.pdf') : Promise.resolve(false),
+                    pdfs[2] ? _uploadBlob(pdfs[2], 'reports/NC_' + omNum + '.pdf') : Promise.resolve(false),
+                    pdfs[3] ? _uploadBlob(pdfs[3], 'desvios/DEV_' + omNum + '.pdf') : Promise.resolve(false)
+                ]);
+                if(results[0]) patch.has_relatorio = true;
+                if(results[1]) patch.has_checklist = true;
+                if(results[2]) patch.has_nc = true;
 
                 if(Object.keys(patch).length > 0) {
                     var _patchHdrs = {
