@@ -116,7 +116,7 @@
     const deviceId = window.deviceId || _getDeviceId();
     const operador = localStorage.getItem('pcm_operador_nome') || 'Desconhecido';
     const equipe   = _getEquipe();
-    const om       = window.currentOM || null;
+    const om       = _obterOMAtivaParaRastreamento();
 
     // Nível de bateria (API experimental, pode não estar disponível)
     let bateria = null;
@@ -169,6 +169,37 @@
       }
     } catch(e) {
       console.error('[RASTR] Exceção ao enviar localização:', e);
+    }
+  }
+
+
+  function _obterOMAtivaParaRastreamento() {
+    if (window.currentOM && typeof window.currentOM === 'object') return window.currentOM;
+
+    try {
+      const rawEstado = localStorage.getItem(window.STORAGE_KEY_CURRENT || 'pcm_current_om_mcr_v4');
+      if (!rawEstado) return null;
+      const estado = JSON.parse(rawEstado);
+      if (!estado || !estado.omNum) return null;
+
+      const rawOms = localStorage.getItem(window.STORAGE_KEY_OMS || 'pcm_oms_mcr_v4');
+      if (!rawOms) {
+        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+      }
+
+      const lista = JSON.parse(rawOms);
+      if (!Array.isArray(lista)) {
+        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+      }
+
+      const om = lista.find(function(item) { return item && item.num === estado.omNum; });
+      if (!om) return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+
+      if (!om.statusAtual && estado.statusAtual) om.statusAtual = estado.statusAtual;
+      return om;
+    } catch (e) {
+      console.warn('[RASTR] Falha ao recuperar OM ativa do storage:', e && e.message ? e.message : e);
+      return null;
     }
   }
 
