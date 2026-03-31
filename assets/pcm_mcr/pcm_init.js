@@ -45,6 +45,41 @@
         }
 
         var __pcmAppStarted = false;
+        function _carregarScriptDinamico(src) {
+            return new Promise(function(resolve, reject) {
+                try {
+                    var s = document.createElement('script');
+                    s.src = src;
+                    s.async = true;
+                    s.onload = function() { resolve(true); };
+                    s.onerror = function() { reject(new Error('Falha ao carregar script: ' + src)); };
+                    (document.head || document.documentElement).appendChild(s);
+                } catch(e) { reject(e); }
+            });
+        }
+
+        async function _garantirSyncPushDisponivel() {
+            if(typeof carregarOMAtual === 'function' && typeof _obterEstadoServidorOM === 'function') return true;
+            if(window.__pcmSyncPushLoadingPromise) return window.__pcmSyncPushLoadingPromise;
+            var cacheBust = 'v=force_' + Date.now();
+            var src = 'assets/pcm_mcr/pcm_sync_push.js?' + cacheBust;
+            window.__pcmSyncPushLoadingPromise = _carregarScriptDinamico(src)
+                .then(function() {
+                    var ok = (typeof carregarOMAtual === 'function' && typeof _obterEstadoServidorOM === 'function');
+                    if(!ok) console.error('[PCM] pcm_sync_push.js carregado, mas funções esperadas não foram expostas globalmente.');
+                    return ok;
+                })
+                .catch(function(e) {
+                    console.error('[PCM] Não foi possível recarregar pcm_sync_push.js dinamicamente:', e);
+                    return false;
+                })
+                .finally(function() {
+                    window.__pcmSyncPushLoadingPromise = null;
+                });
+            return window.__pcmSyncPushLoadingPromise;
+        }
+        window._garantirSyncPushDisponivel = _garantirSyncPushDisponivel;
+
         async function _inicializarAppComEnv() {
             if(__pcmAppStarted) return;
             __pcmAppStarted = true;
@@ -54,6 +89,7 @@
             _atualizarLabelEscopo(_getEscopoSalvo());
             await carregarMateriais();
             await sincronizarConfig();
+            await _garantirSyncPushDisponivel();
             carregarOMs();
             if(typeof carregarOMAtual === 'function') {
                 carregarOMAtual();
