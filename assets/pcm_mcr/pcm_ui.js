@@ -1,4 +1,4 @@
-        function filtrarOMs() {
+function filtrarOMs() {
             const lista = $('omList');
             lista.innerHTML = '';
             
@@ -44,7 +44,7 @@
                     statusClass = 'em-execucao';
                     statusText = '🔧 AGUARDANDO DEVOLUÇÃO';
                     clickAction = () => showDetail(idx);
-                } else if(om.emOficina && !om.lockDeviceId) {
+                } else if(om.emOficina) {
                     statusClass = 'em-execucao';
                     statusText = '🔧 OFICINA — Disponível';
                     clickAction = () => showDetail(idx);
@@ -97,11 +97,11 @@
                 }
                 
                 var icone = om.pendenteAssinatura ? '✍️'
+                    : om.emOficina ? '🔧'
                     : om.cancelada ? '❌'
                     : (om.desativada && om.finalizada) ? '⛔'
                     : om.finalizada ? '✅'
                     : om.desvioApontado ? '⚠️'
-                    : om.emOficina ? '🔧'
                     : (om.statusAtual === 'em_deslocamento') ? '🚗'
                     : (om.statusAtual === 'iniciada') ? '⚡'
                     : bloqueadaOutraEquipe ? '🔒'
@@ -261,24 +261,30 @@
                 });
                 renderHistoricoExecucao();
             } else if(currentOM.emOficina) {
-                _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
-                if(timerInterval) clearInterval(timerInterval);
-                if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-                $('btnDeslocamento').style.display = 'none';
-                $('btnIniciar').style.display = 'block';
-                $('btnIniciar').disabled = false;
-                $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
-                $('btnIniciar').onclick = function() { showExecutantesOficina(); };
-                $('btnCancelar').style.display = 'none';
-                $('btnExcluir').style.display = 'none';
-                $('timerDisplay').style.display = 'none';
-                $('timerAtividade').style.display = 'none';
-                $('timerDateInfo').style.display = 'none';
-                $('timerAtivDateInfo').style.display = 'none';
-                _btnOficinaCk();
-                if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
-                    _mostrarChecklistUI(true);
+                _aplicarModoOficinaMinimal(true);
+                if(currentOM.statusAtual === 'iniciada' && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                    // Atividade já iniciada na oficina: retomarDoEstadoSalvo restaurou UI, só ajusta botões
+                    _btnOficinaCk();
+                } else {
+                    // Aguardando início na oficina
+                    if(timerInterval) clearInterval(timerInterval);
+                    if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+                    $('btnDeslocamento').style.display = 'none';
+                    $('btnIniciar').style.display = 'block';
+                    $('btnIniciar').disabled = false;
+                    $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
+                    $('btnIniciar').onclick = function() { showExecutantesOficina(); };
+                    $('btnCancelar').style.display = 'none';
+                    $('btnExcluir').style.display = 'none';
+                    $('timerDisplay').style.display = 'none';
+                    $('timerAtividade').style.display = 'none';
+                    $('timerDateInfo').style.display = 'none';
+                    $('timerAtivDateInfo').style.display = 'none';
+                    _btnOficinaCk();
+                    if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
+                        _mostrarChecklistUI(true);
+                    }
                 }
             }
 
