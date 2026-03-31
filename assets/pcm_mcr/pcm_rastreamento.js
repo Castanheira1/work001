@@ -179,6 +179,11 @@
   }
 
 
+  function _obterOMAtivaParaRastreamento() {
+    return (window.currentOM && typeof window.currentOM === 'object') ? window.currentOM : null;
+  }
+
+
 
   // ──────────────────────────────────────────────
   // Helpers
