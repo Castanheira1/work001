@@ -83,10 +83,6 @@
               <span id="rtDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#888;transition:background .3s,transform .3s"></span>
               <span id="rtLabel" style="font-size:10px;color:#888;font-weight:700">offline</span>
             </div>
-            <div style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;vertical-align:middle" title="Status do GPS / Rastreamento">
-              <span id="gps-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#888;transition:background .3s"></span>
-              <span id="gps-label" style="font-size:10px;color:#888;font-weight:700">GPS</span>
-            </div>
         </div>
         <div id="escopoAtualLabel" style="display:none;text-align:center;padding:4px 0;font-size:11px;font-weight:700;color:#1565c0;letter-spacing:.5px;"></div>
 
@@ -156,13 +152,12 @@
         <div id="historicoList"></div>
 
         <div class="controls">
-            <button class="btn btn-primary" id="btnVerPDFOriginal" onclick="verPDFOriginal()">📄 VER PDF ORIGINAL</button>
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-primary" id="btnVerPDFOriginal" onclick="verPDFOriginal()" style="flex:1;">📄 VER PDF ORIGINAL</button>
+                <button class="btn btn-primary" id="btnMateriais" onclick="showMateriais()" style="flex:1;display:none;">📦 MATERIAIS</button>
+            </div>
             <button class="btn btn-primary" id="btnDeslocamento" onclick="iniciarDeslocamento()">🚗 INICIAR DESLOCAMENTO</button>
             <button class="btn btn-success" id="btnIniciar" onclick="showExecutantes()" style="display:none;" disabled>▶️ INICIAR ATIVIDADE</button>
-            
-            <div class="btn-group" id="btnGroupAtividade" style="display:none;">
-                <button class="btn btn-primary" id="btnMateriais" onclick="showMateriais()" style="flex:1;">📦 MATERIAIS</button>
-            </div>
             <div class="btn-group-row" id="btnRowExecOficina" style="display:none;">
                 <button class="btn btn-warning" id="btnPausarOM" onclick="showPausarMenu()">⏸️ PAUSAR</button>
                 <button class="btn btn-primary" id="btnChecklist" onclick="toggleChecklistCorretiva()" style="display:none;">📋 CHECKLIST</button>
@@ -367,7 +362,6 @@
     <script src="assets/pcm_mcr/pcm_pdf_gerar.js?v=20260324"></script>
     <script src="assets/sync_engine.js?v=20260322c"></script>
     <script src="assets/app_bootstrap.js?v=20260321d"></script>
-    <script src="assets/pcm_mcr/pcm_rastreamento.js?v=20260331a"></script>
     <script>
       window.mostrarEscopoPuxar = window.mostrarEscopoPuxar || function () {
         alert('⚠️ O script principal não carregou corretamente.\n\nAtualize com Ctrl+F5. Se persistir, limpe o cache/site data.');
@@ -420,7 +414,6 @@
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('0018')">0018 — Troca de Turno</button>
             <button class="btn-desvio" style="background:#1565c0;" onclick="selecionarDesvio('reprogramar')">🔄 Reprogramar OM</button>
             <button class="btn-desvio" style="background:#37474f;" onclick="selecionarDesvio('desativar')">Desativar Equipamento</button>
-            <button class="btn-desvio" id="btnFinalizarOficinaMenu" style="background:#1A5276;display:none;" onclick="selecionarDesvio('finalizar_oficina')">🔧 Finalizar Atividade na Oficina</button>
             <button class="btn btn-secondary" onclick="hideMenuDesvios()" style="width:100%;margin-top:8px;font-size:clamp(13px,3.5vw,15px);">Cancelar</button>
         </div>
     </div>

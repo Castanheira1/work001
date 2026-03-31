@@ -1,7 +1,7 @@
         async function atualizarListaMateriais() {
             localStorage.removeItem(STORAGE_KEY_MATERIAIS);
             priceList = {};
-            var content = $('materiaisContent');
+            const content = $('materiaisContent');
             if(content) content.innerHTML = '<p style="text-align:center;color:#555;padding:20px;">🔄 Atualizando...</p>';
             await sincronizarMateriais();
             renderMateriais();
@@ -43,25 +43,25 @@
         }
 
         function _calcExtraBDI() {
-            var vl = parseFloat($('extraValor').value) || 0;
-            var qt = parseFloat($('extraQtd').value) || 0;
-            var bdiVal = vl * (configBDI / 100);
-            var total = (vl + bdiVal) * qt;
-            var el = $('extraResumo');
+            const vl = parseFloat($('extraValor').value) || 0;
+            const qt = parseFloat($('extraQtd').value) || 0;
+            const bdiVal = vl * (configBDI / 100);
+            const total = (vl + bdiVal) * qt;
+            const el = $('extraResumo');
             if(el) el.innerHTML = 'BDI ' + configBDI.toFixed(4) + '% = R$ ' + bdiVal.toFixed(2) + '/un &nbsp;|&nbsp; <strong>Total: R$ ' + total.toFixed(2) + '</strong>';
         }
 
         function adicionarExtraordinario() {
-            var desc = $('extraDesc').value.trim();
-            var vl = parseFloat($('extraValor').value) || 0;
-            var qt = parseFloat($('extraQtd').value) || 0;
-            var un = $('extraUnidade').value;
+            const desc = $('extraDesc').value.trim();
+            const vl = parseFloat($('extraValor').value) || 0;
+            const qt = parseFloat($('extraQtd').value) || 0;
+            const un = $('extraUnidade').value;
             if(!desc) { alert('⚠️ Informe a descrição do material.'); return; }
             if(vl <= 0) { alert('⚠️ Informe o valor unitário.'); return; }
             if(qt <= 0) { alert('⚠️ Informe a quantidade.'); return; }
-            var bdiVal = vl * (configBDI / 100);
-            var precoComBDI = vl + bdiVal;
-            var total = precoComBDI * qt;
+            const bdiVal = vl * (configBDI / 100);
+            const precoComBDI = vl + bdiVal;
+            const total = precoComBDI * qt;
             materiaisUsados.push({
                 codigo: 'XX',
                 nome: desc,
@@ -91,23 +91,23 @@
         }
 
         function renderMateriais() {
-            var search = $('searchMaterial').value.trim().toLowerCase();
-            var content = $('materiaisContent');
+            const search = $('searchMaterial').value.trim().toLowerCase();
+            const content = $('materiaisContent');
             content.innerHTML = '';
 
             if(materiaisUsados.length > 0) {
-                var selTitle = document.createElement('div');
+                const selTitle = document.createElement('div');
                 selTitle.className = 'popup-header-bar';
                 selTitle.textContent = '✅ Itens selecionados (' + materiaisUsados.length + ')';
                 content.appendChild(selTitle);
 
                 materiaisUsados.forEach(function(m) {
-                    var div = document.createElement('div');
+                    const div = document.createElement('div');
                     div.className = 'choice-card ' + (m.tipo === 'Material Vale' ? 'choice-card--warning' : 'choice-card--primary');
-                    var badgeClass = m.tipo === 'Extraordinário' ? 'badge-tipo--extraordinario' : (m.tipo === 'Material Vale' ? 'badge-tipo--vale' : 'badge-tipo--pricelist');
-                    var badgeTipo = '<span class="badge-tipo ' + badgeClass + '">' + (m.tipo || 'Pricelist') + '</span>';
-                    var bdiTxt = m.bdiPercentual > 0 ? ' (BDI ' + m.bdiPercentual.toFixed(2) + '%)' : '';
-                    var corTipo = m.tipo === 'Extraordinário' ? '#e67e00' : (m.tipo === 'Material Vale' ? '#dc3545' : '#1A5276');
+                    const badgeClass = m.tipo === 'Extraordinário' ? 'badge-tipo--extraordinario' : (m.tipo === 'Material Vale' ? 'badge-tipo--vale' : 'badge-tipo--pricelist');
+                    const badgeTipo = '<span class="badge-tipo ' + badgeClass + '">' + (m.tipo || 'Pricelist') + '</span>';
+                    const bdiTxt = m.bdiPercentual > 0 ? ' (BDI ' + m.bdiPercentual.toFixed(2) + '%)' : '';
+                    const corTipo = m.tipo === 'Extraordinário' ? '#e67e00' : (m.tipo === 'Material Vale' ? '#dc3545' : '#1A5276');
                     div.innerHTML =
                         '<div class="search-result-text">' +
                             '<div class="material-item-header">[' + m.codigo + '] ' + sc(m.nome) + badgeTipo + '</div>' +
@@ -120,15 +120,15 @@
                     content.appendChild(div);
                 });
 
-                var totalGeral = materiaisUsados.reduce(function(s, m){ return s + m.total; }, 0);
-                var totalDiv = document.createElement('div');
+                const totalGeral = materiaisUsados.reduce(function(s, m){ return s + m.total; }, 0);
+                const totalDiv = document.createElement('div');
                 totalDiv.className = 'total-row';
                 totalDiv.textContent = 'Total: R$ ' + totalGeral.toFixed(2);
                 content.appendChild(totalDiv);
             }
 
             if(!search) {
-                var hint = document.createElement('p');
+                const hint = document.createElement('p');
                 hint.className = 'empty-hint';
                 hint.textContent = 'Digite para buscar materiais...';
                 content.appendChild(hint);
@@ -139,33 +139,33 @@
                 return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             }
 
-            var palavras = norm(search).split(/\s+/).filter(Boolean);
+            const palavras = norm(search).split(/\s+/).filter(Boolean);
 
             function levenshtein(a, b) {
                 if(Math.abs(a.length - b.length) > 2) return 99;
-                var dp = [];
-                for(var i = 0; i <= a.length; i++) {
+                const dp = [];
+                for(let i = 0; i <= a.length; i++) {
                     dp[i] = [i];
-                    for(var j = 1; j <= b.length; j++) {
+                    for(let j = 1; j <= b.length; j++) {
                         dp[i][j] = i === 0 ? j : Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(a[i-1]!==b[j-1]?1:0));
                     }
                 }
                 return dp[a.length][b.length];
             }
 
-            var scored = Object.values(priceList).map(function(mat) {
-                var haystack = norm(mat.descricao + ' ' + mat.item);
-                var haystackWords = haystack.split(/\s+/);
-                var score = 0;
-                var matched = 0;
+            const scored = Object.values(priceList).map(function(mat) {
+                const haystack = norm(mat.descricao + ' ' + mat.item);
+                const haystackWords = haystack.split(/\s+/);
+                let score = 0;
+                let matched = 0;
                 palavras.forEach(function(p) {
                     if(haystack.includes(p)) { score += 10; matched++; return; }
                     if(p.length >= 3) {
-                        var found = haystackWords.some(function(hw){ return hw.includes(p) || p.includes(hw) && hw.length >= 3; });
+                        const found = haystackWords.some(function(hw){ return hw.includes(p) || p.includes(hw) && hw.length >= 3; });
                         if(found) { score += 5; matched++; return; }
                     }
                     if(p.length >= 4) {
-                        var fuzzy = haystackWords.some(function(hw){ return levenshtein(p, hw) <= 1; });
+                        const fuzzy = haystackWords.some(function(hw){ return levenshtein(p, hw) <= 1; });
                         if(fuzzy) { score += 3; matched++; }
                     }
                 });
@@ -174,28 +174,28 @@
             }).filter(function(x){ return x.score > 0; });
 
             scored.sort(function(a,b){ return b.score - a.score; });
-            var resultados = scored.map(function(x){ return x.mat; });
+            const resultados = scored.map(function(x){ return x.mat; });
 
             if(resultados.length === 0) {
-                var nada = document.createElement('p');
+                const nada = document.createElement('p');
                 nada.className = 'empty-notfound';
                 nada.textContent = 'Nenhum material encontrado.';
                 content.appendChild(nada);
                 return;
             }
 
-            var resTitle = document.createElement('div');
+            const resTitle = document.createElement('div');
             resTitle.className = 'search-result-header';
             resTitle.textContent = 'Resultados (' + resultados.length + ')';
             content.appendChild(resTitle);
 
             resultados.forEach(function(mat) {
-                var jaSelecionado = materiaisUsados.some(function(m){ return m.codigo === mat.item; });
-                var isMaterialVale = MATERIAL_VALE_ITEMS.indexOf(mat.item) !== -1;
-                var div = document.createElement('div');
+                const jaSelecionado = materiaisUsados.some(function(m){ return m.codigo === mat.item; });
+                const isMaterialVale = MATERIAL_VALE_ITEMS.indexOf(mat.item) !== -1;
+                const div = document.createElement('div');
                 div.className = 'search-result-item ' + (jaSelecionado ? 'search-result-item--selected' : (isMaterialVale ? 'search-result-item--vale' : ''));
-                var nomeCor = isMaterialVale ? 'text-danger' : '';
-                var tagVale = isMaterialVale ? ' <span class="badge-tipo badge-tipo--vale">MATERIAL VALE</span>' : '';
+                const nomeCor = isMaterialVale ? 'text-danger' : '';
+                const tagVale = isMaterialVale ? ' <span class="badge-tipo badge-tipo--vale">MATERIAL VALE</span>' : '';
                 div.innerHTML =
                     '<div class="search-result-text">' +
                         '<div class="search-result-name ' + nomeCor + '">[' + mat.item + '] ' + sc(mat.descricao) + tagVale + '</div>' +
@@ -209,11 +209,11 @@
         }
 
         function adicionarMaterialDaBusca(codigo) {
-            var mat = Object.values(priceList).find(function(m){ return m.item === codigo; });
+            const mat = Object.values(priceList).find(function(m){ return m.item === codigo; });
             if(!mat) return;
-            var existente = materiaisUsados.findIndex(function(m){ return m.codigo === codigo; });
-            var isMaterialVale = MATERIAL_VALE_ITEMS.indexOf(codigo) !== -1;
-            var tipo = isMaterialVale ? 'Material Vale' : 'Pricelist';
+            const existente = materiaisUsados.findIndex(function(m){ return m.codigo === codigo; });
+            const isMaterialVale = MATERIAL_VALE_ITEMS.indexOf(codigo) !== -1;
+            const tipo = isMaterialVale ? 'Material Vale' : 'Pricelist';
             if(existente >= 0) {
                 materiaisUsados[existente].qtd += 1;
                 materiaisUsados[existente].total = materiaisUsados[existente].qtd * materiaisUsados[existente].precoUnit;
@@ -235,11 +235,11 @@
         }
 
         function editarQtdSelecionado(input) {
-            var codigo = input.dataset.codigo;
-            var tipo = input.dataset.tipo || '';
-            var nome = input.dataset.nome || '';
-            var qtd = parseFloat(input.value) || 0;
-            var idx = materiaisUsados.findIndex(function(m){
+            const codigo = input.dataset.codigo;
+            const tipo = input.dataset.tipo || '';
+            const nome = input.dataset.nome || '';
+            const qtd = parseFloat(input.value) || 0;
+            const idx = materiaisUsados.findIndex(function(m){
                 if(codigo === 'XX') return m.codigo === codigo && m.tipo === tipo && (m.nome||'').replace(/'/g,'') === nome;
                 return m.codigo === codigo;
             });
@@ -249,7 +249,7 @@
             } else {
                 materiaisUsados[idx].qtd = qtd;
                 if(materiaisUsados[idx].tipo === 'Extraordinário') {
-                    var bdiVal = materiaisUsados[idx].precoUnit * (configBDI / 100);
+                    const bdiVal = materiaisUsados[idx].precoUnit * (configBDI / 100);
                     materiaisUsados[idx].total = (materiaisUsados[idx].precoUnit + bdiVal) * qtd;
                 } else {
                     materiaisUsados[idx].total = qtd * materiaisUsados[idx].precoUnit;
@@ -268,18 +268,18 @@
 
         function salvarMateriais() {
             renderMateriaisUsados();
-            
+
             if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
+                const historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
                 historicoAtual.materiaisUsados = [...materiaisUsados];
             }
-            
+
             salvarOMAtual();
-            
+
             const total = materiaisUsados.reduce((sum, m) => sum + m.total, 0);
             if(materiaisUsados.length > 0) {
                 alert(`✅ ${materiaisUsados.length} material(is) adicionado(s)\nTotal: R$ ${total.toFixed(2)}`);
             }
-            
+
             hideMateriais();
         }

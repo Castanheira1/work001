@@ -225,7 +225,7 @@ function _obterValorChecklistItem(nome) {
             deslocamentoInicio = new Date();
             currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
             currentOM._deslocHoraFim = null;
-            $('btnGroupAtividade').style.display = 'none';
+            $('btnMateriais').style.display = 'none';
             $('btnChecklist').style.display = 'none';
             $('btnRowExecOficina').style.display = 'none';
             _setBtns({

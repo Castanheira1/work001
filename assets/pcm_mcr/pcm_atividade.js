@@ -76,8 +76,20 @@
                 currentOM.novaTentativaPendente = false;
                 currentOM.novaTentativaIniciadaEm = new Date().toISOString();
             }
-
-            _iniciarTimerDeslocamento();
+            $('timerDisplay').style.display = 'block';
+            const infoDiv = $('timerDateInfo');
+            if(infoDiv) { infoDiv.style.display = 'block'; infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); }
+            
+            timerInterval = setInterval(() => {
+                const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                const m = Math.floor(diff / 60);
+                const s = diff % 60;
+                $('timerDisplay').textContent = 
+                    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = m;
+                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+            }, 1000);
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
         }
@@ -102,7 +114,7 @@
                 if(timerInterval) clearInterval(timerInterval);
                 deslocamentoSegundos = 0;
                 deslocamentoMinutos = 0;
-                var _agora = new Date().toISOString();
+                const _agora = new Date().toISOString();
                 currentOM._deslocHoraInicio = _agora;
                 currentOM._deslocHoraFim = _agora;
                 currentOM.desvioProxSemDesl = false;
@@ -114,7 +126,7 @@
             }
             $('timerDisplay').style.display = 'none';
 
-            var list = $('executantesList');
+            const list = $('executantesList');
             if(executantesNomes.length > 0) {
                 list.innerHTML = executantesNomes.map(function(n) {
                     return '<input type="text" class="exec-input" value="' + n.replace(/"/g, '&quot;') + '">';
@@ -156,9 +168,21 @@
                 return;
             }
 
-            executantesNomes = _lerInputsExecutantes();
-            numExecutantes = executantesNomes.length;
-            if(numExecutantes === 0) { alert('⚠️ Adicione pelo menos 1 executante!'); return; }
+            const inputs = document.querySelectorAll('.exec-input');
+            numExecutantes = 0;
+            executantesNomes = [];
+
+            inputs.forEach(function(input) {
+                if(input.value.trim()) {
+                    numExecutantes++;
+                    executantesNomes.push(input.value.trim());
+                }
+            });
+
+            if(numExecutantes === 0) {
+                alert('⚠️ Adicione pelo menos 1 executante!');
+                return;
+            }
 
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
@@ -171,7 +195,8 @@
             }
 
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
-            var ultimoHist = currentOM.historicoExecucao.length > 0 ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
+            
+            const ultimoHist = currentOM.historicoExecucao.length > 0 ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
             if(ultimoHist && !ultimoHist.dataFim) {
                 ultimoHist.executantes = executantesNomes.slice();
                 ultimoHist.deslocamentoMinutos = deslocamentoMinutos;
@@ -210,16 +235,16 @@
         // --- Cronômetro de atividade ---
 
         function iniciarCronometroAtividade() {
-            var ativInfoDiv = $('timerAtivDateInfo');
+            const ativInfoDiv = $('timerAtivDateInfo');
             if(ativInfoDiv) {
                 ativInfoDiv.style.display = 'block';
                 ativInfoDiv.textContent = '⏱️ Início: ' + atividadeInicio.toLocaleDateString('pt-BR') + ' ' + atividadeInicio.toLocaleTimeString('pt-BR');
             }
-            var deslocInfoDiv = $('timerDateInfo');
+            const deslocInfoDiv = $('timerDateInfo');
             if(deslocInfoDiv && currentOM._deslocHoraInicio) {
                 deslocInfoDiv.style.display = 'block';
-                var di = new Date(currentOM._deslocHoraInicio);
-                var df = currentOM._deslocHoraFim ? new Date(currentOM._deslocHoraFim) : null;
+                const di = new Date(currentOM._deslocHoraInicio);
+                const df = currentOM._deslocHoraFim ? new Date(currentOM._deslocHoraFim) : null;
                 deslocInfoDiv.textContent = '🚗 ' + di.toLocaleTimeString('pt-BR') + (df ? ' → ' + df.toLocaleTimeString('pt-BR') : '');
             }
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
@@ -266,17 +291,29 @@
             deslocamentoMinutos = 0;
             currentOM._deslocHoraInicio = null;
             currentOM._deslocHoraFim = null;
-            $('executantesList').innerHTML =
-                '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
-                '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+
+            const list = $('executantesList');
+            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                             '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+            // Mudar botao de confirmar para modo oficina
             window._modoExecutantesOficina = true;
             $('popupExecutantes').classList.add('active');
         }
 
         function salvarExecutantesOficina() {
-            executantesNomes = _lerInputsExecutantes();
-            numExecutantes = executantesNomes.length;
-            if(numExecutantes === 0) { alert('⚠️ Adicione pelo menos 1 executante!'); return; }
+            const inputs = document.querySelectorAll('.exec-input');
+            numExecutantes = 0;
+            executantesNomes = [];
+            inputs.forEach(function(input) {
+                if(input.value.trim()) {
+                    numExecutantes++;
+                    executantesNomes.push(input.value.trim());
+                }
+            });
+            if(numExecutantes === 0) {
+                alert('⚠️ Adicione pelo menos 1 executante!');
+                return;
+            }
 
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
@@ -321,7 +358,7 @@
             currentOM.lockDeviceId = deviceId;
 
             _setBtns({
-                btnDeslocamento:0, btnIniciar:1, btnGroupAtividade:0, btnRowExecOficina:0,
+                btnDeslocamento:0, btnIniciar:0, btnMateriais:0, btnRowExecOficina:0,
                 btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
                 timerDisplay:1, btnCancelar:0, btnExcluir:0
             });
@@ -330,7 +367,16 @@
             $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
             _aplicarModoOficinaMinimal(false);
 
-            _iniciarTimerDeslocamento();
+            timerInterval = setInterval(function() {
+                const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                const m = Math.floor(diff / 60);
+                const s = diff % 60;
+                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = m;
+                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+            }, 1000);
+
             currentOM.statusAtual = 'em_deslocamento';
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
@@ -338,17 +384,28 @@
 
         function showExecutantesMontagem() {
             currentOM._deslocHoraFim = new Date().toISOString();
-            $('executantesList').innerHTML =
-                '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
-                '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
+
+            const list = $('executantesList');
+            list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
+                             '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
             window._modoExecutantesMontagem = true;
             $('popupExecutantes').classList.add('active');
         }
 
         function salvarExecutantesMontagem() {
-            executantesNomes = _lerInputsExecutantes();
-            numExecutantes = executantesNomes.length;
-            if(numExecutantes === 0) { alert('⚠️ Adicione pelo menos 1 executante!'); return; }
+            const inputs = document.querySelectorAll('.exec-input');
+            numExecutantes = 0;
+            executantesNomes = [];
+            inputs.forEach(function(input) {
+                if(input.value.trim()) {
+                    numExecutantes++;
+                    executantesNomes.push(input.value.trim());
+                }
+            });
+            if(numExecutantes === 0) {
+                alert('⚠️ Adicione pelo menos 1 executante!');
+                return;
+            }
 
             if(timerInterval) clearInterval(timerInterval);
 

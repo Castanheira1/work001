@@ -255,7 +255,7 @@ function filtrarOMs() {
                 if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
                 _setBtns({
                     btnDeslocamento:0, btnIniciar:0, btnCancelar:0, btnExcluir:0,
-                    timerDisplay:0, timerAtividade:0, btnGroupAtividade:0, btnRowExecOficina:0,
+                    timerDisplay:0, timerAtividade:0, btnMateriais:0, btnRowExecOficina:0,
                     btnFinalizar:0, btnDevolverEquip:0, btnOficina:0, btnFinalizarOficina:0,
                     btnIniciarMontagem:1
                 });
@@ -488,7 +488,7 @@ function filtrarOMs() {
             $('hhTotal').textContent = '0.00h';
             
             _setBtns({
-                btnDeslocamento:1, btnIniciar:0, btnGroupAtividade:0,
+                btnDeslocamento:1, btnIniciar:0, btnMateriais:0,
                 btnChecklist:0, btnRowExecOficina:0, btnFinalizar:0,
                 btnDevolverEquip:0, btnCancelar:0, btnCancelarDesvio:0, btnExcluir:1
             });
