@@ -83,6 +83,10 @@
               <span id="rtDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#888;transition:background .3s,transform .3s"></span>
               <span id="rtLabel" style="font-size:10px;color:#888;font-weight:700">offline</span>
             </div>
+            <div style="display:inline-flex;align-items:center;gap:5px;margin-left:10px;vertical-align:middle" title="Status do GPS / Rastreamento">
+              <span id="gps-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#888;transition:background .3s"></span>
+              <span id="gps-label" style="font-size:10px;color:#888;font-weight:700">GPS</span>
+            </div>
         </div>
         <div id="escopoAtualLabel" style="display:none;text-align:center;padding:4px 0;font-size:11px;font-weight:700;color:#1565c0;letter-spacing:.5px;"></div>
 
@@ -363,6 +367,7 @@
     <script src="assets/pcm_mcr/pcm_pdf_gerar.js?v=20260324"></script>
     <script src="assets/sync_engine.js?v=20260322c"></script>
     <script src="assets/app_bootstrap.js?v=20260321d"></script>
+    <script src="assets/pcm_mcr/pcm_rastreamento.js?v=20260330"></script>
     <script>
       window.mostrarEscopoPuxar = window.mostrarEscopoPuxar || function () {
         alert('⚠️ O script principal não carregou corretamente.\n\nAtualize com Ctrl+F5. Se persistir, limpe o cache/site data.');

@@ -5,8 +5,10 @@ window.__PCM_BOOTSTRAP_ENV__ = {
   "NODE_ENV": "production",
   "APP_URL": "http://localhost:5500",
   "SYNC_ENDPOINT": "/api/sync",
-  "SYNC_SHARED_SECRET": ""
+  "SYNC_SHARED_SECRET": "",
+  "GOOGLE_MAPS_KEY": ""
 };
 window.ENV = Object.assign({}, window.__PCM_BOOTSTRAP_ENV__);
 window.SUPABASE_URL = window.ENV.SUPABASE_URL;
 window.SUPABASE_ANON_KEY = window.ENV.SUPABASE_ANON_KEY;
+window.GOOGLE_MAPS_KEY = window.ENV.GOOGLE_MAPS_KEY;
