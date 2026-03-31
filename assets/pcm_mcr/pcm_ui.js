@@ -135,13 +135,22 @@ function filtrarOMs() {
             var alvoOM = oms[idx];
             if(!alvoOM) return;
             if(navigator.onLine) {
-                var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
-                if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
-                    alvoOM.lockDeviceId = estadoServidor.lock_device_id;
-                    salvarOMs();
-                    filtrarOMs();
-                    alert('⚠️ OM em uso por outro operador!');
-                    return;
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    if(typeof window._garantirSyncPushDisponivel === 'function') {
+                        await window._garantirSyncPushDisponivel();
+                    }
+                }
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    console.warn('[PCM] Dependência ausente: _obterEstadoServidorOM(). Seguindo sem validação de lock remoto. Verifique assets/pcm_mcr/pcm_sync_push.js.');
+                } else {    
+                    var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
+                    if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
+                        alvoOM.lockDeviceId = estadoServidor.lock_device_id;
+                        salvarOMs();
+                        filtrarOMs();
+                        alert('⚠️ OM em uso por outro operador!');
+                        return;
+                    }
                 }
             }
             currentOM = alvoOM;
