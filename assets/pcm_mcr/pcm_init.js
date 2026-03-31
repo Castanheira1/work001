@@ -55,7 +55,12 @@
             await carregarMateriais();
             await sincronizarConfig();
             carregarOMs();
-            carregarOMAtual();
+            if(typeof carregarOMAtual === 'function') {
+                carregarOMAtual();
+            } else {
+                console.error('[PCM] Dependência ausente: carregarOMAtual(). Verifique o carregamento de assets/pcm_mcr/pcm_sync_push.js antes da inicialização.');
+                return;
+            }
             if(navigator.onLine) _rtConectar();
         }
 
