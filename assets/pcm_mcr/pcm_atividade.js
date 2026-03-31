@@ -261,7 +261,7 @@
         // --- Fluxo Oficina ---
 
         function showExecutantesOficina() {
-            if(atividadeJaIniciada || currentOM.statusAtual === 'iniciada') return;
+            if(atividadeJaIniciada || (currentOM.statusAtual === 'iniciada' && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA)) return;
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
             currentOM._deslocHoraInicio = null;
