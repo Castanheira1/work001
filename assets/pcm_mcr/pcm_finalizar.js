@@ -1,5 +1,4 @@
-
-        function _obterValorChecklistItem(nome) {
+function _obterValorChecklistItem(nome) {
             var sel = document.querySelector('input[name="' + nome + '"]:checked');
             if (sel && sel.value) return sel.value;
             if (!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
@@ -64,6 +63,7 @@
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.statusAtual = null;
             currentOM.retornouOficina = false;
             currentOM.devolvendoEquipamento = false;
             currentOM.dataEnvioOficina = new Date().toISOString();

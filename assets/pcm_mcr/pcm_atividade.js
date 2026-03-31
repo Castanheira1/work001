@@ -1,3 +1,54 @@
+// --- Helpers internos ---
+
+        function _lerInputsExecutantes() {
+            var inputs = document.querySelectorAll('.exec-input');
+            var nomes = [];
+            inputs.forEach(function(input) { if(input.value.trim()) nomes.push(input.value.trim()); });
+            return nomes;
+        }
+
+        function _iniciarTimerDeslocamento() {
+            if(timerInterval) clearInterval(timerInterval);
+            deslocamentoInicio = new Date();
+            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+            currentOM._deslocHoraFim = null;
+            $('timerDisplay').style.display = 'block';
+            var infoDiv = $('timerDateInfo');
+            if(infoDiv) {
+                infoDiv.style.display = 'block';
+                infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR');
+            }
+            timerInterval = setInterval(function() {
+                var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                var m = Math.floor(diff / 60);
+                var s = diff % 60;
+                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = m;
+                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+            }, 1000);
+        }
+
+        function _pushHistoricoExecucao(tag, opts) {
+            opts = opts || {};
+            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
+            currentOM.historicoExecucao.push({
+                data: new Date().toLocaleDateString('pt-BR'),
+                executantes: executantesNomes.slice(),
+                dataInicio: atividadeInicio.toISOString(),
+                dataFim: null,
+                deslocamentoMinutos: opts.semDeslocamento ? 0 : deslocamentoMinutos,
+                deslocamentoSegundos: opts.semDeslocamento ? 0 : deslocamentoSegundos,
+                deslocamentoHoraInicio: opts.semDeslocamento ? null : (currentOM._deslocHoraInicio || null),
+                deslocamentoHoraFim: opts.semDeslocamento ? null : (currentOM._deslocHoraFim || null),
+                tempoPausadoTotal: 0,
+                materiaisUsados: [],
+                tag: tag
+            });
+        }
+
+        // --- Deslocamento campo ---
+
         function iniciarDeslocamento() {
             currentOM.lockDeviceId = deviceId;
             currentOM.statusAtual = 'em_deslocamento';
@@ -8,16 +59,12 @@
             _aplicarModoOficinaMinimal(false);
             salvarOMs();
             filtrarOMs();
-            
-            deslocamentoInicio = new Date();
-            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
-            
-            $('btnDeslocamento').style.display = 'none';
-            $('btnIniciar').style.display = 'block';
+
+            deslocamentoSegundos = 0;
+            deslocamentoMinutos = 0;
+            _setBtns({ btnDeslocamento:0, btnIniciar:1, btnCancelar:0, btnExcluir:0, btnCancelarDesvio:0 });
             $('btnIniciar').disabled = false;
-            $('btnCancelar').style.display = 'none';
-            $('btnExcluir').style.display = 'none';
-            $('btnCancelarDesvio').style.display = 'none';
+
             if(currentOM.desvioApontado) {
                 if(typeof _registrarEventoDesvio === 'function') {
                     _registrarEventoDesvio('NOVA_TENTATIVA_INICIADA', {
@@ -47,34 +94,23 @@
             _pushOMStatusSupabase(currentOM);
         }
 
+        // --- Popup executantes ---
+
         function showExecutantes() {
-            // Pré-preencher equipe da tentativa anterior (pós-desvio mesma equipe)
+            if(window._modoExecutantesOficina || window._modoExecutantesMontagem) return;
+
             if(currentOM && currentOM.desvioMesmaEquipe && currentOM.desvioProxExecs && currentOM.desvioProxExecs.length > 0) {
                 executantesNomes = currentOM.desvioProxExecs.slice();
                 currentOM.desvioProxExecs = null;
                 currentOM.desvioMesmaEquipe = false;
             }
 
-            // Redirecionar para modos especiais
-            if(window._modoExecutantesOficina) {
-                return; // ja esta no popup
-            }
-            if(window._modoExecutantesMontagem) {
-                return; // ja esta no popup
-            }
-
-            if(currentOM && currentOM.emOficina && !currentOM.statusOficina) {
-                // Fluxo antigo: oficina sem v2 - redirecionar para novo fluxo
-                showExecutantesOficina();
-                return;
-            }
             if(currentOM && currentOM.emOficina) {
                 deslocamentoSegundos = 0;
                 deslocamentoMinutos = 0;
                 currentOM._deslocHoraInicio = null;
                 currentOM._deslocHoraFim = null;
             } else if(currentOM && currentOM.desvioProxSemDesl) {
-                // Mesma equipe já estava no local: sem deslocamento para essa tentativa
                 if(timerInterval) clearInterval(timerInterval);
                 deslocamentoSegundos = 0;
                 deslocamentoMinutos = 0;
@@ -92,7 +128,6 @@
 
             const list = $('executantesList');
             if(executantesNomes.length > 0) {
-                // Pré-preencher com a equipe já informada na retomada (evita digitar duas vezes)
                 list.innerHTML = executantesNomes.map(function(n) {
                     return '<input type="text" class="exec-input" value="' + n.replace(/"/g, '&quot;') + '">';
                 }).join('');
@@ -100,9 +135,6 @@
                 list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
                     '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
             }
-
-            window._modoExecutantesOficina = false;
-            window._modoExecutantesMontagem = false;
             $('popupExecutantes').classList.add('active');
         }
 
@@ -113,23 +145,18 @@
         }
 
         function addExecutante() {
-            const list = $('executantesList');
-            const input = document.createElement('input');
+            var input = document.createElement('input');
             input.type = 'text';
             input.placeholder = 'Nome completo do executante';
             input.className = 'exec-input';
-            list.appendChild(input);
+            $('executantesList').appendChild(input);
         }
 
         function salvarExecutantes() {
-            if(window._salvandoExecutantes) {
-                console.warn('[PCM] salvarExecutantes ignorado: operação já em andamento.');
-                return;
-            }
+            if(window._salvandoExecutantes) return;
             window._salvandoExecutantes = true;
             setTimeout(function(){ window._salvandoExecutantes = false; }, 1200);
 
-            // Redirecionar para modos especiais
             if(window._modoExecutantesOficina) {
                 window._modoExecutantesOficina = false;
                 salvarExecutantesOficina();
@@ -160,69 +187,52 @@
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
-            
+
             if(currentOM.emOficina) {
-                // Se estiver no fluxo de oficina legado, converter. Mas não deveria entrar aqui no fluxo v2
                 currentOM.emOficina = false;
                 currentOM.retornouOficina = true;
                 deslocamentoMinutos = 0;
             }
-            
+
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             
             const ultimoHist = currentOM.historicoExecucao.length > 0 ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
             if(ultimoHist && !ultimoHist.dataFim) {
-                ultimoHist.executantes = [...executantesNomes];
+                ultimoHist.executantes = executantesNomes.slice();
                 ultimoHist.deslocamentoMinutos = deslocamentoMinutos;
                 ultimoHist.deslocamentoSegundos = deslocamentoSegundos;
                 ultimoHist.deslocamentoHoraInicio = currentOM._deslocHoraInicio || ultimoHist.deslocamentoHoraInicio || null;
                 ultimoHist.deslocamentoHoraFim = currentOM._deslocHoraFim || ultimoHist.deslocamentoHoraFim || null;
             } else {
-                currentOM.historicoExecucao.push({
-                    data: new Date().toLocaleDateString('pt-BR'),
-                    executantes: [...executantesNomes],
-                    dataInicio: atividadeInicio.toISOString(),
-                    deslocamentoMinutos: deslocamentoMinutos,
-                    deslocamentoSegundos: deslocamentoSegundos,
-                    deslocamentoHoraInicio: currentOM._deslocHoraInicio || null,
-                    deslocamentoHoraFim: currentOM._deslocHoraFim || null,
-                    tempoPausadoTotal: 0,
-                    materiaisUsados: []
-                });
+                _pushHistoricoExecucao('CAMPO');
             }
-            
-            _uiAtividade();
 
+            currentOM.statusAtual = 'iniciada';
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
+            _uiAtividade();
             iniciarCronometroAtividade();
             renderHistoricoExecucao();
             hideExecutantes();
-            currentOM.statusAtual = 'iniciada';
-            currentOM.primeiroExecutante = executantesNomes[0] || '';
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
-            
-            alert(`✅ Atividade iniciada!\n${numExecutantes} executante(s)`);
+            alert('✅ Atividade iniciada!\n' + numExecutantes + ' executante(s)');
         }
 
         function editarExecutantes() {
-            if(omAssinada) {
-                alert('⚠️ OM já assinada! Não é possível editar.');
-                return;
-            }
-            
-            const list = $('executantesList');
+            if(omAssinada) { alert('⚠️ OM já assinada! Não é possível editar.'); return; }
+            var list = $('executantesList');
             list.innerHTML = '';
-            
-            executantesNomes.forEach(nome => {
-                const input = document.createElement('input');
+            executantesNomes.forEach(function(nome) {
+                var input = document.createElement('input');
                 input.type = 'text';
                 input.value = nome;
                 input.className = 'exec-input';
                 list.appendChild(input);
             });
-            
             $('popupExecutantes').classList.add('active');
         }
+
+        // --- Cronômetro de atividade ---
 
         function iniciarCronometroAtividade() {
             const ativInfoDiv = $('timerAtivDateInfo');
@@ -237,37 +247,26 @@
                 const df = currentOM._deslocHoraFim ? new Date(currentOM._deslocHoraFim) : null;
                 deslocInfoDiv.textContent = '🚗 ' + di.toLocaleTimeString('pt-BR') + (df ? ' → ' + df.toLocaleTimeString('pt-BR') : '');
             }
-            timerAtividadeInterval = setInterval(() => {
-                const diff = Math.floor((new Date() - atividadeInicio) / 1000) - tempoPausadoTotal;
-                const h = Math.floor(diff / 3600);
-                const m = Math.floor((diff % 3600) / 60);
-                const s = diff % 60;
-                
-                $('timerAtividade').textContent = 
-                    '⏱️ ' + String(h).padStart(2, '0') + ':' + 
-                    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-                
-                const atividadeHoras = (diff / 3600).toFixed(2);
+            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+            timerAtividadeInterval = setInterval(function() {
+                var diff = Math.floor((new Date() - atividadeInicio) / 1000) - tempoPausadoTotal;
+                var h = Math.floor(diff / 3600);
+                var m = Math.floor((diff % 3600) / 60);
+                var s = diff % 60;
+                $('timerAtividade').textContent = '⏱️ ' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                var atividadeHoras = (diff / 3600).toFixed(2);
                 $('hhAtividade').textContent = atividadeHoras + 'h × ' + numExecutantes + ' = ' + (atividadeHoras * numExecutantes).toFixed(2) + 'h';
-                
-                const hhEquipe = (atividadeHoras * numExecutantes).toFixed(2);
-                const hhDeslocRaw = deslocamentoSegundos / 3600;
-                const hhDeslocEquipe = (hhDeslocRaw * numExecutantes).toFixed(2);
-                const hhTotal = (parseFloat(hhEquipe) + parseFloat(hhDeslocEquipe)).toFixed(2);
-                
-                $('hhDeslocamento').textContent = 
-                    (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min')) +
-                    ' × ' + numExecutantes + ' = ' + hhDeslocEquipe + 'h';
+                var hhDeslocRaw = deslocamentoSegundos / 3600;
+                var hhDeslocEquipe = (hhDeslocRaw * numExecutantes).toFixed(2);
+                var hhTotal = (parseFloat((atividadeHoras * numExecutantes).toFixed(2)) + parseFloat(hhDeslocEquipe)).toFixed(2);
+                $('hhDeslocamento').textContent = (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min')) + ' × ' + numExecutantes + ' = ' + hhDeslocEquipe + 'h';
                 $('hhTotal').textContent = hhTotal + 'h';
             }, 1000);
         }
 
-        function showPausarMenu() {
-            showMenuDesvios();
-        }
+        function showPausarMenu() { showMenuDesvios(); }
 
         function toggleChecklistCorretiva() {
-            // Se checklist já estiver habilitado (plano ou corretiva), o botão deve abrir a UI
             if(currentOM.planoCod || currentOM.checklistCorretiva) {
                 _mostrarChecklistUI(true);
                 return;
@@ -276,8 +275,6 @@
             currentOM.checklistCorretiva = true;
             $('btnChecklist').style.display = 'none';
             $('btnOficina').style.display = 'block';
-            
-            // Só mostrar a UI de checklist se a atividade já estiver iniciada
             if(atividadeJaIniciada || currentOM.statusAtual === 'iniciada') {
                 _mostrarChecklistUI(true);
             } else {
@@ -286,9 +283,10 @@
             salvarOMAtual();
         }
 
-        // --- Fluxo Oficina v2: Iniciar atividade na oficina ---
+        // --- Fluxo Oficina ---
+
         function showExecutantesOficina() {
-            // Pede novo efetivo para atividade na oficina
+            if(atividadeJaIniciada || (currentOM.statusAtual === 'iniciada' && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA)) return;
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
             currentOM._deslocHoraInicio = null;
@@ -320,58 +318,37 @@
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
+            currentOM.statusAtual = 'iniciada';
+            currentOM.primeiroExecutante = executantesNomes[0] || '';
 
-            // Manter emOficina = true, setar etapa
             currentOM.etapaOficina = ETAPA_OFICINA.OFICINA;
-            currentOM.dataInicioOficina = new Date().toISOString();
+            currentOM.dataInicioOficina = atividadeInicio.toISOString();
             currentOM.lockDeviceId = deviceId;
             currentOM.oficinaPausada = false;
-            // Limpa estados residuais de devolução ao iniciar atividade na oficina
             currentOM.retornouOficina = false;
             currentOM.devolvendoEquipamento = false;
 
-            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
-            currentOM.historicoExecucao.push({
-                data: new Date().toLocaleDateString('pt-BR'),
-                executantes: executantesNomes.slice(),
-                dataInicio: atividadeInicio.toISOString(),
-                dataFim: null,
-                deslocamentoMinutos: 0,
-                deslocamentoSegundos: 0,
-                deslocamentoHoraInicio: null,
-                deslocamentoHoraFim: null,
-                tempoPausadoTotal: 0,
-                materiaisUsados: [],
-                tag: 'OFICINA'
-            });
+            _pushHistoricoExecucao('OFICINA', { semDeslocamento: true });
 
             _uiAtividade();
-            // Mostrar botao finalizar oficina no lugar do botao oficina
             _setBtns({ btnOficina:0, btnFinalizarOficina:1, btnIniciarMontagem:0, btnDevolverEquip:0 });
-
             iniciarCronometroAtividade();
             renderHistoricoExecucao();
             hideExecutantes();
-            currentOM.statusAtual = 'iniciada';
-            currentOM.primeiroExecutante = executantesNomes[0] || '';
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
 
-            // Abrir checklist sempre na oficina (mecânico precisa ver item anormal e postar foto do depois)
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
-                _mostrarChecklistUI(false);
-            }
-
+            if(currentOM.planoCod || currentOM.checklistCorretiva) _mostrarChecklistUI(false);
             alert('✅ Atividade na OFICINA iniciada!\n' + numExecutantes + ' executante(s)\nSem deslocamento.');
         }
 
-        // Iniciar devolução (deslocamento sem efetivo, após finalizar oficina)
+        // --- Fluxo Devolução / Montagem ---
+
         function iniciarDevolucao() {
             if(!confirm('🚗 INICIAR DEVOLUÇÃO?\n\nO tempo de deslocamento será contado.\nApós chegar, clique em INICIAR MONTAGEM para informar o efetivo.')) return;
 
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
-
             currentOM.etapaOficina = ETAPA_OFICINA.MONTAGEM;
             currentOM.statusOficina = null;
             currentOM.emOficina = false;
@@ -380,20 +357,11 @@
             currentOM.dataInicioMontagem = new Date().toISOString();
             currentOM.lockDeviceId = deviceId;
 
-            deslocamentoInicio = new Date();
-            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
-            currentOM._deslocHoraFim = null;
-
-            salvarOMAtual();
-
-            // Mostrar timer de deslocamento + botão INICIAR MONTAGEM (pedir efetivo)
             _setBtns({
                 btnDeslocamento:0, btnIniciar:0, btnMateriais:0, btnRowExecOficina:0,
                 btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
                 timerDisplay:1, btnCancelar:0, btnExcluir:0
             });
-            // Reutilizar btnIniciar como "INICIAR MONTAGEM" após devolução
-            $('btnIniciar').style.display = 'block';
             $('btnIniciar').disabled = false;
             $('btnIniciar').textContent = '🔧 INICIAR MONTAGEM';
             $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
@@ -410,12 +378,11 @@
             }, 1000);
 
             currentOM.statusAtual = 'em_deslocamento';
+            salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
         }
 
-        // Pedir efetivo para montagem (após devolução)
         function showExecutantesMontagem() {
-            // Gravar fim do deslocamento (devolução)
             currentOM._deslocHoraFim = new Date().toISOString();
 
             const list = $('executantesList');
@@ -440,43 +407,22 @@
                 return;
             }
 
-            // Parar timer de deslocamento
             if(timerInterval) clearInterval(timerInterval);
 
-            // Iniciar atividade de montagem com o efetivo informado
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
-            // Ao iniciar montagem, sai do estado de deslocamento para reabilitar botões de finalização
             currentOM.devolvendoEquipamento = false;
-
-            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
-            currentOM.historicoExecucao.push({
-                data: new Date().toLocaleDateString('pt-BR'),
-                executantes: executantesNomes.slice(),
-                dataInicio: atividadeInicio.toISOString(),
-                dataFim: null,
-                deslocamentoMinutos: deslocamentoMinutos,
-                deslocamentoSegundos: deslocamentoSegundos,
-                deslocamentoHoraInicio: currentOM._deslocHoraInicio || null,
-                deslocamentoHoraFim: currentOM._deslocHoraFim || null,
-                tempoPausadoTotal: 0,
-                materiaisUsados: [],
-                tag: 'MONTAGEM'
-            });
-
-            hideExecutantes();
-
-            // Restaurar btnIniciar ao estado normal
-            $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
-            $('btnIniciar').onclick = null;
-
-            // Definir statusAtual ANTES de _uiAtividade para que emFluxoOficina=false → btnFinalizar visível
             currentOM.statusAtual = 'iniciada';
             currentOM.primeiroExecutante = executantesNomes[0] || '';
 
-            // Na montagem: mostrar checklist via botão EDITAR CHECKLIST (não abrir automaticamente)
-            _uiAtividade(true); // skipChecklistAuto = true
+            _pushHistoricoExecucao('MONTAGEM');
+
+            hideExecutantes();
+            $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE';
+            $('btnIniciar').onclick = null;
+
+            _uiAtividade(true);
             if(currentOM.planoCod || currentOM.checklistCorretiva) {
                 $('checklistSection').style.display = 'block';
                 $('checklistSection').textContent = '📋 Checklist (acessível via botão)';
@@ -491,11 +437,11 @@
             renderHistoricoExecucao();
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
-
             alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min\n\n📋 Checklist disponível via botão EDITAR CHECKLIST.');
         }
 
-        // Retomar OM pausada na oficina
+        // --- Retomar oficina (troca de turno) ---
+
         function showRetomarOficina(idx) {
             currentOM = oms[idx];
             _retomarExecs = [];
@@ -528,7 +474,6 @@
             materiaisUsados = currentOM.oficinaPausaMateriaisUsados ? currentOM.oficinaPausaMateriaisUsados.slice() : materiaisUsados.slice();
             currentOM.primeiroExecutante = executantesNomes[0] || '';
 
-            // Iniciar atividade na oficina diretamente (sem deslocamento)
             numExecutantes = executantesNomes.length;
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
@@ -536,20 +481,7 @@
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
 
-            if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
-            currentOM.historicoExecucao.push({
-                data: new Date().toLocaleDateString('pt-BR'),
-                executantes: executantesNomes.slice(),
-                dataInicio: atividadeInicio.toISOString(),
-                dataFim: null,
-                deslocamentoMinutos: 0,
-                deslocamentoSegundos: 0,
-                deslocamentoHoraInicio: null,
-                deslocamentoHoraFim: null,
-                tempoPausadoTotal: 0,
-                materiaisUsados: [],
-                tag: 'OFICINA'
-            });
+            _pushHistoricoExecucao('OFICINA', { semDeslocamento: true });
 
             currentOM.statusAtual = 'iniciada';
             salvarOMAtual();
