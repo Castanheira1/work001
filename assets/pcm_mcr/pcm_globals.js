@@ -154,9 +154,9 @@ function verificarDependencias() {
         }
 
 
-        const configBDI = 18.8256;
-        const configBM = { numero: '', dataInicio: '', dataFim: '' };
-        const configTipoSolicitacao = 'Climatização e Refrigeração';
+        let configBDI = 18.8256;
+        let configBM = { numero: '', dataInicio: '', dataFim: '' };
+        let configTipoSolicitacao = 'Climatização e Refrigeração';
         const MATERIAL_VALE_ITEMS = ['99901', '99902'];
 
         (function validarBootstrapMCR() {
