@@ -600,3 +600,6 @@
                 return null;
             }
         }
+
+        window.carregarOMAtual = carregarOMAtual;
+        window._obterEstadoServidorOM = _obterEstadoServidorOM;
