@@ -60,6 +60,24 @@ function verificarDependencias() {
             return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         }
 
+        function _fmtDuracaoRelogio(segundos) {
+            var total = Math.max(0, Math.floor(Number(segundos) || 0));
+            var h = Math.floor(total / 3600);
+            var m = Math.floor((total % 3600) / 60);
+            var s = total % 60;
+            if(h > 0) return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+            return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        }
+
+        function _fmtDeslocResumo(segundos) {
+            var total = Math.max(0, Math.floor(Number(segundos) || 0));
+            if(total < 60) return total + ' s';
+            if(total < 3600) return Math.floor(total / 60) + ' min';
+            var h = Math.floor(total / 3600);
+            var m = Math.floor((total % 3600) / 60);
+            return h + 'h ' + String(m).padStart(2, '0') + 'min';
+        }
+
         function _dedupHistoricoExecucao(om) {
             if(!om || !Array.isArray(om.historicoExecucao) || om.historicoExecucao.length < 2) return 0;
             const seen = {};
@@ -145,7 +163,7 @@ function verificarDependencias() {
                 btnDeslocamento:0, btnIniciar:0, btnMateriais:1,
                 btnRowExecOficina:'flex', btnFinalizar: emFluxoOficina ? 0 : 1,
                 btnCancelar:0, btnExcluir:0, btnCancelarDesvio:0,
-                timerAtividade:1,
+                timerAtividade:1, timerDisplay:0,
                 btnFinalizarOficina: naOficina ? 1 : 0,
                 btnIniciarMontagem:0
             });

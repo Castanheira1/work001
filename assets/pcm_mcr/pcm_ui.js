@@ -236,13 +236,10 @@ function filtrarOMs() {
                 if(timerInterval) clearInterval(timerInterval);
                 timerInterval = setInterval(() => {
                     const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                    const m = Math.floor(diff / 60);
-                    const s = diff % 60;
-                    $('timerDisplay').textContent =
-                        String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                    $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                     deslocamentoSegundos = diff;
-                    deslocamentoMinutos = m;
-                    $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                    deslocamentoMinutos = Math.floor(diff / 60);
+                    $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
                 }, 1000);
                 
             } else if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
@@ -468,7 +465,7 @@ function filtrarOMs() {
             if(historico.materiaisUsados) materiaisUsados = historico.materiaisUsados;
             
             _uiAtividade();
-            $('hhDeslocamento').textContent = (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min'));
+            $('hhDeslocamento').textContent = _fmtDeslocResumo(deslocamentoSegundos);
 
             iniciarCronometroAtividade();
         }
