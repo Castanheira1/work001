@@ -122,7 +122,7 @@
     const deviceId = window.deviceId || _getDeviceId();
     const operador = localStorage.getItem('pcm_operador_nome') || 'Desconhecido';
     const equipe   = _getEquipe();
-    const om       = window.currentOM || null;
+    const om       = _obterOMAtivaParaRastreamento();
 
     // Nível de bateria (API experimental, pode não estar disponível)
     let bateria = null;
