@@ -102,7 +102,7 @@
 
             var emEtapaOficina = !!(currentOM && currentOM.emOficina);
             var emEtapaMontagem = !!(currentOM && currentOM.retornouOficina);
-            var fluxoOficinaAtiva = emEtapaOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && atividadeJaIniciada;
+            var fluxoOficinaAtiva = emEtapaOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && (atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
             var fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !emEtapaOficina && !emEtapaMontagem);
             if (fluxoOficinaAtiva) {
                 // Oficina com atividade iniciada — manter controles de atividade + FINALIZAR OFICINA
