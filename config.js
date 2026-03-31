@@ -6,7 +6,7 @@ window.__PCM_BOOTSTRAP_ENV__ = {
   "APP_URL": "http://localhost:5500",
   "SYNC_ENDPOINT": "/api/sync",
   "SYNC_SHARED_SECRET": "",
-  "GOOGLE_MAPS_KEY": ""
+  "GOOGLE_MAPS_KEY": "AIzaSyDe2OlU-xrSR2KHEtHLv4yF8G_oquA63Fc"
 };
 window.ENV = Object.assign({}, window.__PCM_BOOTSTRAP_ENV__);
 window.SUPABASE_URL = window.ENV.SUPABASE_URL;
