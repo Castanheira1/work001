@@ -116,7 +116,7 @@
     const deviceId = window.deviceId || _getDeviceId();
     const operador = localStorage.getItem('pcm_operador_nome') || 'Desconhecido';
     const equipe   = _getEquipe();
-    const om       = window.currentOM || null;
+    const om       = _obterOMAtivaParaRastreamento();
 
     // Nível de bateria (API experimental, pode não estar disponível)
     let bateria = null;
@@ -127,6 +127,9 @@
       }
     } catch(e) { /* ignorar */ }
 
+    const statusAtual = (om && typeof om.statusAtual === 'string') ? om.statusAtual.trim() : '';
+    const estadoFluxo = (om && typeof om.estado_fluxo === 'string') ? om.estado_fluxo.trim() : '';
+
     const payload = {
       device_id  : deviceId,
       equipe     : equipe,
@@ -135,7 +138,7 @@
       longitude  : coords.longitude,
       precisao   : coords.accuracy || null,
       om_num     : om ? (om.num || null) : null,
-      om_status  : om ? (om.estado_fluxo || om.statusAtual || null) : null,
+      om_status  : om ? (statusAtual || estadoFluxo || null) : null,
       om_titulo  : om ? (om.titulo || null) : null,
       bateria    : bateria,
       velocidade : coords.speed ? Math.round(coords.speed * 3.6) : null,  // m/s → km/h
@@ -166,6 +169,37 @@
       }
     } catch(e) {
       console.error('[RASTR] Exceção ao enviar localização:', e);
+    }
+  }
+
+
+  function _obterOMAtivaParaRastreamento() {
+    if (window.currentOM && typeof window.currentOM === 'object') return window.currentOM;
+
+    try {
+      const rawEstado = localStorage.getItem(window.STORAGE_KEY_CURRENT || 'pcm_current_om_mcr_v4');
+      if (!rawEstado) return null;
+      const estado = JSON.parse(rawEstado);
+      if (!estado || !estado.omNum) return null;
+
+      const rawOms = localStorage.getItem(window.STORAGE_KEY_OMS || 'pcm_oms_mcr_v4');
+      if (!rawOms) {
+        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+      }
+
+      const lista = JSON.parse(rawOms);
+      if (!Array.isArray(lista)) {
+        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+      }
+
+      const om = lista.find(function(item) { return item && item.num === estado.omNum; });
+      if (!om) return { num: estado.omNum, statusAtual: estado.statusAtual || null };
+
+      if (!om.statusAtual && estado.statusAtual) om.statusAtual = estado.statusAtual;
+      return om;
+    } catch (e) {
+      console.warn('[RASTR] Falha ao recuperar OM ativa do storage:', e && e.message ? e.message : e);
+      return null;
     }
   }
 
