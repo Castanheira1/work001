@@ -39,6 +39,12 @@
       return;
     }
 
+    const role = (localStorage.getItem('pcm_operador_role') || '').toLowerCase();
+    if (role === 'fiscal') {
+      console.info('[RASTR] Rastreamento desativado para perfil fiscal.');
+      return;
+    }
+
     // Aguarda o Supabase estar disponível
     const aguardarSupabase = setInterval(function() {
       if (window.supabase && (window.SUPABASE_URL || (window.ENV && window.ENV.SUPABASE_URL))) {
@@ -173,35 +179,6 @@
   }
 
 
-  function _obterOMAtivaParaRastreamento() {
-    if (window.currentOM && typeof window.currentOM === 'object') return window.currentOM;
-
-    try {
-      const rawEstado = localStorage.getItem(window.STORAGE_KEY_CURRENT || 'pcm_current_om_mcr_v4');
-      if (!rawEstado) return null;
-      const estado = JSON.parse(rawEstado);
-      if (!estado || !estado.omNum) return null;
-
-      const rawOms = localStorage.getItem(window.STORAGE_KEY_OMS || 'pcm_oms_mcr_v4');
-      if (!rawOms) {
-        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
-      }
-
-      const lista = JSON.parse(rawOms);
-      if (!Array.isArray(lista)) {
-        return { num: estado.omNum, statusAtual: estado.statusAtual || null };
-      }
-
-      const om = lista.find(function(item) { return item && item.num === estado.omNum; });
-      if (!om) return { num: estado.omNum, statusAtual: estado.statusAtual || null };
-
-      if (!om.statusAtual && estado.statusAtual) om.statusAtual = estado.statusAtual;
-      return om;
-    } catch (e) {
-      console.warn('[RASTR] Falha ao recuperar OM ativa do storage:', e && e.message ? e.message : e);
-      return null;
-    }
-  }
 
   // ──────────────────────────────────────────────
   // Helpers
