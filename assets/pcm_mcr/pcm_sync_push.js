@@ -226,16 +226,26 @@
             if(!omNum || !navigator.onLine) return false;
             try {
                 var _token = (window.PCMAuth && window.PCMAuth.getToken()) || SUPABASE_ANON_KEY;
-                var resp = await fetch(SUPABASE_URL + '/storage/v1/object/pcm-files/originais/' + omNum + '.pdf', {
+                var _objPath = encodeURIComponent(omNum + '.pdf');
+                var resp = await fetch(SUPABASE_URL + '/storage/v1/object/pcm-files/originais/' + _objPath, {
                     method: 'DELETE',
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
                         'Authorization': 'Bearer ' + _token
                     }
                 });
-                if(!resp.ok && resp.status !== 404) {
+                if(!resp.ok) {
                     var txt = await resp.text().catch(function(){ return ''; });
-                    throw new Error('HTTP ' + resp.status + ' ' + txt.substring(0, 200));
+                    var _msg = String(txt || '').toLowerCase();
+                    var _naoExiste = resp.status === 404
+                        || (resp.status === 400 && (
+                            _msg.indexOf('not found') >= 0
+                            || _msg.indexOf('resource') >= 0 && _msg.indexOf('not') >= 0
+                            || _msg.indexOf('no such') >= 0
+                            || _msg.indexOf('does not exist') >= 0
+                        ));
+                    if(!_naoExiste) throw new Error('HTTP ' + resp.status + ' ' + txt.substring(0, 200));
+                    console.info('[PCM] Original da OM já inexistente no Storage (tratado como sucesso):', omNum, 'status', resp.status);
                 }
                 try { await PdfDB.del('orig_' + omNum); } catch(e) { console.warn('[PCM] Erro ao limpar PDF original:', e); }
                 return true;
@@ -600,3 +610,6 @@
                 return null;
             }
         }
+
+        window.carregarOMAtual = carregarOMAtual;
+        window._obterEstadoServidorOM = _obterEstadoServidorOM;
