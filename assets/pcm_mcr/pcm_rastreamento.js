@@ -135,7 +135,7 @@
       longitude  : coords.longitude,
       precisao   : coords.accuracy || null,
       om_num     : om ? (om.num || null) : null,
-      om_status  : om ? (om.estado_fluxo || om.statusAtual || null) : null,
+      om_status  : om ? (om.statusAtual || om.estado_fluxo || null) : null,
       om_titulo  : om ? (om.titulo || null) : null,
       bateria    : bateria,
       velocidade : coords.speed ? Math.round(coords.speed * 3.6) : null,  // m/s → km/h
