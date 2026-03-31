@@ -39,6 +39,12 @@
       return;
     }
 
+    const role = (localStorage.getItem('pcm_operador_role') || '').toLowerCase();
+    if (role === 'fiscal') {
+      console.info('[RASTR] Rastreamento desativado para perfil fiscal.');
+      return;
+    }
+
     // Aguarda o Supabase estar disponível
     const aguardarSupabase = setInterval(function() {
       if (window.supabase && (window.SUPABASE_URL || (window.ENV && window.ENV.SUPABASE_URL))) {
@@ -127,6 +133,9 @@
       }
     } catch(e) { /* ignorar */ }
 
+    const statusAtual = (om && typeof om.statusAtual === 'string') ? om.statusAtual.trim() : '';
+    const estadoFluxo = (om && typeof om.estado_fluxo === 'string') ? om.estado_fluxo.trim() : '';
+
     const payload = {
       device_id  : deviceId,
       equipe     : equipe,
@@ -135,7 +144,7 @@
       longitude  : coords.longitude,
       precisao   : coords.accuracy || null,
       om_num     : om ? (om.num || null) : null,
-      om_status  : om ? (om.estado_fluxo || om.statusAtual || null) : null,
+      om_status  : om ? (statusAtual || estadoFluxo || null) : null,
       om_titulo  : om ? (om.titulo || null) : null,
       bateria    : bateria,
       velocidade : coords.speed ? Math.round(coords.speed * 3.6) : null,  // m/s → km/h
@@ -168,6 +177,8 @@
       console.error('[RASTR] Exceção ao enviar localização:', e);
     }
   }
+
+
 
   // ──────────────────────────────────────────────
   // Helpers
