@@ -1,15 +1,15 @@
         // ==========================
         // REALTIME
         // ==========================
-        var _rtClient = null;
-        var _rtChannel = null;
-        var _rtDebounce = null;
-        var _rtReconnectTimer = null;
+        let _rtClient = null;
+        let _rtChannel = null;
+        let _rtDebounce = null;
+        let _rtReconnectTimer = null;
 
         function _rtAtualizar() {
             clearTimeout(_rtDebounce);
             _rtDebounce = setTimeout(function() {
-                var escopo = _getEscopoSalvo();
+                const escopo = _getEscopoSalvo();
                 if (!_escopoValidoParaPuxar(escopo)) {
                     if (currentOM && currentOM.num) _verificarAdminUnlock();
                     carregarOMs();
@@ -27,15 +27,15 @@
         }
 
         function _rtPiscarDot() {
-            var dot = $('rtDot');
+            const dot = $('rtDot');
             if (!dot) return;
             dot.style.background = '#f5a623';
             setTimeout(function() { dot.style.background = '#4caf50'; }, 700);
         }
 
         function _rtSetStatus(status) {
-            var dot = $('rtDot');
-            var lbl = $('rtLabel');
+            const dot = $('rtDot');
+            const lbl = $('rtLabel');
             if (status === 'online') {
                 if (dot) dot.style.background = '#4caf50';
                 if (lbl) lbl.textContent = 'ao vivo';
@@ -61,9 +61,9 @@
                 }
                 _rtChannel = _rtClient.channel('campo_oms_rt_' + deviceId)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'oms' }, function(payload) {
-                        var num = payload.new && payload.new.num;
-                        var minhaOM = num && oms.some(function(o) { return o.num === num; });
-                        var omAtiva = currentOM && currentOM.num === num;
+                        const num = payload.new && payload.new.num;
+                        const minhaOM = num && oms.some(function(o) { return o.num === num; });
+                        const omAtiva = currentOM && currentOM.num === num;
                         if (minhaOM || omAtiva) _rtAtualizar();
                     })
                     .subscribe(function(status) {
