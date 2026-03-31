@@ -35,20 +35,14 @@
         };
 
         function showMenuDesvios() {
-            var emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
-            var naOficinaAtiva = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
-            var itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
-            for(var i = 0; i < itensRestritos.length; i++) {
+            const emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
+            const itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
+            for(let i = 0; i < itensRestritos.length; i++) {
                 itensRestritos[i].style.display = emFluxoOficina ? 'none' : 'block';
             }
             // Esconder label "Operacional" quando em oficina (3.1-3.5 não se aplicam)
-            var labelOp = document.getElementById('labelOperacional');
+            const labelOp = document.getElementById('labelOperacional');
             if(labelOp) labelOp.style.display = emFluxoOficina ? 'none' : 'block';
-            // Mostrar/esconder botao de finalizar oficina
-            var btnFinOficMenu = document.getElementById('btnFinalizarOficinaMenu');
-            if(btnFinOficMenu) {
-                btnFinOficMenu.style.display = naOficinaAtiva ? 'block' : 'none';
-            }
             $('popupMenuDesvios').classList.add('active');
         }
         function hideMenuDesvios() { $('popupMenuDesvios').classList.remove('active'); }
@@ -64,7 +58,6 @@
                 }
                 return;
             }
-            if(tipo === 'finalizar_oficina') { finalizarOficina(); return; }
             if(tipo === 'reprogramar') { executarReprogramar(); return; }
             if(tipo === 'desativar') { showDesvioDesativar(); return; }
         }
@@ -782,7 +775,7 @@
             if(_chkAct) _chkAct.style.display = 'none';
 
             hideDesvioDesativar();
-            $('btnGroupAtividade').style.display = 'none';
+            $('btnMateriais').style.display = 'none';
             showFinalizar();
         }
 

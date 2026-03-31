@@ -30,7 +30,7 @@
                 currentOM.novaTentativaIniciadaEm = new Date().toISOString();
             }
             $('timerDisplay').style.display = 'block';
-            var infoDiv = $('timerDateInfo');
+            const infoDiv = $('timerDateInfo');
             if(infoDiv) { infoDiv.style.display = 'block'; infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); }
             
             timerInterval = setInterval(() => {
@@ -78,7 +78,7 @@
                 if(timerInterval) clearInterval(timerInterval);
                 deslocamentoSegundos = 0;
                 deslocamentoMinutos = 0;
-                var _agora = new Date().toISOString();
+                const _agora = new Date().toISOString();
                 currentOM._deslocHoraInicio = _agora;
                 currentOM._deslocHoraFim = _agora;
                 currentOM.desvioProxSemDesl = false;
@@ -90,7 +90,7 @@
             }
             $('timerDisplay').style.display = 'none';
 
-            var list = $('executantesList');
+            const list = $('executantesList');
             if(executantesNomes.length > 0) {
                 // Pré-preencher com a equipe já informada na retomada (evita digitar duas vezes)
                 list.innerHTML = executantesNomes.map(function(n) {
@@ -141,7 +141,7 @@
                 return;
             }
 
-            var inputs = document.querySelectorAll('.exec-input');
+            const inputs = document.querySelectorAll('.exec-input');
             numExecutantes = 0;
             executantesNomes = [];
 
@@ -156,7 +156,7 @@
                 alert('⚠️ Adicione pelo menos 1 executante!');
                 return;
             }
-            
+
             atividadeInicio = new Date();
             tempoPausadoTotal = 0;
             atividadeJaIniciada = true;
@@ -170,7 +170,7 @@
             
             if(!currentOM.historicoExecucao) currentOM.historicoExecucao = [];
             
-            var ultimoHist = currentOM.historicoExecucao.length > 0 ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
+            const ultimoHist = currentOM.historicoExecucao.length > 0 ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
             if(ultimoHist && !ultimoHist.dataFim) {
                 ultimoHist.executantes = [...executantesNomes];
                 ultimoHist.deslocamentoMinutos = deslocamentoMinutos;
@@ -225,16 +225,16 @@
         }
 
         function iniciarCronometroAtividade() {
-            var ativInfoDiv = $('timerAtivDateInfo');
+            const ativInfoDiv = $('timerAtivDateInfo');
             if(ativInfoDiv) {
                 ativInfoDiv.style.display = 'block';
                 ativInfoDiv.textContent = '⏱️ Início: ' + atividadeInicio.toLocaleDateString('pt-BR') + ' ' + atividadeInicio.toLocaleTimeString('pt-BR');
             }
-            var deslocInfoDiv = $('timerDateInfo');
+            const deslocInfoDiv = $('timerDateInfo');
             if(deslocInfoDiv && currentOM._deslocHoraInicio) {
                 deslocInfoDiv.style.display = 'block';
-                var di = new Date(currentOM._deslocHoraInicio);
-                var df = currentOM._deslocHoraFim ? new Date(currentOM._deslocHoraFim) : null;
+                const di = new Date(currentOM._deslocHoraInicio);
+                const df = currentOM._deslocHoraFim ? new Date(currentOM._deslocHoraFim) : null;
                 deslocInfoDiv.textContent = '🚗 ' + di.toLocaleTimeString('pt-BR') + (df ? ' → ' + df.toLocaleTimeString('pt-BR') : '');
             }
             timerAtividadeInterval = setInterval(() => {
@@ -294,7 +294,7 @@
             currentOM._deslocHoraInicio = null;
             currentOM._deslocHoraFim = null;
 
-            var list = $('executantesList');
+            const list = $('executantesList');
             list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
                              '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
             // Mudar botao de confirmar para modo oficina
@@ -303,7 +303,7 @@
         }
 
         function salvarExecutantesOficina() {
-            var inputs = document.querySelectorAll('.exec-input');
+            const inputs = document.querySelectorAll('.exec-input');
             numExecutantes = 0;
             executantesNomes = [];
             inputs.forEach(function(input) {
@@ -388,7 +388,7 @@
 
             // Mostrar timer de deslocamento + botão INICIAR MONTAGEM (pedir efetivo)
             _setBtns({
-                btnDeslocamento:0, btnIniciar:0, btnGroupAtividade:0, btnRowExecOficina:0,
+                btnDeslocamento:0, btnIniciar:0, btnMateriais:0, btnRowExecOficina:0,
                 btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
                 timerDisplay:1, btnCancelar:0, btnExcluir:0
             });
@@ -400,9 +400,9 @@
             _aplicarModoOficinaMinimal(false);
 
             timerInterval = setInterval(function() {
-                var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                var m = Math.floor(diff / 60);
-                var s = diff % 60;
+                const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                const m = Math.floor(diff / 60);
+                const s = diff % 60;
                 $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
                 deslocamentoSegundos = diff;
                 deslocamentoMinutos = m;
@@ -418,7 +418,7 @@
             // Gravar fim do deslocamento (devolução)
             currentOM._deslocHoraFim = new Date().toISOString();
 
-            var list = $('executantesList');
+            const list = $('executantesList');
             list.innerHTML = '<input type="text" placeholder="Nome completo do executante" class="exec-input">' +
                              '<input type="text" placeholder="Nome completo do executante" class="exec-input">';
             window._modoExecutantesMontagem = true;
@@ -426,7 +426,7 @@
         }
 
         function salvarExecutantesMontagem() {
-            var inputs = document.querySelectorAll('.exec-input');
+            const inputs = document.querySelectorAll('.exec-input');
             numExecutantes = 0;
             executantesNomes = [];
             inputs.forEach(function(input) {
