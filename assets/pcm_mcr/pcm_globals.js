@@ -146,7 +146,7 @@ function verificarDependencias() {
             } else if (currentOM.devolvendoEquipamento) {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else if (currentOM.planoCod || currentOM.checklistCorretiva) {
-                _setBtns({ btnOficina:1, btnDevolverEquip:0, btnChecklist:0, btnFinalizarOficina:0, btnIniciarMontagem:0 });
+                _setBtns({ btnOficina:1, btnDevolverEquip:0, btnChecklist:1, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             } else {
                 _setBtns({ btnOficina:0, btnDevolverEquip:0, btnChecklist:1, btnFinalizarOficina:0, btnIniciarMontagem:0 });
             }

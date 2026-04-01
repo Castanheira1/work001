@@ -67,12 +67,19 @@ const checklistItens = {
 
         function _podeEditarChecklistAgora() {
             if(!currentOM) return false;
-            // Fluxo v2 oficina: permitir edicao quando atividade esta iniciada na oficina
-            if(currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+            // Oficina: só edita se a atividade foi iniciada na etapa OFICINA
+            if(currentOM.emOficina) {
+                if(currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                    return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
+                }
+                return false; // emOficina mas ainda aguardando inicio (etapa CAMPO)
+            }
+            // Montagem (retornou da oficina): edita somente se atividade iniciada
+            if(currentOM.retornouOficina || currentOM.devolvendoEquipamento) {
                 return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
             }
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+            // Fluxo campo normal
+            return true;
         }
 
         function onChecklistChange(name) {
@@ -118,12 +125,12 @@ const checklistItens = {
                         itensSemFotoDepois.push(name.toUpperCase());
                     }
                 }
-                if (itensSemFotoDepois.length > 0) {
-                    alert('⚠️ FOTO DEPOIS OBRIGATÓRIA\n\nItens ANORMAL sem Foto Depois:\n' +
-                        itensSemFotoDepois.join(', ') +
-                        '\n\nAnexe a foto do serviço executado (Foto Depois) antes de salvar.');
-                    return;
-                }
+            }
+            if (itensSemFotoDepois.length > 0) {
+                alert('⚠️ FOTO DEPOIS OBRIGATÓRIA\n\nItens ANORMAL sem Foto Depois:\n' +
+                    itensSemFotoDepois.join(', ') +
+                    '\n\nAnexe a foto do serviço executado (Foto Depois) antes de salvar.');
+                return;
             }
 
             currentOM.checklistDados = coletarChecklistDados();

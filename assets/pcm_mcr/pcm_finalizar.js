@@ -25,24 +25,6 @@ function _obterValorChecklistItem(nome) {
             return true;
         }
 
-        function _ehDesvioExibivelNaAssinatura(dev) {
-            if(!dev) return false;
-            var cod = String(dev.tipoCod || '').toUpperCase();
-            var tipo = String(dev.tipo || '').toUpperCase();
-            if(cod === 'DESATIVACAO') return false;
-            if(tipo.indexOf('DESATIVACAO') >= 0) return false;
-            return true;
-        }
-
-        function _ehDesvioExibivelNaAssinatura(dev) {
-            if(!dev) return false;
-            var cod = String(dev.tipoCod || '').toUpperCase();
-            var tipo = String(dev.tipo || '').toUpperCase();
-            if(cod === 'DESATIVACAO') return false;
-            if(tipo.indexOf('DESATIVACAO') >= 0) return false;
-            return true;
-        }
-
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
