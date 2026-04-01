@@ -426,7 +426,7 @@
             renderHistoricoExecucao();
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
-            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min\n\n📋 Checklist disponível via botão EDITAR CHECKLIST.');
+            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min');
         }
 
         // --- Retomar oficina (troca de turno) ---
