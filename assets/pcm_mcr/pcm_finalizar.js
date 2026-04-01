@@ -25,6 +25,15 @@ function _obterValorChecklistItem(nome) {
             return true;
         }
 
+        function _ehDesvioExibivelNaAssinatura(dev) {
+            if(!dev) return false;
+            var cod = String(dev.tipoCod || '').toUpperCase();
+            var tipo = String(dev.tipo || '').toUpperCase();
+            if(cod === 'DESATIVACAO') return false;
+            if(tipo.indexOf('DESATIVACAO') >= 0) return false;
+            return true;
+        }
+
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
@@ -190,8 +199,8 @@ function _obterValorChecklistItem(nome) {
                 if(valorItem === 'anormal') {
                     temAnormal = true;
                     var foto = checklistFotos[nomeItem] || {};
-                    if(foto.antes && !foto.depois) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' tem Foto ANTES mas falta a Foto DEPOIS.\n\nTire a foto após o reparo antes de devolver.');
+                    if(!foto.antes) {
+                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
                         return;
                     }
                 }

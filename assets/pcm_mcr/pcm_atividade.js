@@ -74,7 +74,17 @@
                 currentOM.novaTentativaPendente = false;
                 currentOM.novaTentativaIniciadaEm = new Date().toISOString();
             }
-            _iniciarTimerDeslocamento();
+            $('timerDisplay').style.display = 'block';
+            const infoDiv = $('timerDateInfo');
+            if(infoDiv) { infoDiv.style.display = 'block'; infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR'); }
+            
+            timerInterval = setInterval(() => {
+                const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = Math.floor(diff / 60);
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
+            }, 1000);
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
         }
@@ -352,7 +362,13 @@
             $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
             _aplicarModoOficinaMinimal(false);
 
-            _iniciarTimerDeslocamento();
+            timerInterval = setInterval(function() {
+                const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
+                deslocamentoSegundos = diff;
+                deslocamentoMinutos = Math.floor(diff / 60);
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
+            }, 1000);
 
             currentOM.statusAtual = 'em_deslocamento';
             salvarOMAtual();

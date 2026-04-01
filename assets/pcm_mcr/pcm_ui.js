@@ -223,7 +223,24 @@ function filtrarOMs() {
                     $('btnIniciar').onclick = function() { showExecutantesMontagem(); };
                 }
 
-                _retomarTimerDeslocamento();
+                if(!deslocamentoInicio && currentOM._deslocHoraInicio) {
+                    deslocamentoInicio = new Date(currentOM._deslocHoraInicio);
+                }
+
+                var infoDiv = $('timerDateInfo');
+                if(infoDiv && deslocamentoInicio) {
+                    infoDiv.style.display = 'block';
+                    infoDiv.textContent = '🚗 Início: ' + deslocamentoInicio.toLocaleDateString('pt-BR') + ' ' + deslocamentoInicio.toLocaleTimeString('pt-BR');
+                }
+
+                if(timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                    $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
+                    deslocamentoSegundos = diff;
+                    deslocamentoMinutos = Math.floor(diff / 60);
+                    $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
+                }, 1000);
                 
             } else if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
                 const ultimoHistorico = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
