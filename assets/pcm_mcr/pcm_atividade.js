@@ -60,6 +60,9 @@
 
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
+            deslocamentoInicio = new Date();
+            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+            currentOM._deslocHoraFim = null;
             _setBtns({ btnDeslocamento:0, btnIniciar:1, btnCancelar:0, btnExcluir:0, btnCancelarDesvio:0 });
             $('btnIniciar').disabled = false;
 
