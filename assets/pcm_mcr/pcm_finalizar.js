@@ -36,10 +36,6 @@ function _obterValorChecklistItem(nome) {
                 var nomeItem = _nomesChecklist[i];
                 var valorItem = _obterValorChecklistItem(nomeItem);
                 if(valorItem === 'anormal') {
-                    if(!checklistFotos[nomeItem] || !checklistFotos[nomeItem].antes) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
-                        return;
-                    }
                     temAnormal = true;
                 }
             }
@@ -194,10 +190,6 @@ function _obterValorChecklistItem(nome) {
                 if(valorItem === 'anormal') {
                     temAnormal = true;
                     var foto = checklistFotos[nomeItem] || {};
-                    if(!foto.antes) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
-                        return;
-                    }
                     if(foto.antes && !foto.depois) {
                         alert('⚠️ Item ' + nomeItem.toUpperCase() + ' tem Foto ANTES mas falta a Foto DEPOIS.\n\nTire a foto após o reparo antes de devolver.');
                         return;
