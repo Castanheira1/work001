@@ -135,13 +135,22 @@ function filtrarOMs() {
             var alvoOM = oms[idx];
             if(!alvoOM) return;
             if(navigator.onLine) {
-                var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
-                if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
-                    alvoOM.lockDeviceId = estadoServidor.lock_device_id;
-                    salvarOMs();
-                    filtrarOMs();
-                    alert('⚠️ OM em uso por outro operador!');
-                    return;
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    if(typeof window._garantirSyncPushDisponivel === 'function') {
+                        await window._garantirSyncPushDisponivel();
+                    }
+                }
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    console.warn('[PCM] Dependência ausente: _obterEstadoServidorOM(). Seguindo sem validação de lock remoto. Verifique assets/pcm_mcr/pcm_sync_push.js.');
+                } else {    
+                    var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
+                    if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
+                        alvoOM.lockDeviceId = estadoServidor.lock_device_id;
+                        salvarOMs();
+                        filtrarOMs();
+                        alert('⚠️ OM em uso por outro operador!');
+                        return;
+                    }
                 }
             }
             currentOM = alvoOM;
@@ -227,13 +236,10 @@ function filtrarOMs() {
                 if(timerInterval) clearInterval(timerInterval);
                 timerInterval = setInterval(() => {
                     const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                    const m = Math.floor(diff / 60);
-                    const s = diff % 60;
-                    $('timerDisplay').textContent =
-                        String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                    $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                     deslocamentoSegundos = diff;
-                    deslocamentoMinutos = m;
-                    $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                    deslocamentoMinutos = Math.floor(diff / 60);
+                    $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
                 }, 1000);
                 
             } else if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
@@ -282,9 +288,6 @@ function filtrarOMs() {
                     $('timerDateInfo').style.display = 'none';
                     $('timerAtivDateInfo').style.display = 'none';
                     _btnOficinaCk();
-                    if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
-                        _mostrarChecklistUI(true);
-                    }
                 }
             }
 
@@ -459,7 +462,7 @@ function filtrarOMs() {
             if(historico.materiaisUsados) materiaisUsados = historico.materiaisUsados;
             
             _uiAtividade();
-            $('hhDeslocamento').textContent = (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min'));
+            $('hhDeslocamento').textContent = _fmtDeslocResumo(deslocamentoSegundos);
 
             iniciarCronometroAtividade();
         }

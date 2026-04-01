@@ -20,12 +20,10 @@
             }
             timerInterval = setInterval(function() {
                 var diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                var m = Math.floor(diff / 60);
-                var s = diff % 60;
-                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                 deslocamentoSegundos = diff;
-                deslocamentoMinutos = m;
-                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                deslocamentoMinutos = Math.floor(diff / 60);
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
             }, 1000);
         }
 
@@ -82,13 +80,10 @@
             
             timerInterval = setInterval(() => {
                 const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                const m = Math.floor(diff / 60);
-                const s = diff % 60;
-                $('timerDisplay').textContent = 
-                    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                 deslocamentoSegundos = diff;
-                deslocamentoMinutos = m;
-                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                deslocamentoMinutos = Math.floor(diff / 60);
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
             }, 1000);
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
@@ -259,7 +254,7 @@
                 var hhDeslocRaw = deslocamentoSegundos / 3600;
                 var hhDeslocEquipe = (hhDeslocRaw * numExecutantes).toFixed(2);
                 var hhTotal = (parseFloat((atividadeHoras * numExecutantes).toFixed(2)) + parseFloat(hhDeslocEquipe)).toFixed(2);
-                $('hhDeslocamento').textContent = (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min')) + ' × ' + numExecutantes + ' = ' + hhDeslocEquipe + 'h';
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(deslocamentoSegundos) + ' × ' + numExecutantes + ' = ' + hhDeslocEquipe + 'h';
                 $('hhTotal').textContent = hhTotal + 'h';
             }, 1000);
         }
@@ -369,12 +364,10 @@
 
             timerInterval = setInterval(function() {
                 const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                const m = Math.floor(diff / 60);
-                const s = diff % 60;
-                $('timerDisplay').textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                 deslocamentoSegundos = diff;
-                deslocamentoMinutos = m;
-                $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                deslocamentoMinutos = Math.floor(diff / 60);
+                $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
             }, 1000);
 
             currentOM.statusAtual = 'em_deslocamento';
@@ -423,21 +416,17 @@
             $('btnIniciar').onclick = null;
 
             _uiAtividade(true);
-            if(currentOM.planoCod || currentOM.checklistCorretiva) {
-                $('checklistSection').style.display = 'block';
-                $('checklistSection').textContent = '📋 Checklist (acessível via botão)';
-                $('checklistActions').style.display = 'block';
-                $('checklistContent').style.display = 'none';
-                $('checklistContent').innerHTML = '';
-                $('btnSalvarChecklist').style.display = 'none';
-                $('btnEditarChecklist').style.display = 'block';
-            }
+            $('checklistSection').style.display = 'none';
+            $('checklistActions').style.display = 'none';
+            $('checklistContent').style.display = 'none';
+            $('checklistContent').innerHTML = '';
+            _aplicarModoChecklistFoco(false);
 
             iniciarCronometroAtividade();
             renderHistoricoExecucao();
             salvarOMAtual();
             _pushOMStatusSupabase(currentOM);
-            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min\n\n📋 Checklist disponível via botão EDITAR CHECKLIST.');
+            alert('✅ MONTAGEM INICIADA!\n\n' + numExecutantes + ' executante(s)\nDeslocamento (devolução): ' + deslocamentoMinutos + ' min');
         }
 
         // --- Retomar oficina (troca de turno) ---

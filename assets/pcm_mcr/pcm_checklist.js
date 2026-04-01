@@ -90,8 +90,21 @@
         }
 
         let _chkSaveTimer = null;
+        function _temPassoOficinaNaOM() {
+            if(!currentOM) return false;
+            if(currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento) return true;
+            if(currentOM.statusOficina) return true;
+            var hist = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+            for(var i = 0; i < hist.length; i++) {
+                var tag = String((hist[i] && hist[i].tag) || '').toUpperCase();
+                if(tag.indexOf('OFICINA') >= 0) return true;
+            }
+            return false;
+        }
+
         function salvarChecklistEFechar() {
-            // Validar que todos os itens "anormal" com foto antes têm foto depois obrigatória
+            // Foto DEPOIS só é obrigatória quando a OM não passou (nem passará) pelo fluxo de oficina.
+            var exigirFotoDepois = !_temPassoOficinaNaOM();
             const itensSemFotoDepois = [];
             const todosNomes = [
                 ...Array.from({length: 6}, function(_, i) { return 'm' + (i + 1); }),
@@ -101,7 +114,7 @@
                 const sel = document.querySelector('input[name="' + name + '"]:checked');
                 if (sel && sel.value === 'anormal') {
                     const foto = checklistFotos[name] || {};
-                    if (foto.antes && !foto.depois) {
+                    if (exigirFotoDepois && foto.antes && !foto.depois) {
                         itensSemFotoDepois.push(name.toUpperCase());
                     }
                 }
