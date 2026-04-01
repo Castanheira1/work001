@@ -1,4 +1,4 @@
-        // ==========================
+// ==========================
         // REALTIME
         // ==========================
         let _rtClient = null;
@@ -48,17 +48,24 @@
             }
         }
 
+        function _getSharedSbClient() {
+            if (!window._sharedSbClient) {
+                window._sharedSbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    realtime: { params: { eventsPerSecond: 2 } }
+                });
+            }
+            return window._sharedSbClient;
+        }
+
         function _rtConectar() {
             if (!navigator.onLine) { _rtSetStatus('offline'); return; }
             if (!window.supabase) return;
             try {
-                if (_rtClient) {
-                    try { _rtClient.removeAllChannels(); } catch(e) { console.warn('[RT] removeAllChannels falhou:', e); }
-                } else {
-                    _rtClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                        realtime: { params: { eventsPerSecond: 2 } }
-                    });
+                if (_rtChannel) {
+                    try { _rtClient.removeChannel(_rtChannel); } catch(e) {}
+                    _rtChannel = null;
                 }
+                _rtClient = _getSharedSbClient();
                 _rtChannel = _rtClient.channel('campo_oms_rt_' + deviceId)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'oms' }, function(payload) {
                         const num = payload.new && payload.new.num;
@@ -87,7 +94,8 @@
         function _rtDesconectar() {
             clearTimeout(_rtReconnectTimer);
             clearTimeout(_rtDebounce);
-            if (_rtClient) { try { _rtClient.removeAllChannels(); } catch(e) { console.warn('[RT] removeAllChannels falhou:', e); } _rtClient = null; }
+            if (_rtClient && _rtChannel) { try { _rtClient.removeChannel(_rtChannel); } catch(e) {} }
+            _rtChannel = null;
             _rtSetStatus('offline');
         }
 

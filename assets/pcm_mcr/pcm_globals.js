@@ -195,7 +195,7 @@ function verificarDependencias() {
         let priceList = {};
         const oms = [];
         let uploadedFiles = [];
-        let currentOM = null;
+        var currentOM = null;
         let deslocamentoInicio = null;
         let atividadeInicio = null;
         let deslocamentoMinutos = 0;
@@ -213,7 +213,7 @@ function verificarDependencias() {
         let clickTimeout = null;
         let omPendenteParaAssinar = null;
         let atividadeJaIniciada = false;
-        let deviceId = '';
+        var deviceId = '';
         let isCancelamento = false;
         let checklistFotos = {};
         let fotoAtualItem = '';
