@@ -1,4 +1,4 @@
-        const checklistItens = {
+const checklistItens = {
             mensal: [
                 'Limpeza do filtro e da frente plástica.',
                 'Limpeza de bandeja, desobstrução de dreno e conferência do fluxo da água na bandeja e na mangueira.',
@@ -59,7 +59,7 @@
             h += '<button class="checklist-foto-btn' + (foto.antes ? ' ok' : '') + '" id="fotoAntesBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'antes\')">' + (foto.antes ? '📎 Foto Antes ✓' : '📷 Foto Antes *') + '</button>';
             h += '<button class="checklist-foto-btn depois' + (foto.depois ? ' ok' : '') + '" id="fotoDepoisBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'depois\')" style="display:' + (foto.antes ? 'inline-block' : 'none') + ';">' + (foto.depois ? '📎 Foto Depois ✓' : '📷 Foto Depois') + '</button>';
             h += '</div>';
-            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
+            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + (savedVal === 'anormal' ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
             h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()"' + (podeEditar ? '' : ' readonly') + '>';
             h += '</div>';
             return h;
@@ -92,25 +92,28 @@
         let _chkSaveTimer = null;
         function salvarChecklistEFechar() {
             // Validar que todos os itens "anormal" com foto antes têm foto depois obrigatória
-            const itensSemFotoDepois = [];
-            const todosNomes = [
-                ...Array.from({length: 6}, function(_, i) { return 'm' + (i + 1); }),
-                ...Array.from({length: 9}, function(_, i) { return 't' + (i + 1); })
-            ];
-            for (const name of todosNomes) {
-                const sel = document.querySelector('input[name="' + name + '"]:checked');
-                if (sel && sel.value === 'anormal') {
-                    const foto = checklistFotos[name] || {};
-                    if (foto.antes && !foto.depois) {
-                        itensSemFotoDepois.push(name.toUpperCase());
+            // Foto depois obrigatória apenas se retornou da oficina
+            if (currentOM && currentOM.retornouOficina) {
+                const itensSemFotoDepois = [];
+                const todosNomes = [
+                    ...Array.from({length: 6}, function(_, i) { return 'm' + (i + 1); }),
+                    ...Array.from({length: 9}, function(_, i) { return 't' + (i + 1); })
+                ];
+                for (const name of todosNomes) {
+                    const sel = document.querySelector('input[name="' + name + '"]:checked');
+                    if (sel && sel.value === 'anormal') {
+                        const foto = checklistFotos[name] || {};
+                        if (foto.antes && !foto.depois) {
+                            itensSemFotoDepois.push(name.toUpperCase());
+                        }
                     }
                 }
-            }
-            if (itensSemFotoDepois.length > 0) {
-                alert('⚠️ FOTO DEPOIS OBRIGATÓRIA\n\nItens ANORMAL sem Foto Depois:\n' +
-                    itensSemFotoDepois.join(', ') +
-                    '\n\nAnexe a foto do serviço executado (Foto Depois) antes de salvar.');
-                return;
+                if (itensSemFotoDepois.length > 0) {
+                    alert('⚠️ FOTO DEPOIS OBRIGATÓRIA\n\nItens ANORMAL sem Foto Depois:\n' +
+                        itensSemFotoDepois.join(', ') +
+                        '\n\nAnexe a foto do serviço executado (Foto Depois) antes de salvar.');
+                    return;
+                }
             }
 
             currentOM.checklistDados = coletarChecklistDados();
@@ -332,8 +335,10 @@ function capturarFoto(name, tipo) {
                 }
             }
             const btnDepois = document.getElementById('fotoDepoisBtn_' + name);
+            const selChk = document.querySelector('input[name="' + name + '"]:checked');
+            const isAnorm = selChk && selChk.value === 'anormal';
             if(btnDepois) {
-                btnDepois.style.display = foto.antes ? 'inline-block' : 'none';
+                btnDepois.style.display = (foto.antes || isAnorm) ? 'inline-block' : 'none';
                 if(foto.depois) {
                     btnDepois.className = 'checklist-foto-btn depois ok';
                     btnDepois.textContent = '📎 Foto Depois ✓';
