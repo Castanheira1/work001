@@ -16,6 +16,15 @@ function _obterValorChecklistItem(nome) {
 
         var _nomesChecklist = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
 
+        function _ehDesvioExibivelNaAssinatura(dev) {
+            if(!dev) return false;
+            var cod = String(dev.tipoCod || '').toUpperCase();
+            var tipo = String(dev.tipo || '').toUpperCase();
+            if(cod === 'DESATIVACAO') return false;
+            if(tipo.indexOf('DESATIVACAO') >= 0) return false;
+            return true;
+        }
+
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
@@ -189,10 +198,6 @@ function _obterValorChecklistItem(nome) {
                         alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
                         return;
                     }
-                    if(foto.antes && !foto.depois) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' tem Foto ANTES mas falta a Foto DEPOIS.\n\nTire a foto após o reparo antes de devolver.');
-                        return;
-                    }
                 }
             }
             
@@ -321,6 +326,14 @@ function _obterValorChecklistItem(nome) {
             var desviosOM = currentOM.desviosRegistrados || [];
             var desviosLocal = _getDesviosDaOM(currentOM.num);
             var desviosAll = desviosOM.length > 0 ? desviosOM : desviosLocal;
+            var totalDesviosOriginais = (desviosAll || []).length;
+            desviosAll = (desviosAll || []).filter(_ehDesvioExibivelNaAssinatura);
+            if(totalDesviosOriginais !== desviosAll.length) {
+                console.info('[PCM] Resumo de assinatura: desvios de desativação ocultados.', {
+                    om: currentOM && currentOM.num ? currentOM.num : null,
+                    ocultados: totalDesviosOriginais - desviosAll.length
+                });
+            }
             if(desviosAll.length > 0) {
                 var devHtml = '<div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:2px solid #e65100;border-radius:12px;padding:14px;margin-bottom:16px;">';
                 devHtml += '<div style="font-size:16px;font-weight:800;color:#e65100;margin-bottom:10px;">⚠️ Desvios Registrados (' + desviosAll.length + ')</div>';
