@@ -344,6 +344,9 @@
 
             deslocamentoSegundos = 0;
             deslocamentoMinutos = 0;
+            deslocamentoInicio = new Date();
+            currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+            currentOM._deslocHoraFim = null;
             currentOM.etapaOficina = ETAPA_OFICINA.MONTAGEM;
             currentOM.statusOficina = null;
             currentOM.emOficina = false;
