@@ -178,6 +178,12 @@ const checklistItens = {
             const isOficina = currentOM && currentOM.emOficina && !currentOM.retornouOficina && !currentOM.devolvendoEquipamento;
             _aplicarModoChecklistFoco(true);
             _aplicarModoOficinaMinimal(isOficina);
+            // A regra CSS .checklist-focus.oficina-minimal força btnIniciar via !important.
+            // Quando a atividade já foi iniciada na oficina, sobrepor com prioridade máxima.
+            if(isOficina && (atividadeJaIniciada || (currentOM && currentOM.statusAtual === 'iniciada'))) {
+                var _btnIn = $('btnIniciar');
+                if(_btnIn) _btnIn.style.setProperty('display', 'none', 'important');
+            }
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
             if(isOficina || forcarAberto) {
