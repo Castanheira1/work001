@@ -98,6 +98,38 @@ function _obterValorChecklistItem(nome) {
         function finalizarOficina() {
             if(!confirm('🔧 FINALIZAR ATIVIDADE NA OFICINA?\n\nO HH será pausado.\nA OM ficará com status AGUARDANDO DEVOLUÇÃO.')) return;
 
+            // Foto Depois obrigatória para todo item ANORMAL com Foto Antes ao finalizar oficina
+            if(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva)) {
+                var semFotoDepois = [];
+                var nomesTodos = [];
+                for(var i = 0; i < checklistItens.mensal.length; i++) nomesTodos.push('m' + (i+1));
+                for(var j = 0; j < checklistItens.trimestral.length; j++) nomesTodos.push('t' + (j+1));
+                var fotosAtuais = checklistFotos || {};
+                var dadosSalvos = Array.isArray(currentOM.checklistDados) ? currentOM.checklistDados : [];
+                for(var k = 0; k < nomesTodos.length; k++) {
+                    var nm = nomesTodos[k];
+                    var sec = nm.charAt(0) === 'm' ? 'MENSAL' : 'TRIMESTRAL EM CASO DE ANOMALIA';
+                    var idx = parseInt(nm.slice(1), 10);
+                    var num = String(idx).padStart(2, '0');
+                    var valor = '';
+                    for(var d = 0; d < dadosSalvos.length; d++) {
+                        var it = dadosSalvos[d];
+                        if(it && it.secao === sec && String(it.num || '') === num) { valor = it.valor || ''; break; }
+                    }
+                    if(valor === 'anormal') {
+                        var fotoItem = fotosAtuais[nm] || {};
+                        if(fotoItem.antes && !fotoItem.depois) semFotoDepois.push(nm.toUpperCase());
+                    }
+                }
+                if(semFotoDepois.length > 0) {
+                    alert('📷 Não é possível finalizar a oficina.\n\n' +
+                        semFotoDepois.length + ' item(ns) ANORMAL sem Foto Depois:\n' +
+                        semFotoDepois.join(', ') +
+                        '\n\nAnexe a foto do serviço executado antes de finalizar.');
+                    return;
+                }
+            }
+
             if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
             if(timerInterval) clearInterval(timerInterval);
 
