@@ -167,10 +167,7 @@ const checklistItens = {
         }
 
         function editarChecklist() {
-            $('checklistContent').style.display = 'block';
-            $('checklistContent').innerHTML = renderChecklist();
-            $('btnSalvarChecklist').style.display = 'block';
-            $('btnEditarChecklist').style.display = 'none';
+            _mostrarChecklistUI(true);
             $('checklistSection').textContent = '📋 Checklist de Manutenção';
         }
 
