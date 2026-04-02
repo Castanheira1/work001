@@ -118,7 +118,7 @@
                 currentOM.desvioProxSemDesl = false;
             } else {
                 if(timerInterval) clearInterval(timerInterval);
-                deslocamentoSegundos = Math.floor((new Date() - deslocamentoInicio) / 1000);
+                deslocamentoSegundos = deslocamentoInicio ? Math.floor((new Date() - deslocamentoInicio) / 1000) : 0;
                 deslocamentoMinutos = Math.floor(deslocamentoSegundos / 60);
                 currentOM._deslocHoraFim = new Date().toISOString();
             }

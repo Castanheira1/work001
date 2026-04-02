@@ -226,6 +226,11 @@ function filtrarOMs() {
                 if(!deslocamentoInicio && currentOM._deslocHoraInicio) {
                     deslocamentoInicio = new Date(currentOM._deslocHoraInicio);
                 }
+                if(!deslocamentoInicio) {
+                    // _deslocHoraInicio ausente (estado legado sem o campo) — usar agora como fallback
+                    deslocamentoInicio = new Date();
+                    currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+                }
 
                 var infoDiv = $('timerDateInfo');
                 if(infoDiv && deslocamentoInicio) {
