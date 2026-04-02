@@ -706,6 +706,21 @@ function _obterValorChecklistItem(nome) {
                 if(preenchidosTri > 0 && naoMarcadosTri.length > 0) erros.push('⚠️ ' + naoMarcadosTri.length + ' item(ns) TRIMESTRAL sem marcação: ' + naoMarcadosTri.join(', ').toUpperCase());
             }
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
+            // Foto Depois obrigatória ao finalizar somente se a OM não passa pela oficina
+            if(typeof _temPassoOficinaNaOM === 'function' && !_temPassoOficinaNaOM()) {
+                var semFotoDepois = [];
+                for(var fd = 0; fd < nomesTodos.length; fd++) {
+                    var nomeFd = nomesTodos[fd];
+                    if(_valorChecklist(nomeFd) === 'anormal') {
+                        var fotoFd = checklistFotos[nomeFd] || {};
+                        if(fotoFd.antes && !fotoFd.depois) semFotoDepois.push(nomeFd.toUpperCase());
+                    }
+                }
+                if(semFotoDepois.length > 0) {
+                    erros.push('📷 ' + semFotoDepois.length + ' item(ns) ANORMAL sem Foto Depois: ' +
+                        semFotoDepois.join(', ') + '\n\nAnexe a foto do serviço executado antes de finalizar.');
+                }
+            }
             return erros;
         }
 
