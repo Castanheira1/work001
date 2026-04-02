@@ -110,29 +110,8 @@ const checklistItens = {
         }
 
         function salvarChecklistEFechar() {
-            // Foto DEPOIS só é obrigatória quando a OM não passou (nem passará) pelo fluxo de oficina.
-            var exigirFotoDepois = !_temPassoOficinaNaOM();
-            const itensSemFotoDepois = [];
-            const todosNomes = [
-                ...Array.from({length: 6}, function(_, i) { return 'm' + (i + 1); }),
-                ...Array.from({length: 9}, function(_, i) { return 't' + (i + 1); })
-            ];
-            for (const name of todosNomes) {
-                const sel = document.querySelector('input[name="' + name + '"]:checked');
-                if (sel && sel.value === 'anormal') {
-                    const foto = checklistFotos[name] || {};
-                    if (exigirFotoDepois && foto.antes && !foto.depois) {
-                        itensSemFotoDepois.push(name.toUpperCase());
-                    }
-                }
-            }
-            if (itensSemFotoDepois.length > 0) {
-                alert('⚠️ FOTO DEPOIS OBRIGATÓRIA\n\nItens ANORMAL sem Foto Depois:\n' +
-                    itensSemFotoDepois.join(', ') +
-                    '\n\nAnexe a foto do serviço executado (Foto Depois) antes de salvar.');
-                return;
-            }
-
+            // Foto Depois não é validada aqui — será exigida em showFinalizar (validarChecklist)
+            // somente se a OM for finalizada sem passar pelo fluxo de oficina.
             currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             salvarOMAtual();
