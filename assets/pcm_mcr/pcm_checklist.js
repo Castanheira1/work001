@@ -173,11 +173,13 @@ const checklistItens = {
 
         function _mostrarChecklistUI(forcarAberto) {
             const isOficina = currentOM && currentOM.emOficina && !currentOM.retornouOficina && !currentOM.devolvendoEquipamento;
+            const atividadeAtiva = atividadeJaIniciada || (currentOM && currentOM.statusAtual === 'iniciada');
             _aplicarModoChecklistFoco(true);
-            _aplicarModoOficinaMinimal(isOficina);
-            // A regra CSS .checklist-focus.oficina-minimal força btnIniciar via !important.
-            // Quando a atividade já foi iniciada na oficina, sobrepor com prioridade máxima.
-            if(isOficina && (atividadeJaIniciada || (currentOM && currentOM.statusAtual === 'iniciada'))) {
+            // oficina-minimal só na fase PRÉ-atividade: exibe btnIniciar e VOLTAR ao lado do checklist.
+            // Com atividade já iniciada, .controls fica completamente oculto pelo checklist-focus.
+            _aplicarModoOficinaMinimal(isOficina && !atividadeAtiva);
+            // Redundância de segurança: garantir btnIniciar oculto caso CSS conflite.
+            if(isOficina && atividadeAtiva) {
                 var _btnIn = $('btnIniciar');
                 if(_btnIn) _btnIn.style.setProperty('display', 'none', 'important');
             }
