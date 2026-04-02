@@ -277,6 +277,15 @@ function filtrarOMs() {
                 if(currentOM.statusAtual === 'iniciada' && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
                     // Atividade já iniciada na oficina: retomarDoEstadoSalvo restaurou UI, só ajusta botões
                     _btnOficinaCk();
+                    // Restaurar seção de checklist em estado salvo, se já preenchido
+                    if((currentOM.planoCod || currentOM.checklistCorretiva) &&
+                       currentOM.checklistDados && currentOM.checklistDados.length > 0) {
+                        $('checklistSection').style.display = 'block';
+                        $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+                        $('checklistActions').style.display = 'block';
+                        $('btnEditarChecklist').style.display = 'block';
+                        $('btnSalvarChecklist').style.display = 'none';
+                    }
                 } else {
                     // Aguardando início na oficina
                     if(timerInterval) clearInterval(timerInterval);
