@@ -359,7 +359,7 @@
             currentOM.lockDeviceId = deviceId;
 
             _setBtns({
-                btnDeslocamento:0, btnIniciar:0, btnMateriais:0, btnRowExecOficina:0,
+                btnDeslocamento:0, btnIniciar:1, btnMateriais:0, btnRowExecOficina:0,
                 btnFinalizar:0, btnDevolverEquip:0, btnFinalizarOficina:0, btnIniciarMontagem:0,
                 timerDisplay:1, btnCancelar:0, btnExcluir:0
             });
