@@ -1302,8 +1302,12 @@
                 `;
             }
             
+            // FIX P2: Adicionar seção de desvios (faltava em showAssinaturaFiscal, inconsistência com showFinalizar)
+            var desviosDiv = $('resumoDesviosOM');
+            if(desviosDiv) _renderDesviosResumo(desviosDiv, currentOM);
+
             $('observacoes').value = currentOM.observacoes || '';
-            
+
             setTimeout(function(){ setupSignaturePad(); }, 300);
         }
 

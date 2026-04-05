@@ -105,6 +105,134 @@ function verificarDependencias() {
             return removidos;
         }
 
+        // --- Funções centralizadas (refatoração código legado) ---
+
+        /**
+         * Fecha o último registro de historicoExecucao aberto (sem dataFim).
+         * Centraliza o padrão que estava duplicado 9+ vezes no código.
+         * @param {string} tag - Tag da etapa (ex: 'TROCA DE TURNO', 'OFICINA_FIM', etc.)
+         * @param {object} opts - Opções:
+         *   zerarDeslocamento: boolean - setar hhDeslocamento=0 (oficina)
+         *   skipMateriais: boolean - não sobrescrever materiaisUsados do registro
+         *   marcarDesvio: boolean - setar h.desvio=true
+         * @returns {object|null} O registro de histórico fechado, ou null se não havia registro aberto.
+         */
+        function _fecharHistoricoAtual(tag, opts) {
+            opts = opts || {};
+            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+            if(!currentOM || !currentOM.historicoExecucao || currentOM.historicoExecucao.length === 0) return null;
+            var h = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
+            if(!h.dataInicio || h.dataFim) return h;
+
+            var diff = Math.floor((new Date() - new Date(h.dataInicio)) / 1000) - (tempoPausadoTotal || 0);
+            if(diff < 0) diff = 0;
+            h.dataFim = new Date().toISOString();
+            h.tempoPausadoTotal = tempoPausadoTotal || 0;
+
+            if(opts.zerarDeslocamento) {
+                h.hhDeslocamento = 0;
+            } else {
+                var _deslSeg = h.deslocamentoSegundos !== undefined ? h.deslocamentoSegundos : ((h.deslocamentoMinutos || 0) * 60);
+                h.hhDeslocamento = _deslSeg / 3600;
+            }
+
+            h.hhAtividade = diff / 3600;
+            _calcHH(h);
+            if(!opts.skipMateriais) h.materiaisUsados = [...materiaisUsados];
+            if(tag) h.tag = tag;
+
+            if(opts.marcarDesvio) h.desvio = true;
+
+            return h;
+        }
+
+        /**
+         * Reseta o estado global de execução. Centraliza o padrão repetido em 6+ funções.
+         * @param {object} opts - Opções:
+         *   manterExecutantes: boolean - não limpar executantesNomes
+         *   manterMateriais: boolean - não limpar materiaisUsados
+         */
+        function _resetEstadoExecucao(opts) {
+            opts = opts || {};
+            deslocamentoSegundos = 0;
+            atividadeSegundos = 0;
+            tempoPausadoTotal = 0;
+            atividadeJaIniciada = false;
+            if(!opts.manterExecutantes) executantesNomes = [];
+            if(!opts.manterMateriais) materiaisUsados = [];
+            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            try { PdfDB.del('current_om_state').catch(function(){}); } catch(e){}
+        }
+
+        /**
+         * Renderiza a seção de desvios no popup de assinatura/finalização.
+         * Centraliza a lógica que existia apenas em showFinalizar e faltava em showAssinaturaFiscal.
+         * @param {HTMLElement} containerEl - Elemento DOM onde renderizar
+         * @param {object} omObj - Objeto da OM
+         * @returns {boolean} true se renderizou desvios, false caso contrário
+         */
+        function _renderDesviosResumo(containerEl, omObj) {
+            if(!containerEl) return false;
+            var desviosAll = (omObj.desviosRegistrados || []).slice();
+            var totalDesviosOriginais = desviosAll.length;
+            desviosAll = desviosAll.filter(_ehDesvioExibivelNaAssinatura);
+            if(totalDesviosOriginais !== desviosAll.length) {
+                console.info('[PCM] Resumo de assinatura: desvios de desativação ocultados.', {
+                    om: omObj && omObj.num ? omObj.num : null,
+                    ocultados: totalDesviosOriginais - desviosAll.length
+                });
+            }
+            if(desviosAll.length > 0) {
+                var devHtml = '<div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:2px solid #e65100;border-radius:12px;padding:14px;margin-bottom:16px;">';
+                devHtml += '<div style="font-size:16px;font-weight:800;color:#e65100;margin-bottom:10px;">⚠️ Desvios Registrados (' + desviosAll.length + ')</div>';
+                var totalDevSeg = 0;
+                for(var dv = 0; dv < desviosAll.length; dv++) {
+                    var dev = desviosAll[dv];
+                    totalDevSeg += (dev.tempoSegundos || 0);
+                    devHtml += '<div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:6px;border-left:4px solid #e65100;">';
+                    devHtml += '<div style="font-weight:800;font-size:13px;color:#e65100;">' + (dev.tipoCod || '') + ' - ' + (dev.tipoLabel || dev.tipo || '') + '</div>';
+                    devHtml += '<div style="font-size:12px;color:#555;">TAG: <strong>' + (dev.tagEquipamento || '---') + '</strong> | Local: ' + (dev.localInstalacao || '---') + '</div>';
+                    devHtml += '<div style="font-size:12px;color:#555;">Data: ' + new Date(dev.data).toLocaleString('pt-BR') + ' | Tempo: <strong>' + _formatarTempo(dev.tempoSegundos || 0) + '</strong></div>';
+                    devHtml += '</div>';
+                }
+                devHtml += '<div style="text-align:center;padding:8px;background:#e65100;border-radius:8px;color:#fff;font-weight:800;font-size:14px;margin-top:8px;">⏱️ Tempo Total Desvios: ' + _formatarTempo(totalDevSeg) + '</div>';
+                devHtml += '</div>';
+                containerEl.innerHTML = devHtml;
+                containerEl.style.display = 'block';
+                return true;
+            } else {
+                containerEl.style.display = 'none';
+                containerEl.innerHTML = '';
+                return false;
+            }
+        }
+
+        /**
+         * Verifica itens anormais do checklist de forma centralizada.
+         * Substitui as 3+ verificações duplicadas em enviarParaOficina, finalizarOficina, devolverEquipamento.
+         * @param {object} opts - Opções:
+         *   verificarDepois: boolean - verificar se foto "depois" existe para itens anormais com foto "antes"
+         * @returns {object} { temAnormal, semFotoAntes: [], semFotoDepois: [] }
+         */
+        function _verificarItensAnormais(opts) {
+            opts = opts || {};
+            var result = { temAnormal: false, semFotoAntes: [], semFotoDepois: [] };
+            var nomes = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
+            for(var i = 0; i < nomes.length; i++) {
+                var nm = nomes[i];
+                var valor = typeof _obterValorChecklistItem === 'function' ? _obterValorChecklistItem(nm) : '';
+                if(valor === 'anormal') {
+                    result.temAnormal = true;
+                    var foto = (checklistFotos || {})[nm] || {};
+                    if(!foto.antes) result.semFotoAntes.push(nm.toUpperCase());
+                    if(opts.verificarDepois && foto.antes && !foto.depois) result.semFotoDepois.push(nm.toUpperCase());
+                }
+            }
+            return result;
+        }
+
+        // --- Fim funções centralizadas ---
+
         function _setBtns(map) {
             for (const id in map) {
                 const el = $(id);
