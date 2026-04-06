@@ -180,7 +180,16 @@ async function loadDashboard(silent){
     ]);
     if(omsError)throw omsError;
     if(desviosError)throw desviosError;
-    dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=_recalcOmMateriaisTotalSafe(o);return o;});
+    dashboardData.oms=(oms||[]).map(function(o){
+      o.materiais_total=_recalcOmMateriaisTotalSafe(o);
+      // Recalcular hh_total a partir do historico_execucao para corrigir dados corrompidos no banco
+      if(Array.isArray(o.historico_execucao)&&o.historico_execucao.length>0){
+        var hhCalc=0;
+        o.historico_execucao.forEach(function(h){hhCalc+=Number(h.hhTotal||0);});
+        if(Math.abs(Number(o.hh_total||0)-hhCalc)>1){o.hh_total=hhCalc;}
+      }
+      return o;
+    });
     dashboardData.reports=(oms||[]).filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
     dashboardData.desvios=desvios||[];
     populateEquipeFilter();
