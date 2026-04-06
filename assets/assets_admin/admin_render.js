@@ -365,72 +365,423 @@ function exportarCsvPainel(){
   }
 }
 
-function renderEquipes(){
-  var oms=dashboardData.oms;
-  var equipeMap={};
+function _buildEquipeData(){
+  var oms=dashboardData.oms,map={};
   oms.forEach(function(o){
     var eq=_equipeLabel(o);
-    if(!equipeMap[eq])equipeMap[eq]={total:0,fin:0,hh:0,mat:0,desvios:0,exec:0,membros:{}};
-    equipeMap[eq].total++;
-    if(o.status==="finalizada"){equipeMap[eq].fin++;equipeMap[eq].hh+=Number(o.hh_total||0);equipeMap[eq].mat+=Number(o.materiais_total||0);}
-    if(o.status==="em_execucao")equipeMap[eq].exec++;
+    if(!map[eq])map[eq]={name:eq,total:0,fin:0,hh:0,mat:0,desvios:0,exec:0,env:0,pend:0,canc:0,membros:{},leadDays:[]};
+    map[eq].total++;
+    if(o.status==="finalizada"){
+      map[eq].fin++;map[eq].hh+=Number(o.hh_total||0);map[eq].mat+=Number(o.materiais_total||0);
+      if(o.created_at&&o.data_finalizacao){var ld=(new Date(o.data_finalizacao)-new Date(o.created_at))/(86400000);if(ld>0&&ld<365)map[eq].leadDays.push(ld);}
+    }
+    if(o.status==="em_execucao")map[eq].exec++;
+    if(o.status==="enviada")map[eq].env++;
+    if(o.status==="pendente_assinatura")map[eq].pend++;
+    if(o.status==="cancelada")map[eq].canc++;
     var execs=safeParseArray(o.executantes);
-    execs.forEach(function(n){if(n)equipeMap[eq].membros[n]=true;});
-    if(o.primeiro_executante)equipeMap[eq].membros[o.primeiro_executante]=true;
+    execs.forEach(function(n){if(n)map[eq].membros[n]=true;});
+    if(o.primeiro_executante)map[eq].membros[o.primeiro_executante]=true;
   });
   dashboardData.desvios.forEach(function(d){
     var om=oms.find(function(o){return o.num===d.om_num;});
     var eq=om?_equipeLabel(om):"Sem equipe";
-    if(equipeMap[eq])equipeMap[eq].desvios++;
+    if(map[eq])map[eq].desvios++;
   });
-  var equipes=Object.keys(equipeMap).sort();
-  if(!equipes.length){$("equipesGrid").innerHTML='<div class="empty">Nenhum dado.</div>';return;}
-  var colors=["var(--b1)","var(--az)","var(--lr)","var(--vd)","#6f42c1","#0dcaf0"];
-  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
-  equipes.forEach(function(eq,i){
-    var d=equipeMap[eq];
-    var taxa=d.total>0?Math.round((d.fin/d.total)*100):0;
+  var arr=Object.keys(map).sort().map(function(k){
+    var e=map[k];e.taxa=e.total>0?Math.round((e.fin/e.total)*100):0;
+    e.leadAvg=e.leadDays.length?e.leadDays.reduce(function(a,b){return a+b;},0)/e.leadDays.length:0;
+    e.membrosArr=Object.keys(e.membros).sort();
+    return e;
+  });
+  return arr;
+}
+
+function renderEquipes(){
+  var equipes=_buildEquipeData();
+  if(!equipes.length){$("equipesKPIs").innerHTML="";$("eqRankingChart").innerHTML='<div class="empty">Sem dados</div>';$("eqRadarChart").innerHTML="";$("equipesGrid").innerHTML='<div class="empty">Nenhum dado.</div>';$("eqTabelaWrap").innerHTML="";return;}
+  _renderEquipesKPIs(equipes);
+  _renderEquipesRanking(equipes);
+  _renderEquipesRadar(equipes);
+  _renderEquipesCards(equipes);
+  _renderEquipesTabela(equipes);
+}
+
+function _renderEquipesKPIs(equipes){
+  var best=equipes.reduce(function(a,b){return a.taxa>b.taxa?a:b;});
+  var mostHH=equipes.reduce(function(a,b){return a.hh>b.hh?a:b;});
+  var mostDev=equipes.reduce(function(a,b){return a.desvios>b.desvios?a:b;});
+  var totalOMs=equipes.reduce(function(s,e){return s+e.total;},0);
+  var kpis=[
+    {label:"Equipes",val:equipes.length,color:"var(--b1)"},
+    {label:"Melhor Taxa",val:best.taxa+"%",sub:best.name,color:"var(--vd)"},
+    {label:"Mais HH",val:mostHH.hh.toFixed(0)+"h",sub:mostHH.name,color:"var(--az)"},
+    {label:"Mais Desvios",val:mostDev.desvios,sub:mostDev.name,color:mostDev.desvios>0?"var(--vm)":"var(--c3)"}
+  ];
+  var h="";kpis.forEach(function(k){
+    h+='<div class="kpi-mini" style="background:var(--w);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh);border-left:3px solid '+k.color+'">';
+    h+='<div style="font-size:10px;color:var(--c3);font-weight:700;text-transform:uppercase">'+k.label+'</div>';
+    h+='<div style="font-size:20px;font-weight:900;color:'+k.color+';font-family:JetBrains Mono,monospace;margin:2px 0">'+k.val+'</div>';
+    if(k.sub)h+='<div style="font-size:9px;color:var(--c3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(k.sub)+'</div>';
+    h+='</div>';
+  });
+  $("equipesKPIs").innerHTML=h;
+}
+
+function _renderEquipesRanking(equipes){
+  var metric=$("eqRankMetric")?$("eqRankMetric").value:"fin";
+  var sorted=equipes.slice().sort(function(a,b){
+    if(metric==="taxa")return b.taxa-a.taxa;
+    if(metric==="hh")return b.hh-a.hh;
+    if(metric==="mat")return b.mat-a.mat;
+    return b.fin-a.fin;
+  });
+  var maxVal=sorted.length?Math.max(1,metric==="taxa"?100:(metric==="hh"?sorted[0].hh:(metric==="mat"?sorted[0].mat:sorted[0].fin))):1;
+  var colors=["#1A5276","#2E86C1","#E67E22","#27AE60","#8E44AD","#0dcaf0","#C0392B","#16A085"];
+  var bh=24,gap=6,W=400,H=sorted.length*(bh+gap)+10;
+  var svg='<svg viewBox="0 0 '+(W+160)+' '+H+'" style="width:100%;font-family:Inter,sans-serif">';
+  sorted.forEach(function(e,i){
+    var val=metric==="taxa"?e.taxa:(metric==="hh"?e.hh:(metric==="mat"?e.mat:e.fin));
+    var pct=maxVal>0?val/maxVal:0;
+    var bw=Math.max(4,pct*W);
+    var y=i*(bh+gap)+5;
     var col=colors[i%colors.length];
-    var membros=Object.keys(d.membros).sort();
-    h+='<div class="equipe-card"><div class="equipe-name"><div style="width:10px;height:10px;border-radius:3px;background:'+col+';flex-shrink:0"></div>'+esc(eq)+(d.exec>0?'<span class="pipe-live"></span>':'')+'</div>';
-    if(membros.length)h+='<div style="font-size:10px;color:var(--c3);margin:-4px 0 8px;padding-left:16px">'+membros.map(function(m){return esc(m);}).join(", ")+'</div>';
-    h+='<div class="equipe-stat"><span class="equipe-stat-label">OMs Finalizadas</span><span class="equipe-stat-val" style="color:var(--vd)">'+d.fin+' / '+d.total+'</span></div>';
-    h+='<div class="equipe-stat"><span class="equipe-stat-label">HH Executado</span><span class="equipe-stat-val" style="color:var(--b1)">'+d.hh.toFixed(1)+'h</span></div>';
-    h+='<div class="equipe-stat"><span class="equipe-stat-label">Custo Materiais</span><span class="equipe-stat-val" style="color:var(--lr)">R$ '+d.mat.toFixed(2)+'</span></div>';
-    h+='<div class="equipe-stat"><span class="equipe-stat-label">Desvios</span><span class="equipe-stat-val" style="color:'+(d.desvios>0?'var(--vm)':'var(--c3)')+'">'+d.desvios+'</span></div>';
-    h+='<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+taxa+'%;background:'+col+'"></div></div>';
-    h+='<div style="font-size:10px;color:var(--c3);font-weight:800;margin-top:4px;text-align:right">'+taxa+'% atendimento</div></div>';
+    var label=metric==="taxa"?val+"%":(metric==="hh"?val.toFixed(1)+"h":(metric==="mat"?"R$ "+val.toFixed(0):val));
+    svg+='<text x="0" y="'+(y+bh/2+4)+'" font-size="11" font-weight="700" fill="#333">'+esc(e.name)+'</text>';
+    svg+='<rect x="110" y="'+y+'" width="'+bw+'" height="'+bh+'" rx="4" fill="'+col+'" opacity="0.85"><animate attributeName="width" from="0" to="'+bw+'" dur="0.6s" fill="freeze"/></rect>';
+    svg+='<text x="'+(115+bw)+'" y="'+(y+bh/2+4)+'" font-size="11" font-weight="800" fill="'+col+'">'+label+'</text>';
+  });
+  svg+='</svg>';
+  $("eqRankingChart").innerHTML=svg;
+}
+
+function _renderEquipesRadar(equipes){
+  var sel=$("eqRadarSelect");
+  if(sel){
+    var cur=sel.value;
+    sel.innerHTML="";
+    equipes.forEach(function(e,i){sel.innerHTML+='<option value="'+i+'"'+(cur===String(i)?" selected":"")+'>'+esc(e.name)+'</option>';});
+  }
+  var idx=sel?parseInt(sel.value||"0",10):0;
+  if(idx>=equipes.length)idx=0;
+  var e=equipes[idx];
+  var avg={fin:0,hh:0,mat:0,desvios:0,taxa:0};
+  equipes.forEach(function(q){avg.fin+=q.fin;avg.hh+=q.hh;avg.mat+=q.mat;avg.desvios+=q.desvios;avg.taxa+=q.taxa;});
+  var n=equipes.length||1;avg.fin/=n;avg.hh/=n;avg.mat/=n;avg.desvios/=n;avg.taxa/=n;
+  var axes=[
+    {label:"OMs",val:e.fin,max:Math.max(e.fin,avg.fin,1),avg:avg.fin},
+    {label:"HH",val:e.hh,max:Math.max(e.hh,avg.hh,1),avg:avg.hh},
+    {label:"Custo",val:e.mat,max:Math.max(e.mat,avg.mat,1),avg:avg.mat},
+    {label:"Desvios",val:e.desvios,max:Math.max(e.desvios,avg.desvios,1),avg:avg.desvios},
+    {label:"Taxa%",val:e.taxa,max:100,avg:avg.taxa}
+  ];
+  var cx=140,cy=130,R=90,count=axes.length;
+  var svg='<svg viewBox="0 0 280 270" style="width:100%;max-width:280px;font-family:Inter,sans-serif">';
+  // grid rings
+  for(var r=1;r<=4;r++){
+    var pts="";for(var j=0;j<count;j++){var a=-Math.PI/2+2*Math.PI*j/count;pts+=(cx+R*r/4*Math.cos(a))+","+(cy+R*r/4*Math.sin(a))+" ";}
+    svg+='<polygon points="'+pts+'" fill="none" stroke="#e0e0e0" stroke-width="0.5"/>';
+  }
+  // axes
+  for(var j=0;j<count;j++){var a=-Math.PI/2+2*Math.PI*j/count;svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+R*Math.cos(a))+'" y2="'+(cy+R*Math.sin(a))+'" stroke="#ccc" stroke-width="0.5"/>';}
+  // avg polygon
+  var avgPts="";for(var j=0;j<count;j++){var a=-Math.PI/2+2*Math.PI*j/count;var pct=axes[j].max>0?axes[j].avg/axes[j].max:0;avgPts+=(cx+R*pct*Math.cos(a))+","+(cy+R*pct*Math.sin(a))+" ";}
+  svg+='<polygon points="'+avgPts+'" fill="rgba(150,150,150,0.12)" stroke="#999" stroke-width="1" stroke-dasharray="4,3"/>';
+  // equipe polygon
+  var eqPts="";for(var j=0;j<count;j++){var a=-Math.PI/2+2*Math.PI*j/count;var pct=axes[j].max>0?axes[j].val/axes[j].max:0;eqPts+=(cx+R*pct*Math.cos(a))+","+(cy+R*pct*Math.sin(a))+" ";}
+  svg+='<polygon points="'+eqPts+'" fill="rgba(26,82,118,0.2)" stroke="#1A5276" stroke-width="2"/>';
+  // dots + labels
+  for(var j=0;j<count;j++){
+    var a=-Math.PI/2+2*Math.PI*j/count;
+    var pct=axes[j].max>0?axes[j].val/axes[j].max:0;
+    var dx=cx+R*pct*Math.cos(a),dy=cy+R*pct*Math.sin(a);
+    svg+='<circle cx="'+dx+'" cy="'+dy+'" r="3.5" fill="#1A5276" stroke="#fff" stroke-width="1.5"/>';
+    var lx=cx+(R+14)*Math.cos(a),ly=cy+(R+14)*Math.sin(a);
+    var anchor=Math.abs(Math.cos(a))<0.3?"middle":(Math.cos(a)>0?"start":"end");
+    svg+='<text x="'+lx+'" y="'+(ly+3)+'" text-anchor="'+anchor+'" font-size="10" font-weight="700" fill="#444">'+axes[j].label+'</text>';
+  }
+  svg+='<text x="'+cx+'" y="260" text-anchor="middle" font-size="9" fill="#999"><tspan fill="#1A5276" font-weight="800">'+esc(e.name)+'</tspan> vs <tspan fill="#999" stroke-dasharray="4,3">Media</tspan></text>';
+  svg+='</svg>';
+  $("eqRadarChart").innerHTML=svg;
+}
+
+function _renderEquipesCards(equipes){
+  var colors=["#1A5276","#2E86C1","#E67E22","#27AE60","#8E44AD","#0dcaf0","#C0392B","#16A085"];
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+  equipes.forEach(function(e,i){
+    var col=colors[i%colors.length];
+    // mini donut data
+    var slices=[{v:e.fin,c:"var(--vd)"},{v:e.exec,c:"var(--az)"},{v:e.pend,c:"var(--lr)"},{v:e.env,c:"var(--c4)"},{v:e.canc,c:"var(--vm)"}];
+    var donutSvg=_miniDonut(slices,24);
+    h+='<div class="equipe-card"><div class="equipe-name"><div style="width:10px;height:10px;border-radius:3px;background:'+col+';flex-shrink:0"></div>'+esc(e.name)+(e.exec>0?'<span class="pipe-live"></span>':'')+'</div>';
+    if(e.membrosArr.length)h+='<div style="font-size:10px;color:var(--c3);margin:-4px 0 8px;padding-left:16px">'+e.membrosArr.map(function(m){return esc(m);}).join(", ")+'</div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+donutSvg+'<div style="flex:1">';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">Finalizadas</span><span class="equipe-stat-val" style="color:var(--vd)">'+e.fin+'/'+e.total+'</span></div>';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">Em Execucao</span><span class="equipe-stat-val" style="color:var(--az)">'+e.exec+'</span></div>';
+    h+='</div></div>';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">HH Total</span><span class="equipe-stat-val" style="color:var(--b1)">'+e.hh.toFixed(1)+'h</span></div>';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">Custo Materiais</span><span class="equipe-stat-val" style="color:var(--lr)">R$ '+e.mat.toFixed(0)+'</span></div>';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">Desvios</span><span class="equipe-stat-val" style="color:'+(e.desvios>0?'var(--vm)':'var(--c3)')+'">'+e.desvios+'</span></div>';
+    h+='<div class="equipe-stat"><span class="equipe-stat-label">Lead Time Medio</span><span class="equipe-stat-val" style="color:var(--c2)">'+(e.leadAvg>0?e.leadAvg.toFixed(1)+'d':'--')+'</span></div>';
+    h+='<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+e.taxa+'%;background:'+col+'"></div></div>';
+    h+='<div style="font-size:10px;color:var(--c3);font-weight:800;margin-top:4px;text-align:right">'+e.taxa+'% atendimento</div></div>';
   });
   h+='</div>';
   $("equipesGrid").innerHTML=h;
 }
 
+function _miniDonut(slices,size){
+  var total=slices.reduce(function(s,sl){return s+sl.v;},0);
+  if(!total)return'<svg width="'+size+'" height="'+size+'"></svg>';
+  var r=size/2-2,cx=size/2,cy=size/2,cumul=0;
+  var svg='<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">';
+  slices.forEach(function(sl){
+    if(!sl.v)return;
+    var pct=sl.v/total,start=cumul*2*Math.PI-Math.PI/2,end=(cumul+pct)*2*Math.PI-Math.PI/2;
+    var large=pct>0.5?1:0;
+    var x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start),x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end);
+    svg+='<path d="M'+cx+','+cy+' L'+x1+','+y1+' A'+r+','+r+' 0 '+large+',1 '+x2+','+y2+' Z" fill="'+sl.c+'"/>';
+    cumul+=pct;
+  });
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*0.55)+'" fill="var(--w)"/>';
+  svg+='</svg>';
+  return svg;
+}
+
+function _renderEquipesTabela(equipes){
+  var h='<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  h+='<thead><tr style="background:var(--c6);text-align:left"><th style="padding:8px">Equipe</th><th style="padding:8px;text-align:center">OMs</th><th style="padding:8px;text-align:center">Fin%</th><th style="padding:8px;text-align:center">HH</th><th style="padding:8px;text-align:right">Custo Mat.</th><th style="padding:8px;text-align:center">Desvios</th><th style="padding:8px;text-align:center">Lead Time</th><th style="padding:8px;text-align:center">Membros</th></tr></thead><tbody>';
+  equipes.forEach(function(e,i){
+    var bg=i%2===0?"var(--w)":"var(--c6)";
+    h+='<tr style="background:'+bg+'"><td style="padding:6px 8px;font-weight:700">'+esc(e.name)+'</td>';
+    h+='<td style="padding:6px 8px;text-align:center">'+e.fin+'/'+e.total+'</td>';
+    h+='<td style="padding:6px 8px;text-align:center;font-weight:700;color:'+(e.taxa>=80?'var(--vd)':(e.taxa>=50?'var(--lr)':'var(--vm)'))+'">'+e.taxa+'%</td>';
+    h+='<td style="padding:6px 8px;text-align:center;font-family:JetBrains Mono,monospace">'+e.hh.toFixed(1)+'h</td>';
+    h+='<td style="padding:6px 8px;text-align:right;font-family:JetBrains Mono,monospace">R$ '+e.mat.toFixed(0)+'</td>';
+    h+='<td style="padding:6px 8px;text-align:center;color:'+(e.desvios>0?'var(--vm)':'var(--c3)')+'">'+e.desvios+'</td>';
+    h+='<td style="padding:6px 8px;text-align:center">'+(e.leadAvg>0?e.leadAvg.toFixed(1)+'d':'--')+'</td>';
+    h+='<td style="padding:6px 8px;text-align:center">'+e.membrosArr.length+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $("eqTabelaWrap").innerHTML=h;
+}
+
+function exportarEquipesCsv(){
+  var equipes=_buildEquipeData();
+  if(!equipes.length){adminToast("Sem dados","warn");return;}
+  var csv="Equipe;OMs Total;Finalizadas;Taxa%;HH;Custo Materiais;Desvios;Lead Time;Membros\n";
+  equipes.forEach(function(e){csv+=e.name+";"+e.total+";"+e.fin+";"+e.taxa+"%;"+e.hh.toFixed(1)+";"+e.mat.toFixed(2)+";"+e.desvios+";"+(e.leadAvg>0?e.leadAvg.toFixed(1)+"d":"--")+";"+e.membrosArr.join(", ")+"\n";});
+  var blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="equipes_comparativo.csv";a.click();
+}
+
+function _desvioOmLookup(){
+  var map={};(dashboardData.oms||[]).forEach(function(o){map[o.num]=o;});return map;
+}
+
 function renderDesvios(){
-  var search=($("searchDesvios").value||"").toLowerCase();
-  var tipo=$("filterDesvioTipo").value;
-  var list=dashboardData.desvios;
-  if(search)list=list.filter(function(d){return(d.om_num||"").toLowerCase().includes(search)||(d.tipo||"").toLowerCase().includes(search);});
+  var all=dashboardData.desvios||[];
+  var omMap=_desvioOmLookup();
+  $("desviosCount").textContent=all.length+" desvio(s) no periodo";
+  // populate tipo filter dynamically
+  var tipoSel=$("filterDesvioTipo");
+  if(tipoSel){
+    var tipos={};all.forEach(function(d){if(d.tipo)tipos[d.tipo]=true;});
+    var cur=tipoSel.value;
+    tipoSel.innerHTML='<option value="">Todos os tipos</option>';
+    Object.keys(tipos).sort().forEach(function(t){tipoSel.innerHTML+='<option value="'+esc(t)+'"'+(cur===t?" selected":"")+'>'+esc(t)+'</option>';});
+  }
+  // populate equipe filter
+  var eqSel=$("filterDesvioEquipe");
+  if(eqSel){
+    var eqs={};all.forEach(function(d){var om=omMap[d.om_num];if(om){var eq=_equipeLabel(om);eqs[eq]=true;}});
+    var curEq=eqSel.value;
+    eqSel.innerHTML='<option value="">Todas equipes</option>';
+    Object.keys(eqs).sort().forEach(function(e){eqSel.innerHTML+='<option value="'+esc(e)+'"'+(curEq===e?" selected":"")+'>'+esc(e)+'</option>';});
+  }
+  // render charts with ALL desvios (unfiltered)
+  _renderDesviosKPIs(all,omMap);
+  _renderDesviosDonutTipo(all);
+  _renderDesviosBarEscopo(all,omMap);
+  _renderDesviosBarEquipe(all,omMap);
+  _renderDesviosBarLocal(all);
+  _renderDesviosTimeline(all);
+  // render filtered list
+  var search=($("searchDesvios")?$("searchDesvios").value:"").toLowerCase();
+  var tipo=tipoSel?tipoSel.value:"";
+  var escopo=$("filterDesvioEscopo")?$("filterDesvioEscopo").value:"";
+  var equipe=eqSel?eqSel.value:"";
+  var list=all;
+  if(search)list=list.filter(function(d){return(d.om_num||"").toLowerCase().includes(search)||(d.tipo||"").toLowerCase().includes(search)||(d.descricao||"").toLowerCase().includes(search);});
   if(tipo)list=list.filter(function(d){return d.tipo===tipo;});
-  $("desviosCount").textContent=list.length+" registro(s)";
-  if(!list.length){$("desviosList").innerHTML='<div class="empty">Nenhum desvio.</div>';return;}
+  if(escopo)list=list.filter(function(d){var om=omMap[d.om_num];return om&&(om.escopo||"geral")===escopo;});
+  if(equipe)list=list.filter(function(d){var om=omMap[d.om_num];return om&&_equipeLabel(om)===equipe;});
+  if(!list.length){$("desviosList").innerHTML='<div class="empty">Nenhum desvio encontrado.</div>';return;}
   var h="";
   list.forEach(function(d,idx){
     var c=DESVIO_COLORS[d.tipo]||["#888","#f5f5f5"];
     var tempo=d.tempo_parado_min?d.tempo_parado_min+" min":"";
     var data=d.created_at?new Date(d.created_at).toLocaleString("pt-BR"):"";
+    var om=omMap[d.om_num];
+    var escopoLabel=om?(om.escopo||"geral"):"";
+    var equipeLabel=om?_equipeLabel(om):"";
     h+='<div class="desvio-item" style="animation-delay:'+(idx*20)+'ms"><div class="desvio-header">';
     h+='<span class="desvio-badge" style="background:'+c[1]+';color:'+c[0]+'">'+(d.tipo||"DESVIO")+'</span>';
-    h+='<span class="mono" style="font-size:11px;font-weight:800;color:var(--b1);background:var(--bc);padding:3px 8px;border-radius:6px">OM '+(d.om_num||"—")+'</span>';
-    if(tempo)h+='<span style="font-size:11px;color:var(--vm);font-weight:800">⏱ '+tempo+'</span>';
+    h+='<span class="mono" style="font-size:11px;font-weight:800;color:var(--b1);background:var(--bc);padding:3px 8px;border-radius:6px">OM '+(d.om_num||"---")+'</span>';
+    if(escopoLabel)h+='<span style="font-size:10px;color:var(--c3);font-weight:700;background:var(--c6);padding:2px 6px;border-radius:4px">'+esc(escopoLabel)+'</span>';
+    if(equipeLabel)h+='<span style="font-size:10px;color:var(--b1);font-weight:700">'+esc(equipeLabel)+'</span>';
+    if(tempo)h+='<span style="font-size:11px;color:var(--vm);font-weight:800">'+tempo+'</span>';
     h+='</div>';
     if(d.descricao)h+='<div class="desvio-body">'+esc(d.descricao)+'</div>';
     h+='<div class="desvio-meta">';
-    if(d.registrado_por||d.habilitado_por)h+='<span>👤 '+(d.registrado_por||d.habilitado_por)+'</span>';
-    if(data)h+='<span>📅 '+data+'</span>';
-    if(d.novo_responsavel)h+='<span>🔄 Novo: '+d.novo_responsavel+'</span>';
+    if(d.registrado_por||d.habilitado_por)h+='<span>'+(d.registrado_por||d.habilitado_por)+'</span>';
+    if(data)h+='<span>'+data+'</span>';
+    if(d.local_instalacao)h+='<span>'+esc(d.local_instalacao)+'</span>';
+    if(d.novo_responsavel)h+='<span>Novo: '+esc(d.novo_responsavel)+'</span>';
     h+='</div></div>';
   });
   $("desviosList").innerHTML=h;
+}
+
+function _renderDesviosKPIs(all,omMap){
+  var el=$("desviosKPIs");if(!el)return;
+  var totalTempo=all.reduce(function(s,d){return s+Number(d.tempo_parado_min||0);},0);
+  var tipoMap={};all.forEach(function(d){var t=d.tipo||"Outro";tipoMap[t]=(tipoMap[t]||0)+1;});
+  var topTipo="--",topTipoN=0;Object.keys(tipoMap).forEach(function(t){if(tipoMap[t]>topTipoN){topTipoN=tipoMap[t];topTipo=t;}});
+  var eqMap={};all.forEach(function(d){var om=omMap[d.om_num];var eq=om?_equipeLabel(om):"?";eqMap[eq]=(eqMap[eq]||0)+1;});
+  var topEq="--",topEqN=0;Object.keys(eqMap).forEach(function(e){if(eqMap[e]>topEqN){topEqN=eqMap[e];topEq=e;}});
+  var kpis=[
+    {label:"Total Desvios",val:all.length,color:"var(--vm)"},
+    {label:"Tempo Parado",val:totalTempo>60?Math.round(totalTempo/60)+"h":totalTempo+"min",color:"#e67e00"},
+    {label:"Tipo Frequente",val:topTipoN,sub:topTipo,color:"#6f42c1"},
+    {label:"Equipe Afetada",val:topEqN,sub:topEq,color:"var(--az)"}
+  ];
+  var h="";kpis.forEach(function(k){
+    h+='<div style="background:var(--w);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh);border-left:3px solid '+k.color+'">';
+    h+='<div style="font-size:10px;color:var(--c3);font-weight:700;text-transform:uppercase">'+k.label+'</div>';
+    h+='<div style="font-size:20px;font-weight:900;color:'+k.color+';font-family:JetBrains Mono,monospace;margin:2px 0">'+k.val+'</div>';
+    if(k.sub)h+='<div style="font-size:9px;color:var(--c3);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(k.sub)+'</div>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+function _renderDesviosDonutTipo(all){
+  var el=$("desvDonutTipo");if(!el)return;
+  if(!all.length){el.innerHTML='<div class="empty">Sem desvios</div>';return;}
+  var map={};all.forEach(function(d){var t=d.tipo||"Outro";map[t]=(map[t]||0)+1;});
+  var items=Object.keys(map).sort(function(a,b){return map[b]-map[a];}).map(function(t){return{label:t,val:map[t],color:(DESVIO_COLORS[t]||["#888"])[0]};});
+  var total=all.length,cx=120,cy=110,R=80,r2=R*0.55,cumul=0;
+  var svg='<svg viewBox="0 0 240 240" style="width:100%;max-width:240px;font-family:Inter,sans-serif">';
+  items.forEach(function(item){
+    var pct=item.val/total,start=cumul*2*Math.PI-Math.PI/2,end=(cumul+pct)*2*Math.PI-Math.PI/2;
+    var large=pct>0.5?1:0;
+    var x1=cx+R*Math.cos(start),y1=cy+R*Math.sin(start),x2=cx+R*Math.cos(end),y2=cy+R*Math.sin(end);
+    svg+='<path d="M'+cx+','+cy+' L'+x1+','+y1+' A'+R+','+R+' 0 '+large+',1 '+x2+','+y2+' Z" fill="'+item.color+'" opacity="0.85"><animate attributeName="opacity" from="0" to="0.85" dur="0.4s"/></path>';
+    cumul+=pct;
+  });
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r2+'" fill="var(--w)"/>';
+  svg+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" font-size="22" font-weight="900" fill="var(--c1)">'+total+'</text>';
+  svg+='<text x="'+cx+'" y="'+(cy+10)+'" text-anchor="middle" font-size="9" fill="var(--c3)">desvios</text>';
+  svg+='</svg>';
+  // legend
+  var leg='<div style="display:flex;flex-direction:column;gap:4px;margin-left:12px">';
+  items.forEach(function(item){
+    leg+='<div style="display:flex;align-items:center;gap:6px;font-size:10px"><div style="width:8px;height:8px;border-radius:2px;background:'+item.color+';flex-shrink:0"></div><span style="color:var(--c2);font-weight:600">'+esc(item.label)+'</span><span style="font-weight:800;color:var(--c1);margin-left:auto">'+item.val+'</span></div>';
+  });
+  leg+='</div>';
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px">'+svg+leg+'</div>';
+}
+
+function _renderDesviosHBar(elId,map,colorKey){
+  var el=$(elId);if(!el)return;
+  var items=Object.keys(map).sort(function(a,b){return map[b]-map[a];}).slice(0,10);
+  if(!items.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
+  var maxV=Math.max(1,map[items[0]]);
+  var bh=22,gap=5,W=300,H=items.length*(bh+gap)+10;
+  var svg='<svg viewBox="0 0 '+(W+140)+' '+H+'" style="width:100%;font-family:Inter,sans-serif">';
+  items.forEach(function(name,i){
+    var v=map[name],pct=v/maxV,bw=Math.max(4,pct*W);
+    var y=i*(bh+gap)+5;
+    var c=colorKey?((DESVIO_COLORS[name]||["#607D8B"])[0]):"#1A5276";
+    svg+='<text x="0" y="'+(y+bh/2+4)+'" font-size="10" font-weight="600" fill="#555">'+esc(name.length>18?name.substr(0,18)+"...":name)+'</text>';
+    svg+='<rect x="120" y="'+y+'" width="'+bw+'" height="'+bh+'" rx="3" fill="'+c+'" opacity="0.8"><animate attributeName="width" from="0" to="'+bw+'" dur="0.5s" fill="freeze"/></rect>';
+    svg+='<text x="'+(125+bw)+'" y="'+(y+bh/2+4)+'" font-size="10" font-weight="800" fill="'+c+'">'+v+'</text>';
+  });
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
+
+function _renderDesviosBarEscopo(all,omMap){
+  var map={};
+  var labels={"preventiva_usina":"Prev. Usina","preventiva_mina":"Prev. Mina","preventiva_turno":"Prev. Turno","corretiva":"Corretiva","geral":"Geral"};
+  all.forEach(function(d){
+    var om=omMap[d.om_num];var esc=om?(om.escopo||"geral"):"geral";
+    var lbl=labels[esc]||esc;
+    map[lbl]=(map[lbl]||0)+1;
+  });
+  _renderDesviosHBar("desvBarEscopo",map,false);
+}
+
+function _renderDesviosBarEquipe(all,omMap){
+  var map={};
+  all.forEach(function(d){
+    var om=omMap[d.om_num];var eq=om?_equipeLabel(om):"Sem equipe";
+    map[eq]=(map[eq]||0)+1;
+  });
+  _renderDesviosHBar("desvBarEquipe",map,false);
+}
+
+function _renderDesviosBarLocal(all){
+  var map={};
+  all.forEach(function(d){
+    var loc=d.local_instalacao||d.desc_local||"Nao informado";
+    map[loc]=(map[loc]||0)+1;
+  });
+  _renderDesviosHBar("desvBarLocal",map,false);
+}
+
+function _renderDesviosTimeline(all){
+  var el=$("desvTimeline");if(!el)return;
+  if(!all.length){el.innerHTML='<div class="empty">Sem dados</div>';return;}
+  var dayMap={};
+  all.forEach(function(d){
+    if(!d.created_at)return;
+    var day=d.created_at.substr(0,10);
+    if(!dayMap[day])dayMap[day]={};
+    var t=d.tipo||"Outro";
+    dayMap[day][t]=(dayMap[day][t]||0)+1;
+  });
+  var days=Object.keys(dayMap).sort();
+  if(!days.length){el.innerHTML='<div class="empty">Sem datas</div>';return;}
+  // collect all tipos
+  var tipos={};all.forEach(function(d){tipos[d.tipo||"Outro"]=true;});
+  var tipoArr=Object.keys(tipos).sort();
+  var maxStack=0;days.forEach(function(day){var sum=0;tipoArr.forEach(function(t){sum+=(dayMap[day][t]||0);});if(sum>maxStack)maxStack=sum;});
+  maxStack=Math.max(1,maxStack);
+  var bw=Math.max(14,Math.min(40,600/days.length)),gap=3,W=days.length*(bw+gap)+60,H=160;
+  var chartH=H-30;
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;font-family:Inter,sans-serif">';
+  // y axis
+  for(var i=0;i<=4;i++){var yy=10+chartH-chartH*i/4;svg+='<line x1="40" y1="'+yy+'" x2="'+W+'" y2="'+yy+'" stroke="#eee" stroke-width="0.5"/>';svg+='<text x="36" y="'+(yy+3)+'" text-anchor="end" font-size="8" fill="#aaa">'+Math.round(maxStack*i/4)+'</text>';}
+  days.forEach(function(day,di){
+    var x=45+di*(bw+gap),cumY=0;
+    tipoArr.forEach(function(t){
+      var v=dayMap[day][t]||0;if(!v)return;
+      var barH=v/maxStack*chartH;
+      var y=10+chartH-cumY-barH;
+      var c=(DESVIO_COLORS[t]||["#888"])[0];
+      svg+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+barH+'" rx="2" fill="'+c+'" opacity="0.8"/>';
+      cumY+=barH;
+    });
+    svg+='<text x="'+(x+bw/2)+'" y="'+(H-2)+'" text-anchor="middle" font-size="7" fill="#999" transform="rotate(-45,'+(x+bw/2)+','+(H-2)+')">'+day.substr(5)+'</text>';
+  });
+  svg+='</svg>';
+  // mini legend
+  var leg='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">';
+  tipoArr.forEach(function(t){var c=(DESVIO_COLORS[t]||["#888"])[0];leg+='<span style="font-size:9px;display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:'+c+';display:inline-block"></span>'+esc(t)+'</span>';});
+  leg+='</div>';
+  el.innerHTML=svg+leg;
 }
 
 function renderAnalytics(){
