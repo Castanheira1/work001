@@ -144,12 +144,18 @@ function filtrarOMs() {
                     console.warn('[PCM] Dependência ausente: _obterEstadoServidorOM(). Seguindo sem validação de lock remoto. Verifique assets/pcm_mcr/pcm_sync_push.js.');
                 } else {    
                     var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
-                    if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
-                        alvoOM.lockDeviceId = estadoServidor.lock_device_id;
-                        salvarOMs();
-                        filtrarOMs();
-                        alert('⚠️ OM em uso por outro operador!');
-                        return;
+                    if(estadoServidor) {
+                        if(!estadoServidor.lock_device_id || estadoServidor.admin_unlock) {
+                            // Servidor desbloqueou (admin habilitou ou lock expirou) — sincronizar local
+                            alvoOM.lockDeviceId = null;
+                            salvarOMs();
+                        } else if(estadoServidor.lock_device_id !== deviceId) {
+                            alvoOM.lockDeviceId = estadoServidor.lock_device_id;
+                            salvarOMs();
+                            filtrarOMs();
+                            alert('⚠️ OM em uso por outro operador!');
+                            return;
+                        }
                     }
                 }
             }
