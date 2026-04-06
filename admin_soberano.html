@@ -2,1313 +2,311 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOBERANO MCR — Painel Fiscal</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOBERANO MCR — Admin</title>
+<link rel="icon" sizes="192x192" href="assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="assets/env-loader.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --b1:#1a4a3a;--b2:#0f3328;--b3:#2a7a5a;--bc:#e8f5ef;
-  --az:#198754;--ac:#d1e7dd;
-  --lr:#e67e00;--lc:#fff8e6;
-  --vm:#dc3545;--vmc:#fde8ea;
-  --vd:#1A8754;--vdc:#d1e7dd;
-  --c1:#111;--c2:#444;--c3:#888;--c4:#ccc;--c5:#e8e8e8;--c6:#f5f5f5;
-  --bg:#f0f5f3;--w:#fff;--r:14px;--sh:0 2px 16px rgba(0,0,0,0.06);
-  --map-panel-w:340px;
-}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-height:100vh}
-.nav{background:linear-gradient(135deg,var(--b1),var(--b2));padding:0 20px;height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.18)}
-.nav-brand{display:flex;flex-direction:column;gap:1px}
-.nav-logo{font-size:14px;font-weight:900;color:#fff;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
-.nav-logo-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;box-shadow:0 0 8px #4caf50}
-.nav-sub{font-size:10px;color:rgba(255,255,255,.55);font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.nav-center{display:flex;gap:6px}
-.nav-tab{background:transparent;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.65);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:800;font-family:inherit;transition:all .18s}
-.nav-tab:hover{background:rgba(255,255,255,.1);color:#fff}
-.nav-tab.active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.35)}
-.nav-tab.tab-map{border-color:rgba(76,175,80,.4);color:rgba(76,175,80,.9)}
-.nav-tab.tab-map.active{background:rgba(76,175,80,.2);color:#4caf50;border-color:#4caf50}
-.nav-right{display:flex;align-items:center;gap:12px}
-.refresh-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;transition:background .3s,transform .3s;margin-right:4px}
-.refresh-label{font-size:10px;color:rgba(255,255,255,.7);font-weight:700}
-.user-pill{display:flex;align-items:center;gap:6px}
-.user-avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
-#userLabel{font-size:11px;color:rgba(255,255,255,.8);font-weight:700}
-.btn-sair{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:800;font-family:inherit;transition:all .15s}
-.btn-sair:hover{background:rgba(255,255,255,.2)}
-.wrap{max-width:1280px;margin:0 auto;padding:20px 16px}
-.page{display:none}
-.page.active{display:block}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes countUp{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.kpi{background:var(--w);border-radius:var(--r);padding:18px 16px;box-shadow:var(--sh);animation:fadeUp .4s ease both;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.04)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
-.kpi-green::before{background:linear-gradient(90deg,#1A8754,#2ecc71)}
-.kpi-orange::before{background:linear-gradient(90deg,#e67e00,#f5a623)}
-.kpi-red::before{background:linear-gradient(90deg,#dc3545,#e8575f)}
-.kpi-gray::before{background:linear-gradient(90deg,#666,#999)}
-.kpi-blue::before{background:linear-gradient(90deg,#1565c0,#1e88e5)}
-.kpi-label{font-size:10px;color:var(--c3);font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
-.kpi-val{font-size:30px;font-weight:900;line-height:1;animation:countUp .5s ease both}
-.kpi-sub{font-size:11px;color:var(--c3);margin-top:6px;font-weight:700}
-.card{background:var(--w);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;animation:fadeUp .4s ease both;border:1px solid rgba(0,0,0,.04)}
-.card-head{padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.card-head h3{font-size:13px;font-weight:900}
-.card-body{padding:18px}
-.btn-a{padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:900;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:linear-gradient(135deg,var(--b1),var(--b2));color:#fff}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(10,40,32,.25)}
-.btn-green{background:linear-gradient(135deg,#1A8754,#2ecc71);color:#fff}
-.btn-orange{background:linear-gradient(135deg,#e67e00,#f5a623);color:#fff}
-.btn-danger{background:linear-gradient(135deg,#dc3545,#e8575f);color:#fff}
-.btn-ghost{background:var(--c6);color:var(--c2);border:1.5px solid var(--c5)}
-.om-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:var(--b1);white-space:nowrap;background:var(--bc);padding:4px 8px;border-radius:6px}
-.empty{text-align:center;padding:36px 16px;color:var(--c3);font-weight:800;font-size:13px}
-.spinner{width:26px;height:26px;border:3px solid rgba(26,74,58,.12);border-top-color:var(--b1);border-radius:50%;animation:spin .7s linear infinite;margin:20px auto}
-#fiscal-toast{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:380px;width:calc(100% - 32px)}
-.toast-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:14px;color:#fff;font-size:13px;font-weight:700;box-shadow:0 8px 32px rgba(0,0,0,0.2);pointer-events:auto;cursor:pointer;animation:slideIn .3s cubic-bezier(.22,1,.36,1);transition:transform .3s,opacity .25s}
-.toast-item.out{transform:translateX(120%);opacity:0}
-.badge-status{font-size:10px;font-weight:900;padding:3px 8px;border-radius:999px}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:none;align-items:center;justify-content:center;padding:16px}
-.modal-overlay.show{display:flex}
-.modal-box{background:#fff;border-radius:20px;width:100%;max-width:760px;max-height:90vh;overflow-y:auto;box-shadow:0 40px 100px rgba(0,0,0,.35)}
-.modal-head{padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-radius:20px 20px 0 0}
-.modal-title{font-size:15px;font-weight:900}
-.modal-body{padding:20px 24px}
-.modal-section{margin-bottom:20px}
-.modal-section-title{font-size:10px;font-weight:900;color:var(--c3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--c5)}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.detail-item{background:var(--c6);border-radius:10px;padding:10px 12px}
-.detail-label{font-size:10px;color:var(--c3);font-weight:800;text-transform:uppercase;margin-bottom:2px}
-.detail-value{font-size:13px;font-weight:800}
-.mat-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:5px;font-size:12px}
-.mat-nome{flex:1;font-weight:700}
-.mat-qtd{font-family:'JetBrains Mono',monospace;font-weight:900;color:var(--b1)}
-.mat-total{font-family:'JetBrains Mono',monospace;font-weight:900;color:var(--lr)}
-.sign-box{background:linear-gradient(135deg,#e8f5ef,#d1e7dd);border:2px solid #a8d5b8;border-radius:14px;padding:18px;text-align:center;margin-top:16px}
-.sign-box-title{font-size:14px;font-weight:900;color:#0f3328;margin-bottom:6px}
-.sign-box-sub{font-size:11px;color:#2a7a5a;font-weight:700;margin-bottom:14px}
-
-/* ═══════════════════════════════════════════════
-   MAPA AO VIVO — Estilos
-═══════════════════════════════════════════════ */
-#pg-mapa{display:none}
-#pg-mapa.active{display:block}
-.mapa-layout{display:grid;grid-template-columns:var(--map-panel-w) 1fr;gap:16px;height:calc(100vh - 120px);min-height:500px}
-.mapa-painel{display:flex;flex-direction:column;gap:12px;overflow-y:auto;padding-right:4px}
-.mapa-painel::-webkit-scrollbar{width:4px}
-.mapa-painel::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
-.mapa-container{border-radius:16px;overflow:hidden;box-shadow:var(--sh);border:1px solid rgba(0,0,0,.06);position:relative;background:#e8e8e8}
-#googleMap{width:100%;height:100%}
-.mapa-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f5f3;z-index:10;gap:12px}
-.mapa-loading-text{font-size:13px;font-weight:800;color:var(--b1)}
-.mapa-loading-sub{font-size:11px;color:var(--c3);font-weight:700}
-.mapa-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.mapa-kpi{background:var(--w);border-radius:12px;padding:12px;box-shadow:var(--sh);border:1px solid rgba(0,0,0,.04);text-align:center;position:relative;overflow:hidden}
-.mapa-kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.mapa-kpi.kpi-online::before{background:linear-gradient(90deg,#1A8754,#2ecc71)}
-.mapa-kpi.kpi-total::before{background:linear-gradient(90deg,#1565c0,#1e88e5)}
-.mapa-kpi.kpi-offline::before{background:linear-gradient(90deg,#666,#999)}
-.mapa-kpi-val{font-size:24px;font-weight:900;line-height:1;margin-bottom:4px}
-.mapa-kpi-lbl{font-size:10px;color:var(--c3);font-weight:800;text-transform:uppercase;letter-spacing:.6px}
-.equipe-card{background:var(--w);border-radius:12px;padding:12px 14px;box-shadow:var(--sh);border:1px solid rgba(0,0,0,.04);cursor:pointer;transition:all .18s;border-left:4px solid transparent}
-.equipe-card:hover{transform:translateX(2px);box-shadow:0 4px 20px rgba(0,0,0,.1)}
-.equipe-card.online{border-left-color:#4caf50}
-.equipe-card.offline{border-left-color:#888;opacity:.7}
-.equipe-card.selecionada{background:var(--bc);border-color:var(--b3)}
-.equipe-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.equipe-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.equipe-dot.online{background:#4caf50;box-shadow:0 0 6px #4caf50}
-.equipe-dot.offline{background:#888}
-.equipe-nome{font-size:13px;font-weight:900;flex:1;color:var(--c1)}
-.equipe-tempo{font-size:10px;color:var(--c3);font-weight:700}
-.equipe-operador{font-size:11px;color:var(--c3);font-weight:700;margin-bottom:6px}
-.equipe-om{background:var(--c6);border-radius:8px;padding:6px 10px;font-size:11px}
-.equipe-om-num{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--b1);font-size:10px}
-.equipe-om-titulo{font-weight:700;color:var(--c2);margin-top:2px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.equipe-om-status{margin-top:4px}
-.equipe-coords{font-size:10px;color:var(--c4);font-family:'JetBrains Mono',monospace;margin-top:6px}
-.equipe-bateria{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--c3);font-weight:700;margin-top:4px}
-.mapa-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
-.mapa-titulo{font-size:18px;font-weight:900;color:var(--b1)}
-.mapa-sub{font-size:11px;color:var(--c3);font-weight:700;margin-top:2px}
-.mapa-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.rt-badge{display:inline-flex;align-items:center;gap:5px;background:var(--bc);padding:5px 10px;border-radius:8px;font-size:11px;font-weight:800;color:var(--b1)}
-.rt-dot-live{width:7px;height:7px;border-radius:50%;background:#4caf50;animation:pulse 1.5s ease infinite}
-.sem-equipes{text-align:center;padding:32px 16px;color:var(--c3);font-weight:800;font-size:12px}
-.info-window-content{font-family:'DM Sans',sans-serif;min-width:220px;max-width:280px}
-.iw-nome{font-size:14px;font-weight:900;color:#0f3328;margin-bottom:4px}
-.iw-operador{font-size:11px;color:#666;margin-bottom:8px}
-.iw-om{background:#e8f5ef;border-radius:8px;padding:8px 10px;margin-bottom:6px}
-.iw-om-num{font-family:monospace;font-size:11px;font-weight:800;color:#1a4a3a}
-.iw-om-titulo{font-size:12px;font-weight:700;color:#333;margin-top:2px}
-.iw-status{display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900;margin-top:4px}
-.iw-coords{font-size:10px;color:#999;font-family:monospace;margin-top:6px}
-.iw-updated{font-size:10px;color:#aaa;margin-top:4px}
-.no-map-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:24px;text-align:center}
-.no-map-icon{font-size:48px}
-.no-map-title{font-size:16px;font-weight:900;color:var(--b1)}
-.no-map-sub{font-size:12px;color:var(--c3);font-weight:700;line-height:1.5}
-.no-map-key{background:var(--bc);border:1px solid #a8d5b8;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:700;color:#0f3328;word-break:break-all;font-family:'JetBrains Mono',monospace}
-
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
-@media(max-width:900px){.detail-grid{grid-template-columns:1fr}.mapa-layout{grid-template-columns:1fr;height:auto}.mapa-container{height:400px}.mapa-painel{max-height:400px}}
-@media(max-width:700px){.nav-center{display:none}}
-@media(max-width:600px){.mapa-kpis{grid-template-columns:repeat(3,1fr)}}
-</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<link rel="stylesheet" href="assets/assets_admin/admin_soberano.css">
 </head>
 <body>
 <div id="app" style="display:none">
-  <div id="fiscal-toast"></div>
+  <div id="admin-toast"></div>
   <nav class="nav">
     <div class="nav-brand">
       <div class="nav-logo"><div class="nav-logo-dot"></div>SOBERANO MCR</div>
-      <div class="nav-sub">Painel Fiscal</div>
+      <div class="nav-sub">Painel Admin</div>
     </div>
     <div class="nav-center">
       <button class="nav-tab active" onclick="goPage('painel',this)">Painel</button>
-      <button class="nav-tab tab-map" onclick="goPage('mapa',this)">🗺 Mapa ao Vivo</button>
-      <button class="nav-tab" onclick="goPage('arquivadas',this)">Arquivadas</button>
+      <button class="nav-tab" onclick="goPage('fluxo',this)">Fluxo OM</button>
+      <button class="nav-tab" onclick="goPage('equipes',this)">Equipes</button>
+      <button class="nav-tab" onclick="goPage('desvios',this)">Desvios</button>
+      <button class="nav-tab" onclick="goPage('analytics',this)">Analytics</button>
+      <button class="nav-tab" onclick="goPage('pasta',this)">Relatórios</button>
+      <button class="nav-tab" onclick="goPage('bmreport',this)">BM Report</button>
+      <button class="nav-tab" onclick="goPage('config',this)">Config</button>
     </div>
     <div class="nav-right">
       <div><span class="refresh-dot" id="refreshDot"></span><span class="refresh-label" id="refreshLabel">ao vivo</span></div>
-      <div class="user-pill"><div class="user-avatar" id="avatarLetter">F</div><span id="userLabel">FISCAL</span></div>
+      <div class="user-pill"><div class="user-avatar" id="avatarLetter">A</div><span id="userLabel">ADMIN</span></div>
       <button class="btn-sair" onclick="doLogout()">← Sair</button>
     </div>
   </nav>
   <div class="wrap">
-
-    <!-- ═══════════ PAINEL ═══════════ -->
     <div class="page active" id="pg-painel">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <div>
-          <div style="font-size:18px;font-weight:900;color:var(--b1)">Validação Fiscal de OMs</div>
-          <div style="font-size:11px;color:var(--c3);font-weight:700;margin-top:2px">OMs aguardando assinatura e arquivamento</div>
+      <section class="painel-kpi-topbar">
+        <div class="kpi-grid">
+          <div class="kpi kpi-blue"><div class="kpi-label">Total de OMs</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">no sistema</div></div>
+          <div class="kpi kpi-orange"><div class="kpi-label">Em Execução</div><div class="kpi-val" id="kpiExec">—</div><div class="kpi-sub" id="kpiExecSub">ativas</div></div>
+          <div class="kpi kpi-green"><div class="kpi-label">HH Total</div><div class="kpi-val" id="kpiHH">—</div><div class="kpi-sub">horas executadas</div></div>
+          <div class="kpi kpi-purple"><div class="kpi-label">Custo Materiais</div><div class="kpi-val" id="kpiMat">—</div><div class="kpi-sub">no BM ativo</div></div>
+          <div class="kpi kpi-red"><div class="kpi-label">Desvios</div><div class="kpi-val" id="kpiDesvios">—</div><div class="kpi-sub">registrados</div></div>
         </div>
-        <button class="btn-a btn-primary" onclick="loadFiscal()">↻ Atualizar</button>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
-        <div class="kpi kpi-green"><div class="kpi-label">Sem Mat. / Sem Assin.</div><div class="kpi-val" id="fkpi1">—</div><div class="kpi-sub">aguard. assinatura</div></div>
-        <div class="kpi kpi-orange"><div class="kpi-label">Com Mat. / Sem Assin.</div><div class="kpi-val" id="fkpi2">—</div><div class="kpi-sub">verificar materiais</div></div>
-        <div class="kpi kpi-red"><div class="kpi-label">Mat. Alterado Admin</div><div class="kpi-val" id="fkpi3">—</div><div class="kpi-sub">revisar alterações</div></div>
-        <div class="kpi kpi-gray"><div class="kpi-label">Canceladas</div><div class="kpi-val" id="fkpi4">—</div><div class="kpi-sub">aguard. assinatura</div></div>
-      </div>
-      <!-- BLOCO 1 -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head">
-          <h3>🟢 Bloco 1 — Sem material, sem assinatura do cliente</h3>
+      </section>
+
+      <section class="card painel-global-filters">
+        <div class="card-head"><h3>Filtros</h3>
           <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb1count"></span>
-            <button class="btn-a btn-green" style="padding:7px 12px;font-size:11px" onclick="assinarLoteBloco1()">✍ Assinar em Lote</button>
+            <button class="btn-a btn-ghost" onclick="toggleAdvancedFilters()" id="btnAdvFilters" style="padding:4px 10px;font-size:10px">Mais filtros</button>
+            <button class="btn-a btn-ghost" onclick="clearGlobalFilters()" style="padding:4px 10px;font-size:10px">Limpar</button>
+            <button class="btn-a btn-ghost" onclick="loadDashboard()" style="padding:4px 10px;font-size:10px">↻ Atualizar</button>
           </div>
         </div>
-        <div class="card-body"><div id="fiscalB1"><div class="empty">Nenhuma OM.</div></div></div>
-      </div>
-      <!-- BLOCO 2 -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head">
-          <h3>🟠 Bloco 2 — Com material, sem assinatura do cliente</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb2count"></span>
-        </div>
-        <div class="card-body"><div id="fiscalB2"><div class="empty">Nenhuma OM.</div></div></div>
-      </div>
-      <!-- BLOCO 3 -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head">
-          <h3>🔴 Bloco 3 — Material alterado pelo Admin</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb3count"></span>
-        </div>
-        <div class="card-body"><div id="fiscalB3"><div class="empty">Nenhuma OM.</div></div></div>
-      </div>
-      <!-- BLOCO 4 -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-head">
-          <h3>⚫ Bloco 4 — Canceladas</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb4count"></span>
-        </div>
-        <div class="card-body"><div id="fiscalB4"><div class="empty">Nenhuma OM.</div></div></div>
-      </div>
-    </div>
-
-    <!-- ═══════════ MAPA AO VIVO ═══════════ -->
-    <div class="page" id="pg-mapa">
-      <div class="mapa-header">
-        <div>
-          <div class="mapa-titulo">🗺 Rastreamento em Tempo Real</div>
-          <div class="mapa-sub">Localização das equipes de campo e status das OMs</div>
-        </div>
-        <div class="mapa-controles">
-          <div class="rt-badge"><span class="rt-dot-live" id="mapaRtDot"></span><span id="mapaRtLabel">Conectando…</span></div>
-          <button class="btn-a btn-primary" onclick="window.mapaRastreamento && window.mapaRastreamento.recarregar()" style="padding:7px 12px;font-size:11px">↻ Atualizar</button>
-          <button class="btn-a btn-ghost" onclick="window.mapaRastreamento && window.mapaRastreamento.centralizarTodos()" style="padding:7px 12px;font-size:11px">⊕ Centralizar</button>
-        </div>
-      </div>
-
-      <!-- KPIs do mapa -->
-      <div class="mapa-kpis" style="margin-bottom:14px">
-        <div class="mapa-kpi kpi-online"><div class="mapa-kpi-val" id="mapaKpiOnline" style="color:#1A8754">—</div><div class="mapa-kpi-lbl">Online</div></div>
-        <div class="mapa-kpi kpi-total"><div class="mapa-kpi-val" id="mapaKpiTotal" style="color:#1565c0">—</div><div class="mapa-kpi-lbl">Total</div></div>
-        <div class="mapa-kpi kpi-offline"><div class="mapa-kpi-val" id="mapaKpiOffline" style="color:#666">—</div><div class="mapa-kpi-lbl">Offline</div></div>
-      </div>
-
-      <div class="mapa-layout">
-        <!-- Painel lateral de equipes -->
-        <div class="mapa-painel" id="mapaEquipesList">
-          <div class="sem-equipes">
-            <div class="spinner"></div>
-            <div style="margin-top:12px">Carregando equipes…</div>
+        <div class="card-body" style="padding:10px 14px">
+          <div class="global-filter-row">
+            <div class="filter-group bm-group">
+              <label class="field-label">Período BM</label>
+              <select id="filterBM" class="filter-select" onchange="onBMFilterChange()">
+                <option value="">Atual (ao vivo)</option>
+              </select>
+              <span id="bmPeriodoLabel" class="filter-help-text"></span>
+            </div>
+            <div class="filter-group">
+              <label class="field-label">Busca</label>
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="OM, título, operador, equip., FIA…" oninput="_currentPage=1;renderList()">
+              </div>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Status</label>
+              <select class="filter-select" id="filterStatus" onchange="_currentPage=1;filterPipeSelect()">
+                <option value="">Todos os status</option>
+                <option value="enviada">Enviadas</option>
+                <option value="em_execucao">Em Execução</option>
+                <option value="pendente_assinatura">Pendentes</option>
+                <option value="finalizada">Finalizadas</option>
+                <option value="cancelada">Canceladas</option>
+              </select>
+            </div>
+            <div class="filter-group filter-group-sm">
+              <label class="field-label">Equipe</label>
+              <select class="filter-select" id="filterEquipe" onchange="_currentPage=1;renderList()"><option value="">Todas as equipes</option></select>
+            </div>
+          </div>
+          <div class="advanced-filters-panel" id="advancedFiltersPanel" style="display:none">
+            <div class="global-filter-row" style="grid-template-columns:1.5fr 1.5fr 2fr;margin-top:10px">
+              <div class="filter-group filter-group-sm">
+                <label class="field-label">Escopo</label>
+                <select class="filter-select" id="filterEscopo" onchange="_currentPage=1;renderList()">
+                  <option value="">Todos os escopos</option>
+                  <option value="geral">Geral</option>
+                  <option value="preventiva_usina">Prev. Usina</option>
+                  <option value="preventiva_mina">Prev. Mina</option>
+                  <option value="preventiva_turno">Prev. Turno</option>
+                  <option value="corretiva">Corretiva</option>
+                </select>
+              </div>
+              <div class="filter-group filter-group-sm">
+                <label class="field-label">FIA</label>
+                <select class="filter-select" id="filterFIA" onchange="_currentPage=1;renderList()"><option value="">Todos os FIAs</option></select>
+              </div>
+              <div class="filter-group filter-group-date">
+                <label class="field-label">Janela de datas</label>
+                <div class="date-range-fields">
+                  <input type="date" id="filterDtInicio" onchange="_currentPage=1;renderList()">
+                  <span>até</span>
+                  <input type="date" id="filterDtFim" onchange="_currentPage=1;renderList()">
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <!-- Mapa Google Maps -->
-        <div class="mapa-container">
-          <div class="mapa-loading" id="mapaLoading">
-            <div class="spinner"></div>
-            <div class="mapa-loading-text">Carregando mapa…</div>
-            <div class="mapa-loading-sub" id="mapaLoadingMsg">Aguardando Google Maps API</div>
-          </div>
-          <div id="googleMap"></div>
-          <div id="noMapMsg" style="display:none" class="no-map-msg">
-            <div class="no-map-icon">🗺</div>
-            <div class="no-map-title">Configure a Google Maps API</div>
-            <div class="no-map-sub">Para ativar o mapa, adicione sua chave de API do Google Maps no arquivo <strong>config.js</strong>:</div>
-            <div class="no-map-key">GOOGLE_MAPS_KEY: "SUA_CHAVE_AQUI"</div>
-            <div class="no-map-sub" style="margin-top:8px">As equipes ainda são rastreadas e exibidas na lista ao lado.</div>
+      <section class="card timeline-card">
+        <div class="card-head"><h3>🗓️ Visão Operacional (Calendário / Linha do Tempo)</h3></div>
+        <div class="card-body">
+          <div id="painelPeriodoInsights" class="periodo-insights"><div class="empty">Aguardando dados…</div></div>
+          <div class="pipeline" id="pipeline"></div>
+          <div id="operationalTimeline"><div class="empty">Aguardando dados…</div></div>
+        </div>
+      </section>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h3>📤 Enviar OMs para Campo</h3></div>
+          <div class="card-body">
+            <div style="margin-bottom:10px">
+              <label class="field-label">Escopo das OMs</label>
+              <select id="uploadEscopo" class="filter-select" style="width:100%">
+                <option value="">Selecione o escopo (obrigatório)</option>
+                <option value="preventiva_usina">🏭 Preventiva Usina</option>
+                <option value="preventiva_mina">⛏️ Preventiva Mina</option>
+                <option value="preventiva_turno">🔄 Preventiva Turno</option>
+                <option value="corretiva">🔧 Corretiva</option>
+              </select>
+            </div>
+            <div style="margin-bottom:10px">
+              <label class="field-label">Filtro de Upload</label>
+              <select id="uploadModo" class="filter-select" style="width:100%">
+                <option value="novo">📥 Novo upload (OM nova)</option>
+                <option value="reprogramar">🔄 Reprogramar (OM já existente)</option>
+              </select>
+            </div>
+            <input type="file" id="fileInputOms" accept="application/pdf" multiple style="display:none">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInputOms').click()">
+              <div class="upload-icon">📁</div>
+              <small>Arraste PDFs aqui ou clique para selecionar</small>
+            </div>
+            <div class="upload-msg" id="uploadMsg"></div>
+            <div class="upload-err" id="uploadErr"></div>
+            <button onclick="limparTodosPDFs()" class="btn-a btn-danger" style="margin-top:12px;width:100%;justify-content:center;padding:10px">🗑️ Limpar todos os PDFs</button>
+            <div id="limpezaMsg" style="display:none;margin-top:8px;padding:8px;border-radius:8px;font-size:11px;font-weight:700"></div>
           </div>
         </div>
+        <div class="card">
+          <div class="card-head"><h3>📊 Resumo do BM</h3></div>
+          <div class="card-body" id="resumo"><div class="empty">Aguardando dados…</div></div>
+        </div>
       </div>
-    </div>
 
-    <!-- ═══════════ ARQUIVADAS ═══════════ -->
-    <div class="page" id="pg-arquivadas">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head"><h3>📊 Produtividade por Escopo</h3></div>
+        <div class="card-body" style="padding:16px" id="chartEscopoProd"><div class="empty">Aguardando dados…</div></div>
+      </div>
+
       <div class="card">
         <div class="card-head">
-          <h3>📁 OMs Arquivadas</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="arquivadasCount"></span>
+          <h3 id="listTitle">Todas as OMs</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:10px;color:var(--c3);font-weight:600" id="listCount"></span>
+            <button class="btn-a btn-ghost" style="padding:5px 10px;font-size:10px" id="btnToggleConcluidas" onclick="toggleConcluidasPainel()">Mostrar concluídas</button>
+            <button class="btn-a btn-ghost" style="padding:5px 10px;font-size:10px" onclick="exportarCsvPainel()">⬇ CSV</button>
+          </div>
         </div>
-        <div class="card-body"><div id="arquivadasList"><div class="empty">Nenhuma OM arquivada.</div></div></div>
+        <div class="card-body">
+          <div id="omList"><div class="empty">Nenhuma OM.</div></div>
+          <div id="omPagination" class="pagination-bar"></div>
+        </div>
       </div>
     </div>
-
-  </div><!-- /wrap -->
-</div><!-- /app -->
-
-<!-- MODAL DETALHE OM FISCAL -->
-<div class="modal-overlay" id="omModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <div class="modal-title" id="modalTitle">Detalhe da OM</div>
-      <button onclick="closeModal()" style="background:var(--c6);border:none;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-  </div>
-</div>
-
-<!-- MODAL CONFIRMAR ASSINATURA -->
-<div id="signModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:16px">
-  <div style="background:#fff;border-radius:20px;width:100%;max-width:420px;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
-    <div style="font-size:17px;font-weight:900;color:var(--b1);margin-bottom:6px">✍ Confirmar Assinatura</div>
-    <div style="font-size:12px;color:var(--c3);font-weight:700;margin-bottom:16px">OM <span id="signOMNum" style="font-family:'JetBrains Mono',monospace;color:var(--b1)"></span></div>
-    <div style="background:var(--bc);border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#0f3328;margin-bottom:18px">
-      Ao assinar, esta OM será arquivada definitivamente e removida do painel.
-    </div>
-    <div style="display:flex;gap:10px">
-      <button onclick="document.getElementById('signModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button>
-      <button id="btnConfirmSign" onclick="confirmarAssinatura()" class="btn-a btn-green" style="flex:2;justify-content:center;padding:13px">✍ Assinar e Arquivar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL DEVOLVER PARA ADMIN -->
-<div id="devolverModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:16px">
-  <div style="background:#fff;border-radius:20px;width:100%;max-width:460px;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
-    <div style="font-size:17px;font-weight:900;color:#dc3545;margin-bottom:6px">↩ Devolver para Admin</div>
-    <div style="font-size:12px;color:var(--c3);font-weight:700;margin-bottom:16px">OM <span id="devolverOMNum" style="font-family:'JetBrains Mono',monospace;color:#dc3545"></span></div>
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:800;color:var(--c2);text-transform:uppercase;margin-bottom:6px">Motivo da devolução</div>
-      <textarea id="devolverMotivo" rows="3" style="width:100%;padding:10px;border:2px solid var(--c5);border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:none" placeholder="Descreva o problema encontrado…"></textarea>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button onclick="document.getElementById('devolverModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button>
-      <button id="btnConfirmDevolver" onclick="confirmarDevolucao()" class="btn-a btn-danger" style="flex:2;justify-content:center;padding:13px">↩ Devolver</button>
-    </div>
-  </div>
-</div>
-
-<script>
-"use strict";
-
-function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-const CONFIG = {
-  SUPABASE_URL:      (window.ENV && window.ENV.SUPABASE_URL) || window.SUPABASE_URL || "",
-  SUPABASE_ANON_KEY: (window.ENV && window.ENV.SUPABASE_ANON_KEY) || window.SUPABASE_ANON_KEY || "",
-  GOOGLE_MAPS_KEY:   (window.ENV && window.ENV.GOOGLE_MAPS_KEY) || window.GOOGLE_MAPS_KEY || "",
-  SESSION_KEY:       "pcm_auth_session"
-};
-
-// ════════════════════════════════════════════════════════════
-// CLASSE PRINCIPAL — Painel Fiscal
-// ════════════════════════════════════════════════════════════
-class FiscalDashboard {
-  constructor() {
-    if (!window.supabase || typeof window.supabase.createClient !== "function") throw new Error("Biblioteca Supabase indisponível");
-    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) throw new Error("Configuração Supabase ausente");
-    this.sb              = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-    this.currentUser     = null;
-    this.fiscalData      = { b1: [], b2: [], b3: [], b4: [] };
-    this.b1Selected      = {};
-    this._signOM         = null;
-    this._devolverOM     = null;
-    this.realtimeChannel = null;
-    this.$               = id => document.getElementById(id);
-    this.init();
-  }
-
-  async init() {
-    await this.verificarFiscal();
-    this.setupRealtime();
-    this.$("app").style.display = "block";
-  }
-
-  showFatalError(msg) {
-    this.fiscalToast(msg, "error");
-    setTimeout(() => { window.location.href = "PCM_MCR_v5.html"; }, 1200);
-  }
-
-  async verificarFiscal() {
-    try {
-      const raw = localStorage.getItem(CONFIG.SESSION_KEY);
-      if (!raw) throw new Error("Sessão não encontrada");
-      const sess = JSON.parse(raw);
-      const userId = sess.user?.id;
-      if (!userId) throw new Error("ID de usuário inválido na sessão");
-      await this.sb.auth.setSession({ access_token: sess.access_token, refresh_token: sess.refresh_token || "" });
-      const { data: profile, error } = await this.sb
-        .from("profiles").select("role, username").eq("user_id", userId).single();
-      if (error) throw new Error("Falha ao consultar perfil: " + error.message);
-      if (!profile) throw new Error("Perfil não encontrado");
-      if (profile.role !== "fiscal" && profile.role !== "admin") {
-        window.location.href = "PCM_MCR_v5.html"; return;
-      }
-      this.currentUser = profile.username || "fiscal";
-      this.$("userLabel").textContent    = this.currentUser.toUpperCase();
-      this.$("avatarLetter").textContent = this.currentUser[0].toUpperCase();
-      await this.loadFiscal();
-    } catch (err) {
-      console.error("Falha na verificação de fiscal:", err);
-      this.showFatalError("Falha ao validar acesso fiscal.");
-    }
-  }
-
-  setupRealtime() {
-    if (this.realtimeChannel) { this.sb.removeChannel(this.realtimeChannel); this.realtimeChannel = null; }
-    const dot = this.$("refreshDot");
-    const lbl = this.$("refreshLabel");
-    this._rtDebounce = null;
-    this.realtimeChannel = this.sb.channel("oms-fiscal-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "oms" }, () => {
-        clearTimeout(this._rtDebounce);
-        this._rtDebounce = setTimeout(() => {
-          this.loadFiscal(true);
-          if (dot) { dot.style.background = "#f5a623"; dot.style.transform = "scale(1.5)"; setTimeout(() => { dot.style.background = "#4caf50"; dot.style.transform = ""; }, 600); }
-        }, 400);
-      })
-      .subscribe(status => {
-        if (status === "SUBSCRIBED") {
-          if (dot) dot.style.background = "#4caf50";
-          if (lbl) lbl.textContent = "ao vivo";
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          if (dot) dot.style.background = "#dc3545";
-          if (lbl) lbl.textContent = "reconectando...";
-          setTimeout(() => this.setupRealtime(), 5000);
-        }
-      });
-  }
-
-  static get FISCAL_COLS() {
-    return "num,titulo,cc,equipe,equipamento,primeiro_executante,executantes," +
-           "materiais_usados,materiais_total,estado_fluxo,cliente_assinou," +
-           "admin_modificou_material,fiscal_assinou,cancelada," +
-           "has_relatorio,has_checklist,has_nc," +
-           "data_assinatura_fiscal,updated_at";
-  }
-
-  async loadFiscal(silent = false) {
-    if (!silent) this.$("refreshDot").classList.add("loading");
-    try {
-      const cols = FiscalDashboard.FISCAL_COLS;
-      const [res1, res2, res3, res4] = await Promise.all([
-        this.sb.from("vw_fiscal_bloco1").select(cols),
-        this.sb.from("vw_fiscal_bloco2").select(cols),
-        this.sb.from("vw_fiscal_bloco3").select(cols),
-        this.sb.from("vw_fiscal_bloco4").select(cols)
-      ]);
-      if (res1.error) throw res1.error;
-      if (res2.error) throw res2.error;
-      if (res3.error) throw res3.error;
-      if (res4.error) throw res4.error;
-      this.fiscalData = {
-        b1: res1.data || [], b2: res2.data || [],
-        b3: res3.data || [], b4: res4.data || []
-      };
-      this.updateKPIs();
-      this.renderAllBlocks();
-    } catch (err) {
-      this.fiscalToast(`Falha ao carregar painel: ${err.message}`, "error");
-      console.error("Erro loadFiscal:", err);
-    } finally {
-      this.$("refreshDot").classList.remove("loading");
-    }
-  }
-
-  updateKPIs() {
-    const { b1, b2, b3, b4 } = this.fiscalData;
-    this.$("fkpi1").textContent = b1.length;
-    this.$("fkpi2").textContent = b2.length;
-    this.$("fkpi3").textContent = b3.length;
-    this.$("fkpi4").textContent = b4.length;
-    this.$("fb1count").textContent = `${b1.length} ordens`;
-    this.$("fb2count").textContent = `${b2.length} ordens`;
-    this.$("fb3count").textContent = `${b3.length} ordens`;
-    this.$("fb4count").textContent = `${b4.length} ordens`;
-  }
-
-  renderAllBlocks() {
-    this.renderBlock("fiscalB1", this.fiscalData.b1, "b1");
-    this.renderBlock("fiscalB2", this.fiscalData.b2, "b2");
-    this.renderBlock("fiscalB3", this.fiscalData.b3, "b3");
-    this.renderBlock("fiscalB4", this.fiscalData.b4, "b4");
-  }
-
-  renderBlock(containerId, oms, blockType) {
-    const container = this.$(containerId);
-    if (!oms?.length) { container.innerHTML = '<div class="empty">Nenhuma OM.</div>'; return; }
-    let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-    html += '<thead><tr style="background:var(--c6)">';
-    ["OM","CC","Equipe","Executante","Material","Status","Ações"].forEach(c => {
-      html += `<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--c3);font-weight:800">${c}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-    oms.forEach((om, i) => {
-      const mat         = Array.isArray(om.materiais_usados) ? om.materiais_usados : [];
-      const executantes = Array.isArray(om.executantes) ? om.executantes : [];
-      const exec        = executantes[0] || om.primeiro_executante || "—";
-      const hasMat      = mat.length > 0;
-      const hasModif    = !!om.admin_modificou_material;
-      const bg          = i % 2 === 0 ? "#fff" : "#fafafa";
-      html += `<tr style="background:${bg};border-bottom:1px solid var(--c5)">`;
-      html += `<td style="padding:8px 10px"><span class="om-num">${esc(om.num || "—")}</span></td>`;
-      html += `<td style="padding:8px 10px;font-weight:700">${esc(om.cc || "—")}</td>`;
-      html += `<td style="padding:8px 10px;font-weight:700">${esc(om.equipe || "—")}</td>`;
-      html += `<td style="padding:8px 10px">${esc(exec)}</td>`;
-      html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${hasMat ? "#fff3cd" : "#e8e8e8"};color:${hasMat ? "#856404" : "#888"}">${hasMat ? "✓ " + mat.length + " item(s)" : "Sem mat."}</span></td>`;
-      const ESTADO_LABELS = {
-        pendente_fiscal:  "Aguard. Fiscal",
-        devolvida_admin:  "Devolvida Admin",
-        arquivada:        "Arquivada",
-        cancelada:        "Cancelada",
-        alterada_admin:   "Alt. pelo Admin",
-        validada_admin:   "Validada Admin",
-        executada:        "Executada",
-        preliminar:       "Preliminar"
-      };
-      let statusLabel = ESTADO_LABELS[om.estado_fluxo] || esc(om.estado_fluxo || "—");
-      let statusColor = "#1A8754", statusBg = "#d1e7dd";
-      if (om.cancelada)  { statusLabel = "Cancelada";     statusColor = "#dc3545"; statusBg = "#fde8ea"; }
-      else if (hasModif) { statusLabel = "Mat. Alterado"; statusColor = "#856404"; statusBg = "#fff3cd"; }
-      html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${statusBg};color:${statusColor}">${statusLabel}</span></td>`;
-      html += `<td style="padding:8px 10px;text-align:right"><div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">`;
-      html += `<button onclick="dashboard.abrirOMFiscal('${esc(om.num)}')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Ver</button>`;
-      if (blockType === "b1") {
-        html += `<button onclick="dashboard.toggleSelectB1('${esc(om.num)}', this)" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Selecionar</button>`;
-        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
-      }
-      if (blockType === "b2") {
-        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
-      }
-      if (blockType === "b3") {
-        html += `<button onclick="dashboard.devolverAdmin('${esc(om.num)}')" class="btn-a btn-danger" style="padding:5px 9px;font-size:10px">↩ Devolver</button>`;
-        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
-      }
-      if (blockType === "b4") {
-        html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">✍ Assinar Cancel.</button>`;
-      }
-      html += `</div></td></tr>`;
-    });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  }
-
-  toggleSelectB1(num, btn) {
-    if (this.b1Selected[num]) {
-      delete this.b1Selected[num];
-      btn.style.background = ""; btn.style.color = ""; btn.textContent = "Selecionar";
-    } else {
-      this.b1Selected[num] = true;
-      btn.style.background = "#1A8754"; btn.style.color = "#fff"; btn.textContent = "✓ Selecionado";
-    }
-  }
-
-  assinarLoteBloco1() {
-    const nums = Object.keys(this.b1Selected);
-    if (!nums.length) return this.fiscalToast("Nenhuma OM selecionada no Bloco 1", "warn");
-    this._signOM = "__lote_b1__";
-    this.$("signOMNum").textContent = `${nums.length} OM(s) selecionadas`;
-    this.$("signModal").style.display = "flex";
-  }
-
-  async _executarLoteB1() {
-    const nums = Object.keys(this.b1Selected);
-    if (!nums.length) return;
-    const btn = this.$("btnConfirmSign");
-    btn.disabled = true; btn.textContent = "Aguarde…";
-    const agora = new Date().toISOString();
-    try {
-      const { error } = await this.sb.from("oms")
-        .update({ fiscal_assinou: true, data_assinatura_fiscal: agora, estado_fluxo: "arquivada", updated_at: agora })
-        .in("num", nums);
-      if (error) throw error;
-      this.b1Selected = {};
-      this.fiscalToast(`${nums.length} OM(s) assinadas e arquivadas`, "success");
-      this.$("signModal").style.display = "none";
-      this._signOM = null;
-      await this.loadFiscal();
-    } catch (err) {
-      this.fiscalToast(`Erro ao assinar lote: ${err.message}`, "error");
-    } finally {
-      btn.disabled = false; btn.textContent = "✍ Assinar e Arquivar";
-    }
-  }
-
-  assinarOM(num) {
-    this._signOM = num;
-    this.$("signOMNum").textContent = num;
-    this.$("signModal").style.display = "flex";
-  }
-
-  async confirmarAssinatura() {
-    if (!this._signOM) return;
-    if (this._signOM === "__lote_b1__") { await this._executarLoteB1(); return; }
-    const btn = this.$("btnConfirmSign");
-    btn.disabled = true; btn.textContent = "Aguarde…";
-    const agora = new Date().toISOString();
-    try {
-      const { error } = await this.sb.from("oms").update({
-        fiscal_assinou: true, data_assinatura_fiscal: agora,
-        estado_fluxo: "arquivada", updated_at: agora
-      }).eq("num", this._signOM);
-      if (error) throw error;
-      this.fiscalToast(`OM ${this._signOM} assinada e arquivada`, "success");
-      this.$("signModal").style.display = "none";
-      this._signOM = null;
-      await this.loadFiscal();
-    } catch (err) {
-      this.fiscalToast(`Erro: ${err.message}`, "error");
-    } finally {
-      btn.disabled = false; btn.textContent = "✍ Assinar e Arquivar";
-    }
-  }
-
-  devolverAdmin(num) {
-    this._devolverOM = num;
-    this.$("devolverOMNum").textContent = num;
-    this.$("devolverMotivo").value = "";
-    this.$("devolverModal").style.display = "flex";
-  }
-
-  async confirmarDevolucao() {
-    const motivo = this.$("devolverMotivo").value.trim();
-    if (!motivo) return this.fiscalToast("Motivo da devolução é obrigatório", "warn");
-    const btn = this.$("btnConfirmDevolver");
-    btn.disabled = true; btn.textContent = "Aguarde…";
-    const agora = new Date().toISOString();
-    try {
-      const { error: err1 } = await this.sb.from("oms").update({
-        estado_fluxo: "devolvida_admin", updated_at: agora
-      }).eq("num", this._devolverOM);
-      if (err1) throw err1;
-      const { error: err2 } = await this.sb.from("desvios").insert({
-        om_num: this._devolverOM, tipo: "DEVOLUCAO FISCAL",
-        descricao: "Devolvido pelo fiscal: " + motivo,
-        registrado_por: this.currentUser, origem: "fiscal",
-        created_at: agora
-      });
-      if (err2) {
-        await this.sb.from("oms").update({ estado_fluxo: "enviada_fiscal", updated_at: new Date().toISOString() }).eq("num", this._devolverOM);
-        throw err2;
-      }
-      this.fiscalToast(`OM ${this._devolverOM} devolvida ao admin`, "warn");
-      this.$("devolverModal").style.display = "none";
-      this._devolverOM = null;
-      await this.loadFiscal();
-    } catch (err) {
-      this.fiscalToast(`Erro na devolução: ${err.message}`, "error");
-    } finally {
-      btn.disabled = false; btn.textContent = "↩ Devolver";
-    }
-  }
-
-  abrirOMFiscal(num) {
-    const allOms = [...this.fiscalData.b1, ...this.fiscalData.b2, ...this.fiscalData.b3, ...this.fiscalData.b4];
-    const om = allOms.find(o => o.num === num);
-    if (!om) {
-      const cols = FiscalDashboard.FISCAL_COLS + ",titulo,equipamento,executantes,materiais_usados";
-      this.sb.from("oms").select(cols).eq("num", num).single()
-        .then(({ data, error }) => {
-          if (error || !data) { this.fiscalToast("OM não encontrada", "error"); return; }
-          this.renderModalOM(data);
-        })
-        .catch(err => this.fiscalToast(`Erro ao buscar OM: ${err.message}`, "error"));
-      return;
-    }
-    this.renderModalOM(om);
-  }
-
-  renderModalOM(om) {
-    const mat = Array.isArray(om.materiais_usados) ? om.materiais_usados : [];
-    const executantes = Array.isArray(om.executantes) ? om.executantes : [];
-    let html = '';
-    html += '<div class="modal-section"><div class="modal-section-title">Dados da Ordem</div><div class="detail-grid">';
-    html += `<div class="detail-item"><div class="detail-label">OM</div><div class="detail-value mono">${esc(om.num || "—")}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Título</div><div class="detail-value">${esc(om.titulo || "—")}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Equipe</div><div class="detail-value">${esc(om.equipe || "—")}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">CC</div><div class="detail-value">${esc(om.cc || "—")}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Equipamento</div><div class="detail-value">${esc(om.equipamento || "—")}</div></div>`;
-    const ESTADO_LABELS_MODAL = {
-      pendente_fiscal: "Aguardando Fiscal",
-      devolvida_admin: "Devolvida ao Admin",
-      arquivada:       "Arquivada",
-      cancelada:       "Cancelada",
-      alterada_admin:  "Material Alterado pelo Admin",
-      validada_admin:  "Validada pelo Admin",
-      executada:       "Executada",
-      preliminar:      "Preliminar"
-    };
-    const estadoLabel = ESTADO_LABELS_MODAL[om.estado_fluxo] || esc(om.estado_fluxo || "—");
-    html += `<div class="detail-item"><div class="detail-label">Estado Fluxo</div><div class="detail-value">${estadoLabel}</div></div>`;
-    html += '</div></div>';
-    html += '<div class="modal-section"><div class="modal-section-title">Executantes</div>';
-    if (executantes.length) {
-      executantes.forEach(e => { html += `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bc);color:var(--b1);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;margin:3px">${esc(e)}</span>`; });
-    } else { html += '<span style="color:var(--c3)">—</span>'; }
-    html += '</div>';
-    if (mat.length) {
-      html += '<div class="modal-section"><div class="modal-section-title">Materiais Utilizados' +
-        (om.admin_modificou_material ? ' <span style="color:#dc3545;font-size:10px;background:#fde8ea;padding:2px 6px;border-radius:4px">ALTERADO PELO ADMIN</span>' : '') + '</div>';
-      mat.forEach(m => {
-        const nome = esc(m.nome || m.descricao || "Material");
-        const qtd = m.quantidade || m.qtd || 1;
-        const preco = m.precoUnit || m.preco || m.valor_unitario || 0;
-        html += `<div class="mat-row"><span class="mat-nome">${nome}</span><span class="mat-qtd">× ${qtd}</span><span class="mat-total">R$ ${parseFloat(m.total || (qtd * preco)).toFixed(2)}</span></div>`;
-      });
-      const totalGeral = mat.reduce((acc, m) => acc + parseFloat(m.total || ((m.quantidade || m.qtd || 1) * (m.precoUnit || m.preco || m.valor_unitario || 0))), 0);
-      html += `<div style="text-align:right;font-weight:900;font-size:14px;color:var(--lr);margin-top:8px">Total: R$ ${totalGeral.toFixed(2)}</div></div>`;
-    }
-    html += '<div class="modal-section"><div class="modal-section-title">Assinaturas</div><div class="detail-grid">';
-    html += `<div class="detail-item"><div class="detail-label">Cliente</div><div class="detail-value" style="color:${om.cliente_assinou ? "#1A8754" : "#dc3545"}">${om.cliente_assinou ? "✓ Assinou" : "✗ Pendente"}</div></div>`;
-    html += `<div class="detail-item"><div class="detail-label">Fiscal</div><div class="detail-value" style="color:${om.fiscal_assinou ? "#1A8754" : "#dc3545"}">${om.fiscal_assinou ? "✓ Assinou em " + new Date(om.data_assinatura_fiscal).toLocaleDateString("pt-BR") : "✗ Pendente"}</div></div>`;
-    if (om.has_relatorio) {
-      html += `<div style="margin-top:10px"><button onclick="dashboard.viewRelatorio('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px">📄 Ver Relatório</button></div>`;
-    }
-    if (om.has_checklist) {
-      html += `<div style="margin-top:6px"><button onclick="dashboard.viewChecklist('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px;background:#1565c0">📋 Ver Checklist</button></div>`;
-    }
-    if (om.has_nc) {
-      html += `<div style="margin-top:6px"><button onclick="dashboard.viewNC('${esc(om.num)}')" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:13px;background:#7b1fa2">⚠️ Ver Não Conformidades</button></div>`;
-    }
-    html += '</div></div>';
-    if (!om.fiscal_assinou) {
-      html += '<div class="sign-box"><div class="sign-box-title">✍ Assinatura Fiscal</div><div class="sign-box-sub">Após assinar, a OM será arquivada e removida do painel</div><div style="display:flex;gap:10px;justify-content:center">';
-      if (om.admin_modificou_material) {
-        html += `<button onclick="dashboard.devolverAdmin('${esc(om.num)}'); closeModal();" class="btn-a btn-danger" style="padding:12px 20px">↩ Devolver ao Admin</button>`;
-      }
-      html += `<button onclick="dashboard.assinarOM('${esc(om.num)}'); closeModal();" class="btn-a btn-green" style="padding:12px 20px">✍ Assinar e Arquivar</button>`;
-      html += '</div></div>';
-    }
-    this.$("modalBody").innerHTML = html;
-    this.$("modalTitle").textContent = `OM ${om.num} — ${om.titulo || ""}`;
-    this.$("omModal").classList.add("show");
-  }
-
-  async viewRelatorio(num) {
-    try {
-      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/OM_" + num + ".pdf", 120);
-      if (error) throw error;
-      window.open(data.signedUrl, "_blank");
-    } catch(e) {
-      this.fiscalToast("Erro ao abrir relatorio: " + e.message, "error");
-    }
-  }
-
-  async viewChecklist(num) {
-    try {
-      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/CK_" + num + ".pdf", 120);
-      if (error) throw error;
-      window.open(data.signedUrl, "_blank");
-    } catch(e) {
-      this.fiscalToast("Erro ao abrir checklist: " + e.message, "error");
-    }
-  }
-
-  async viewNC(num) {
-    try {
-      const { data, error } = await this.sb.storage.from("pcm-files").createSignedUrl("reports/NC_" + num + ".pdf", 120);
-      if (error) throw error;
-      window.open(data.signedUrl, "_blank");
-    } catch(e) {
-      this.fiscalToast("Erro ao abrir nao conformidade: " + e.message, "error");
-    }
-  }
-
-  fiscalToast(msg, type = "info") {
-    const ct = this.$("fiscal-toast");
-    if (!ct) return;
-    const colors = {
-      success: "linear-gradient(135deg,#1A5226,#2E8B57)",
-      error:   "linear-gradient(135deg,#dc3545,#e8575f)",
-      warn:    "linear-gradient(135deg,#e67e00,#f5a623)",
-      info:    "linear-gradient(135deg,#0f3328,#2a7a5a)"
-    };
-    const el = document.createElement("div");
-    el.className = "toast-item";
-    el.style.background = colors[type] || colors.info;
-    const txt = document.createElement("span");
-    txt.style.flex = "1";
-    txt.textContent = String(msg == null ? "" : msg);
-    const close = document.createElement("span");
-    close.style.opacity = ".6";
-    close.style.fontSize = "16px";
-    close.textContent = "×";
-    el.appendChild(txt);
-    el.appendChild(close);
-    el.onclick = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
-    ct.appendChild(el);
-    setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 300); }, 3500);
-  }
-
-  doLogout() {
-    localStorage.removeItem(CONFIG.SESSION_KEY);
-    window.location.href = "PCM_MCR_v5.html";
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-// MÓDULO DE RASTREAMENTO — Mapa ao Vivo
-// ════════════════════════════════════════════════════════════
-class MapaRastreamento {
-  constructor(sb) {
-    this.sb             = sb;
-    this.map            = null;
-    this.markers        = {};       // device_id → AdvancedMarkerElement
-    this.infoWindows    = {};       // device_id → google.maps.InfoWindow
-    this.equipes        = [];       // dados das equipes
-    this.rtChannel      = null;
-    this.mapReady       = false;
-    this.mapAttempted   = false;
-    this._refreshTimer  = null;
-    this.$              = id => document.getElementById(id);
-    this.TIMEOUT_OFFLINE = 3 * 60 * 1000; // 3 min sem atualização = offline
-  }
-
-  // ─── Inicializar quando a aba for aberta ───────────────────
-  async inicializar() {
-    if (!this.mapAttempted) {
-      this.mapAttempted = true;
-      await this._carregarGoogleMaps();
-    }
-    await this.recarregar();
-    this._setupRealtime();
-    this._iniciarRefreshPeriodico();
-  }
-
-  destruir() {
-    if (this.rtChannel) { this.sb.removeChannel(this.rtChannel); this.rtChannel = null; }
-    if (this._refreshTimer) { clearInterval(this._refreshTimer); this._refreshTimer = null; }
-  }
-
-  // ─── Carregar Google Maps API ──────────────────────────────
-  async _carregarGoogleMaps() {
-    const key = CONFIG.GOOGLE_MAPS_KEY;
-    if (!key) {
-      this._mostrarSemMapa();
-      return;
-    }
-    return new Promise((resolve) => {
-      if (window.google && window.google.maps) {
-        this._inicializarMapa();
-        resolve();
-        return;
-      }
-      const callbackName = '__gmapsCallback_' + Date.now();
-      window[callbackName] = () => {
-        delete window[callbackName];
-        this._inicializarMapa();
-        resolve();
-      };
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=${callbackName}&libraries=marker&loading=async&language=pt-BR&region=BR`;
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => {
-        this._mostrarSemMapa("Erro ao carregar Google Maps. Verifique a chave de API.");
-        resolve();
-      };
-      document.head.appendChild(script);
-      // Timeout de 10s
-      setTimeout(() => {
-        if (!this.mapReady) {
-          this._mostrarSemMapa("Timeout ao carregar Google Maps.");
-          resolve();
-        }
-      }, 10000);
-    });
-  }
-
-  _inicializarMapa() {
-    try {
-      const mapEl = this.$("googleMap");
-      if (!mapEl) return;
-      this.$("mapaLoading").style.display = "none";
-      this.map = new google.maps.Map(mapEl, {
-        center: { lat: -15.7801, lng: -47.9292 },
-        zoom: 5,
-        mapId: "DEMO_MAP_ID",
-        mapTypeId: "roadmap",
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true,
-        zoomControl: true
-      });
-      this.mapReady = true;
-      // Re-renderizar marcadores se já tiver dados
-      if (this.equipes.length) this._renderizarMarcadores();
-    } catch(e) {
-      console.error('[MAPA] Erro ao inicializar mapa:', e);
-      this._mostrarSemMapa("Erro ao inicializar o mapa: " + e.message);
-    }
-  }
-
-  _mostrarSemMapa(msg) {
-    const loading = this.$("mapaLoading");
-    const noMap   = this.$("noMapMsg");
-    if (loading) loading.style.display = "none";
-    if (noMap)   noMap.style.display   = "flex";
-    if (msg) console.warn('[MAPA]', msg);
-  }
-
-  // ─── Carregar dados das equipes ────────────────────────────
-  async recarregar() {
-    try {
-      const { data, error } = await this.sb
-        .from("equipe_localizacao")
-        .select("*")
-        .order("updated_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Marcar offline equipes que não atualizam há mais de TIMEOUT_OFFLINE
-      const agora = Date.now();
-      this.equipes = (data || []).map(e => ({
-        ...e,
-        online: e.online && (agora - new Date(e.updated_at).getTime()) < this.TIMEOUT_OFFLINE
-      }));
-
-      this._atualizarKPIs();
-      this._renderizarLista();
-      if (this.mapReady) this._renderizarMarcadores();
-      this._atualizarStatusRt("online");
-    } catch(err) {
-      console.error('[MAPA] Erro ao carregar equipes:', err);
-      this._atualizarStatusRt("erro");
-    }
-  }
-
-  // ─── KPIs do mapa ─────────────────────────────────────────
-  _atualizarKPIs() {
-    const online  = this.equipes.filter(e => e.online).length;
-    const total   = this.equipes.length;
-    const offline = total - online;
-    const kpiOnline  = this.$("mapaKpiOnline");
-    const kpiTotal   = this.$("mapaKpiTotal");
-    const kpiOffline = this.$("mapaKpiOffline");
-    if (kpiOnline)  kpiOnline.textContent  = online;
-    if (kpiTotal)   kpiTotal.textContent   = total;
-    if (kpiOffline) kpiOffline.textContent = offline;
-  }
-
-  // ─── Lista lateral de equipes ──────────────────────────────
-  _renderizarLista() {
-    const container = this.$("mapaEquipesList");
-    if (!container) return;
-    if (!this.equipes.length) {
-      container.innerHTML = '<div class="sem-equipes">Nenhuma equipe em campo.<br><span style="font-size:11px;font-weight:700">As equipes aparecem aqui quando o app de campo estiver aberto.</span></div>';
-      return;
-    }
-
-    // Ordenar: online primeiro, depois por nome
-    const sorted = [...this.equipes].sort((a, b) => {
-      if (a.online !== b.online) return a.online ? -1 : 1;
-      return (a.equipe || "").localeCompare(b.equipe || "");
-    });
-
-    container.innerHTML = sorted.map(e => this._htmlEquipeCard(e)).join('');
-  }
-
-  _htmlEquipeCard(e) {
-    const statusClass = e.online ? "online" : "offline";
-    const tempo = this._tempoRelativo(e.updated_at);
-    const omStatus = this._labelStatus(e.om_status);
-    const omStatusStyle = this._styleStatus(e.om_status);
-    const bateria = e.bateria != null ? `<span class="equipe-bateria">🔋 ${e.bateria}%</span>` : '';
-    const velocidade = e.velocidade != null && e.velocidade > 0 ? `<span class="equipe-bateria">🚗 ${Math.round(e.velocidade)} km/h</span>` : '';
-    const coords = e.latitude && e.longitude
-      ? `<div class="equipe-coords">${e.latitude.toFixed(5)}, ${e.longitude.toFixed(5)}</div>`
-      : '';
-    const omBlock = e.om_num
-      ? `<div class="equipe-om">
-          <div class="equipe-om-num">${esc(e.om_num)}</div>
-          <div class="equipe-om-titulo">${esc(e.om_titulo || "—")}</div>
-          <div class="equipe-om-status"><span class="badge-status" style="${omStatusStyle}">${omStatus}</span></div>
-        </div>`
-      : `<div style="font-size:11px;color:var(--c3);font-weight:700">Sem OM ativa</div>`;
-
-    return `<div class="equipe-card ${statusClass}" onclick="window.mapaRastreamento && window.mapaRastreamento.focarEquipe('${esc(e.device_id)}')">
-      <div class="equipe-card-header">
-        <span class="equipe-dot ${statusClass}"></span>
-        <span class="equipe-nome">${esc(e.equipe || "Equipe")}</span>
-        <span class="equipe-tempo">${tempo}</span>
+    <div class="page" id="pg-equipes"><div class="card"><div class="card-head"><h3>👥 Desempenho por Equipe</h3></div><div class="card-body" id="equipesGrid"><div class="empty">Carregando…</div></div></div></div>
+    <div class="page" id="pg-desvios">
+      <div class="card">
+        <div class="card-head"><h3>⚠️ Registro de Desvios</h3><span style="font-size:10px;color:var(--c3);font-weight:600" id="desviosCount"></span></div>
+        <div class="card-body">
+          <div class="toolbar">
+            <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="searchDesvios" placeholder="Buscar OM ou tipo…" oninput="renderDesvios()"></div>
+            <select class="filter-select" id="filterDesvioTipo" onchange="renderDesvios()"><option value="">Todos os tipos</option><option value="DISPOSITIVO EM FALHA">Dispositivo em Falha</option><option value="PAUSA">Pausa</option><option value="CANCELAMENTO">Cancelamento</option></select>
+          </div>
+          <div id="desviosList"><div class="empty">Nenhum desvio.</div></div>
+        </div>
       </div>
-      <div class="equipe-operador">👤 ${esc(e.operador || "—")}</div>
-      ${omBlock}
-      ${coords}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${bateria}${velocidade}</div>
-    </div>`;
-  }
-
-  // ─── Marcadores no Google Maps ─────────────────────────────
-  _renderizarMarcadores() {
-    if (!this.mapReady || !this.map) return;
-    const bounds = new google.maps.LatLngBounds();
-    let temPosicao = false;
-
-    this.equipes.forEach(e => {
-      if (!e.latitude || !e.longitude) return;
-      const pos = { lat: e.latitude, lng: e.longitude };
-      bounds.extend(pos);
-      temPosicao = true;
-
-      if (this.markers[e.device_id]) {
-        this.markers[e.device_id].position = pos;
-        this.markers[e.device_id].content = this._iconeEquipe(e);
-      } else {
-        const marker = new google.maps.marker.AdvancedMarkerElement({
-          position: pos,
-          map: this.map,
-          title: e.equipe || "Equipe",
-          content: this._iconeEquipe(e)
-        });
-        const iw = new google.maps.InfoWindow({
-          content: this._htmlInfoWindow(e)
-        });
-        marker.addListener("click", () => {
-          Object.values(this.infoWindows).forEach(w => w.close());
-          iw.open({ map: this.map, anchor: marker });
-        });
-        this.markers[e.device_id] = marker;
-        this.infoWindows[e.device_id] = iw;
-      }
-
-      // Atualizar conteúdo do InfoWindow
-      if (this.infoWindows[e.device_id]) {
-        this.infoWindows[e.device_id].setContent(this._htmlInfoWindow(e));
-      }
-    });
-
-    // Remover marcadores de equipes que não existem mais
-    Object.keys(this.markers).forEach(id => {
-      if (!this.equipes.find(e => e.device_id === id)) {
-        this.markers[id].map = null;
-        delete this.markers[id];
-        delete this.infoWindows[id];
-      }
-    });
-
-    // Ajustar zoom para mostrar todas as equipes
-    if (temPosicao && this.equipes.filter(e => e.latitude).length > 0) {
-      if (this.equipes.filter(e => e.latitude).length === 1) {
-        this.map.setCenter(bounds.getCenter());
-        this.map.setZoom(15);
-      } else {
-        this.map.fitBounds(bounds, { padding: 60 });
-      }
-    }
-  }
-
-  _iconeEquipe(e) {
-    const cor = e.online ? '#1A8754' : '#888888';
-    const corBorda = e.online ? '#0f3328' : '#555555';
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
-      <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26S36 31.5 36 18C36 8.06 27.94 0 18 0z" fill="${cor}" stroke="${corBorda}" stroke-width="2"/>
-      <circle cx="18" cy="18" r="8" fill="white" opacity="0.9"/>
-      <text x="18" y="22" text-anchor="middle" font-size="11" font-weight="bold" fill="${cor}" font-family="sans-serif">E</text>
-    </svg>`;
-    const div = document.createElement('div');
-    div.innerHTML = svg;
-    div.style.cursor = 'pointer';
-    return div;
-  }
-
-  _htmlInfoWindow(e) {
-    const tempo = this._tempoRelativo(e.updated_at);
-    const omStatus = this._labelStatus(e.om_status);
-    const omStatusStyle = this._styleStatus(e.om_status);
-    const omBlock = e.om_num
-      ? `<div class="iw-om">
-          <div class="iw-om-num">${esc(e.om_num)}</div>
-          <div class="iw-om-titulo">${esc(e.om_titulo || "—")}</div>
-          <div><span class="iw-status" style="${omStatusStyle}">${omStatus}</span></div>
-        </div>`
-      : `<div style="font-size:11px;color:#999;margin-bottom:6px">Sem OM ativa</div>`;
-    const bateria = e.bateria != null ? `🔋 ${e.bateria}%  ` : '';
-    const velocidade = e.velocidade != null && e.velocidade > 0 ? `🚗 ${Math.round(e.velocidade)} km/h` : '';
-    return `<div class="info-window-content">
-      <div class="iw-nome">${esc(e.equipe || "Equipe")}</div>
-      <div class="iw-operador">👤 ${esc(e.operador || "—")}</div>
-      ${omBlock}
-      <div class="iw-coords">${e.latitude ? e.latitude.toFixed(5) : '—'}, ${e.longitude ? e.longitude.toFixed(5) : '—'}</div>
-      <div style="font-size:10px;color:#888;margin-top:4px">${bateria}${velocidade}</div>
-      <div class="iw-updated">Atualizado: ${tempo}</div>
-    </div>`;
-  }
-
-  // ─── Focar em uma equipe específica ───────────────────────
-  focarEquipe(deviceId) {
-    const equipe = this.equipes.find(e => e.device_id === deviceId);
-    if (!equipe || !equipe.latitude) return;
-
-    // Destacar card
-    document.querySelectorAll('.equipe-card').forEach(c => c.classList.remove('selecionada'));
-    const cards = document.querySelectorAll('.equipe-card');
-    cards.forEach(c => {
-      if (c.onclick && c.onclick.toString().includes(deviceId)) c.classList.add('selecionada');
-    });
-
-    if (this.mapReady && this.map && this.markers[deviceId]) {
-      this.map.panTo({ lat: equipe.latitude, lng: equipe.longitude });
-      this.map.setZoom(16);
-      Object.values(this.infoWindows).forEach(w => w.close());
-      if (this.infoWindows[deviceId]) {
-        this.infoWindows[deviceId].open(this.map, this.markers[deviceId]);
-      }
-    }
-  }
-
-  centralizarTodos() {
-    if (!this.mapReady || !this.map) return;
-    const comPos = this.equipes.filter(e => e.latitude && e.longitude);
-    if (!comPos.length) return;
-    const bounds = new google.maps.LatLngBounds();
-    comPos.forEach(e => bounds.extend({ lat: e.latitude, lng: e.longitude }));
-    this.map.fitBounds(bounds, { padding: 60 });
-    Object.values(this.infoWindows).forEach(w => w.close());
-  }
-
-  // ─── Realtime Supabase ─────────────────────────────────────
-  _setupRealtime() {
-    if (this.rtChannel) { this.sb.removeChannel(this.rtChannel); this.rtChannel = null; }
-    this._atualizarStatusRt("conectando");
-    this.rtChannel = this.sb.channel("equipe-localizacao-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "equipe_localizacao" }, payload => {
-        this._processarEventoRt(payload);
-      })
-      .subscribe(status => {
-        if (status === "SUBSCRIBED") {
-          this._atualizarStatusRt("online");
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          this._atualizarStatusRt("erro");
-          setTimeout(() => this._setupRealtime(), 5000);
-        } else if (status === "CLOSED") {
-          this._atualizarStatusRt("offline");
-        }
-      });
-  }
-
-  _processarEventoRt(payload) {
-    const novo = payload.new;
-    if (!novo) return;
-    const idx = this.equipes.findIndex(e => e.device_id === novo.device_id);
-    const agora = Date.now();
-    const online = novo.online && (agora - new Date(novo.updated_at).getTime()) < this.TIMEOUT_OFFLINE;
-    const equipeAtualizada = { ...novo, online };
-    if (idx >= 0) {
-      this.equipes[idx] = equipeAtualizada;
-    } else {
-      this.equipes.unshift(equipeAtualizada);
-    }
-    this._atualizarKPIs();
-    this._renderizarLista();
-    if (this.mapReady) {
-      // Atualizar apenas o marcador afetado
-      if (novo.latitude && novo.longitude) {
-        const pos = { lat: novo.latitude, lng: novo.longitude };
-        if (this.markers[novo.device_id]) {
-          this.markers[novo.device_id].position = pos;
-          this.markers[novo.device_id].content = this._iconeEquipe(equipeAtualizada);
-          if (this.infoWindows[novo.device_id]) {
-            this.infoWindows[novo.device_id].setContent(this._htmlInfoWindow(equipeAtualizada));
-          }
-        } else {
-          this._renderizarMarcadores();
-        }
-      }
-    }
-    // Flash no dot de RT
-    const dot = this.$("mapaRtDot");
-    if (dot) { dot.style.background = "#f5a623"; setTimeout(() => { dot.style.background = "#4caf50"; }, 600); }
-  }
-
-  _iniciarRefreshPeriodico() {
-    if (this._refreshTimer) clearInterval(this._refreshTimer);
-    this._refreshTimer = setInterval(() => {
-      this.recarregar();
-    }, 30000); // Refresh a cada 30s como fallback
-  }
-
-  _atualizarStatusRt(status) {
-    const dot = this.$("mapaRtDot");
-    const lbl = this.$("mapaRtLabel");
-    const cores = { online: "#4caf50", offline: "#888", erro: "#dc3545", conectando: "#f5a623" };
-    const labels = { online: "Ao vivo", offline: "Offline", erro: "Reconectando…", conectando: "Conectando…" };
-    if (dot) dot.style.background = cores[status] || "#888";
-    if (lbl) lbl.textContent = labels[status] || status;
-  }
-
-  // ─── Helpers ──────────────────────────────────────────────
-  _tempoRelativo(ts) {
-    if (!ts) return "—";
-    const diff = Date.now() - new Date(ts).getTime();
-    if (diff < 60000)  return "agora";
-    if (diff < 3600000) return Math.floor(diff / 60000) + " min atrás";
-    if (diff < 86400000) return Math.floor(diff / 3600000) + "h atrás";
-    return new Date(ts).toLocaleDateString("pt-BR");
-  }
-
-  _labelStatus(status) {
-    const map = {
-      executada:        "Em execução",
-      em_deslocamento:  "Deslocando",
-      iniciada:         "Iniciada",
-      pausada:          "Pausada",
-      pendente_fiscal:  "Aguard. Fiscal",
-      devolvida_admin:  "Dev. Admin",
-      arquivada:        "Arquivada",
-      cancelada:        "Cancelada",
-      alterada_admin:   "Alt. Admin",
-      validada_admin:   "Validada",
-      preliminar:       "Preliminar",
-      em_oficina:       "Em Oficina",
-      aguardando_devolucao: "Aguard. Devolução"
-    };
-    return map[status] || (status ? esc(status) : "—");
-  }
-
-  _styleStatus(status) {
-    const styles = {
-      executada:        "background:#d1e7dd;color:#1A8754",
-      em_deslocamento:  "background:#cfe2ff;color:#1565c0",
-      iniciada:         "background:#d1e7dd;color:#1A8754",
-      pausada:          "background:#fff3cd;color:#856404",
-      pendente_fiscal:  "background:#e8f5ef;color:#1a4a3a",
-      devolvida_admin:  "background:#fde8ea;color:#dc3545",
-      arquivada:        "background:#e8e8e8;color:#666",
-      cancelada:        "background:#fde8ea;color:#dc3545",
-      alterada_admin:   "background:#fff3cd;color:#856404",
-      validada_admin:   "background:#d1e7dd;color:#1A8754",
-      em_oficina:       "background:#e3d5f5;color:#7b1fa2",
-      aguardando_devolucao: "background:#fff3cd;color:#856404"
-    };
-    return styles[status] || "background:#e8e8e8;color:#666";
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-// INSTANCIAR CLASSES
-// ════════════════════════════════════════════════════════════
-try {
-  window.dashboard = new FiscalDashboard();
-} catch (err) {
-  console.error("Falha ao iniciar painel fiscal:", err);
-  alert("Falha ao iniciar o painel fiscal.");
-  window.location.href = "PCM_MCR_v5.html";
-}
-
-// ════════════════════════════════════════════════════════════
-// FUNÇÕES GLOBAIS — Painel Fiscal
-// ════════════════════════════════════════════════════════════
-window.assinarLoteBloco1   = () => window.dashboard && window.dashboard.assinarLoteBloco1();
-window.assinarOM           = num => dashboard.assinarOM(num);
-window.confirmarAssinatura = () => dashboard.confirmarAssinatura();
-window.devolverAdmin       = num => window.dashboard && window.dashboard.devolverAdmin(num);
-window.confirmarDevolucao  = () => dashboard.confirmarDevolucao();
-window.abrirOMFiscal       = num => dashboard.abrirOMFiscal(num);
-window.doLogout            = () => dashboard.doLogout();
-window.loadFiscal          = () => window.dashboard && window.dashboard.loadFiscal();
-window.closeModal          = () => document.getElementById("omModal").classList.remove("show");
-
-window.loadArquivadas = async () => {
-  const { data, error } = await dashboard.sb.from("oms").select("num,titulo,equipe,cc,data_assinatura_fiscal,estado_fluxo")
-    .eq("estado_fluxo", "arquivada").order("data_assinatura_fiscal", { ascending: false });
-  const el = document.getElementById("arquivadasList");
-  document.getElementById("arquivadasCount").textContent = "0 ordens";
-  if (error || !data || !data.length) { el.innerHTML = '<div class="empty">Nenhuma OM arquivada.</div>'; return; }
-  document.getElementById("arquivadasCount").textContent = data.length + " ordens";
-  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html += '<thead><tr style="background:var(--c6)">';
-  ["OM","Título","Equipe","CC","Assinado em","Status"].forEach(c => { html += `<th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;color:var(--c3);font-weight:800">${c}</th>`; });
-  html += '</tr></thead><tbody>';
-  data.forEach((om, i) => {
-    const bg = i % 2 === 0 ? "#fff" : "#fafafa";
-    const dt = om.data_assinatura_fiscal ? new Date(om.data_assinatura_fiscal).toLocaleDateString("pt-BR") : "—";
-    html += `<tr style="background:${bg};border-bottom:1px solid var(--c5)">`;
-    html += `<td style="padding:8px 10px"><span class="om-num">${esc(om.num || "—")}</span></td>`;
-    html += `<td style="padding:8px 10px;font-weight:700">${esc(om.titulo || "—")}</td>`;
-    html += `<td style="padding:8px 10px">${esc(om.equipe || "—")}</td>`;
-    html += `<td style="padding:8px 10px">${esc(om.cc || "—")}</td>`;
-    html += `<td style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:11px">${dt}</td>`;
-    html += '<td style="padding:8px 10px"><span class="badge-status" style="background:#d1e7dd;color:#1A8754">✓ Arquivada</span></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  el.innerHTML = html;
-};
-
-// ════════════════════════════════════════════════════════════
-// NAVEGAÇÃO ENTRE ABAS
-// ════════════════════════════════════════════════════════════
-window.goPage = (pg, btn) => {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.getElementById("pg-" + pg).classList.add("active");
-  document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-
-  if (pg === "arquivadas") {
-    window.loadArquivadas();
-  } else if (pg === "mapa") {
-    // Inicializar o módulo de mapa quando a aba for aberta pela primeira vez
-    if (!window.mapaRastreamento) {
-      window.mapaRastreamento = new MapaRastreamento(window.dashboard.sb);
-    }
-    window.mapaRastreamento.inicializar();
-  }
-};
-</script>
+    </div>
+    <div class="page" id="pg-analytics">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:17px;font-weight:800;color:var(--c1)">📊 Analytics Operacional</div><div style="font-size:10px;color:var(--c3);font-weight:600;margin-top:3px">Dados medidos — S11D MCR Climatização</div></div>
+        <button class="btn-a btn-ghost" style="padding:6px 12px;font-size:10px" onclick="renderAnalytics()">↻ Atualizar</button>
+      </div>
+      <div id="analyticsMetrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
+      <div class="card analytics-score-card" style="margin-bottom:14px"><div class="card-head"><h3>Saúde Operacional</h3></div><div class="card-body" style="padding:14px 16px" id="analyticsHealthScore"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Insights Operacionais</h3></div><div class="card-body" style="padding:12px 16px" id="analyticsDeepInsights"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow0">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Eficiência por Escopo</h3></div><div class="card-body" style="padding:12px 16px" id="chartEficienciaEscopo"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Backlog Aging</h3></div><div class="card-body" style="padding:12px 16px;min-height:180px" id="chartBacklogAging"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow1">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Pipeline de Status</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutStatus"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Distribuição por Escopo</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="chartDonutEscopo"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Throughput — OMs Finalizadas por Dia</h3>
+        <div style="display:flex;gap:4px">
+          <button class="btn-a btn-ghost throughput-btn active" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(14,this)">14d</button>
+          <button class="btn-a btn-ghost throughput-btn" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(30,this)">30d</button>
+          <button class="btn-a btn-ghost throughput-btn" style="padding:3px 8px;font-size:10px" onclick="setThroughputDays(60,this)">60d</button>
+        </div>
+      </div><div class="card-body" style="min-height:200px;padding:12px 16px" id="chartTimeline"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>SLA e Lead Time</h3></div><div class="card-body" style="min-height:180px;padding:12px 16px" id="chartLeadTime"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="analyticsRow3">
+        <div class="card" style="margin:0"><div class="card-head"><h3>HH Medido por Equipe</h3></div><div class="card-body" style="min-height:180px" id="chartHHEquipe"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Custo Materiais por Equipe</h3></div><div class="card-body" style="min-height:180px" id="chartMatEquipe"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Consolidado por Equipe</h3></div><div class="card-body" style="min-height:200px;padding:12px 16px" id="chartProdutividade"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Custo por Centro de Custo</h3></div><div class="card-body" style="padding:12px 16px" id="chartCustoCC"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Heatmap de Atividade</h3></div><div class="card-body" style="padding:12px 16px" id="chartHeatmap"></div></div>
+    </div>
+    <div class="page" id="pg-pasta">
+      <div class="card"><div class="card-head"><h3>📁 Relatórios Sincronizados</h3><button class="btn-a btn-primary" id="btnZip" onclick="baixarZip()">⬇ Baixar Todos (.zip)</button></div><div class="card-body"><div id="pastaList"><div class="empty">Nenhum relatório.</div></div></div></div>
+    </div>
+    <div class="page" id="pg-fluxo">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:17px;font-weight:800;color:var(--c1)">⚙️ Fluxo Operacional de OMs</div><div style="font-size:10px;color:var(--c3);font-weight:600;margin-top:3px">Conferência, correção e envio ao fiscal</div></div>
+        <button class="btn-a btn-primary" onclick="loadFluxo()">↻ Atualizar</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px">
+        <div class="kpi kpi-orange"><div class="kpi-label">Aguard. Conferência</div><div class="kpi-val" id="fkpi1">—</div><div class="kpi-sub">material não conferido</div></div>
+        <div class="kpi kpi-purple"><div class="kpi-label">Material Alterado</div><div class="kpi-val" id="fkpi2">—</div><div class="kpi-sub">aguard. envio fiscal</div></div>
+        <div class="kpi kpi-red"><div class="kpi-label">Devolvidas</div><div class="kpi-val" id="fkpi3">—</div><div class="kpi-sub">pelo fiscal</div></div>
+        <div class="kpi kpi-blue"><div class="kpi-label">Sem Assinatura</div><div class="kpi-val" id="fkpi4">—</div><div class="kpi-sub">cliente não assinou</div></div>
+        <div class="kpi" style="background:linear-gradient(135deg,#FFF7ED,#FFEDD5);border:1.5px solid #EA580C"><div class="kpi-label" style="color:#EA580C">Em Oficina</div><div class="kpi-val" id="fkpi5" style="color:#EA580C">—</div><div class="kpi-sub" style="color:#EA580C">manutenção em andamento</div></div>
+      </div>
+      <div style="margin-bottom:18px"><div class="kpi" style="background:linear-gradient(135deg,#FAF5FF,#F3E8FF);border:1.5px solid #7C3AED"><div class="kpi-label" style="color:#7C3AED">Reprogramadas</div><div class="kpi-val" id="fkpi6" style="color:#7C3AED">—</div><div class="kpi-sub" style="color:#7C3AED">aguardando liberação admin</div></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>📋 Bloco 1 — Material aguardando conferência</h3><span style="font-size:10px;color:var(--c3);font-weight:600" id="b1count"></span></div><div class="card-body"><div id="fluxoB1"><div class="empty">Nenhuma OM.</div></div></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>✏️ Bloco 2 — Material alterado pelo Admin</h3><span style="font-size:10px;color:var(--c3);font-weight:600" id="b2count"></span></div><div class="card-body"><div id="fluxoB2"><div class="empty">Nenhuma OM.</div></div></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>↩️ Bloco 3 — Devolvidas pelo Fiscal</h3><span style="font-size:10px;color:var(--c3);font-weight:600" id="b3count"></span></div><div class="card-body"><div id="fluxoB3"><div class="empty">Nenhuma OM.</div></div></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>⏳ Bloco 4 — Sem assinatura do cliente</h3><div style="display:flex;gap:8px;align-items:center"><span style="font-size:10px;color:var(--c3);font-weight:600" id="b4count"></span><button class="btn-a btn-primary" style="padding:6px 12px;font-size:10px" onclick="enviarLoteFiscal()">Enviar Lote ao Fiscal</button></div></div><div class="card-body"><div id="fluxoB4"><div class="empty">Nenhuma OM.</div></div></div></div>
+      <div class="card" style="margin-bottom:14px;border-color:#EA580C"><div class="card-head" style="background:linear-gradient(135deg,#FFF7ED,#FFEDD5)"><h3 style="color:#EA580C">🔧 Bloco 5 — Em Oficina</h3><span style="font-size:10px;color:#EA580C;font-weight:600" id="b5count"></span></div><div class="card-body"><div id="fluxoB5"><div class="empty">Nenhuma OM.</div></div></div></div>
+      <div class="card" style="margin-bottom:14px;border-color:#7C3AED"><div class="card-head" style="background:linear-gradient(135deg,#FAF5FF,#F3E8FF)"><h3 style="color:#7C3AED">🔄 Bloco 6 — Reprogramadas</h3><span style="font-size:10px;color:#7C3AED;font-weight:600" id="b6count"></span></div><div class="card-body"><div id="fluxoB6"><div class="empty">Nenhuma OM reprogramada.</div></div></div></div>
+    </div>
+    <div class="page" id="pg-bmreport">
+      <div id="bmHeader"></div>
+      <div id="bmKpis" class="bm-kpi-row"></div>
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px" id="bmAderenciaRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Aderência (%)</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:220px" id="bmAderencia"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Progresso Acumulado</h3></div><div class="card-body" style="min-height:220px;padding:14px 16px" id="bmProgresso"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="bmEscopoRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Atendimento por Escopo</h3></div><div class="card-body" style="padding:14px 16px" id="bmEscopo"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Comparativo BM</h3></div><div class="card-body" style="padding:14px 16px" id="bmComparativo"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px" id="bmDesviosRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios Consolidados</h3></div><div class="card-body" style="padding:14px 16px" id="bmDesviosTable"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:200px" id="bmDesviosDonut"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>HH e Custos do Período</h3></div><div class="card-body" style="padding:14px 16px" id="bmCustos"></div></div>
+    </div>
+    <div class="page" id="pg-config">
+      <div class="grid2">
+        <div class="card"><div class="card-head"><h3>📅 Configurações do BM</h3></div><div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+            <div><div class="field-label">N° BM</div><input type="text" id="cfgBmNumero" placeholder="Ex: 47" style="width:100%;padding:10px;border:1px solid var(--c5);border-radius:8px;font-size:14px;font-weight:800;box-sizing:border-box;font-family:'JetBrains Mono',monospace;outline:none"></div>
+            <div><div class="field-label">Data Início</div><input type="date" id="cfgBmInicio" style="width:100%;padding:10px;border:1px solid var(--c5);border-radius:8px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none"></div>
+            <div><div class="field-label">Data Fim</div><input type="date" id="cfgBmFim" style="width:100%;padding:10px;border:1px solid var(--c5);border-radius:8px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none"></div>
+          </div>
+          <div id="cfgBmPreview" style="font-size:12px;font-weight:700;color:var(--b3);padding:10px;background:var(--bc);border-radius:8px;margin-bottom:12px;text-align:center;font-family:'JetBrains Mono',monospace"></div>
+          <button onclick="salvarConfigBM()" class="btn-a btn-primary" style="width:100%;justify-content:center;padding:12px">SALVAR BM</button>
+        </div></div>
+        <div class="card"><div class="card-head"><h3>💹 BDI — Extraordinários</h3></div><div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div><div class="field-label">BDI (%)</div><input type="number" id="cfgBdi" step="0.0001" placeholder="18.8256" style="width:100%;padding:10px;border:1px solid var(--c5);border-radius:8px;font-size:14px;font-weight:800;box-sizing:border-box;font-family:'JetBrains Mono',monospace;outline:none"></div>
+            <div><div class="field-label">Tipo de Solicitação</div><input type="text" id="cfgTipoSol" value="Climatização e Refrigeração" style="width:100%;padding:10px;border:1px solid var(--c5);border-radius:8px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none"></div>
+          </div>
+          <div style="font-size:10px;color:var(--c3);margin-bottom:12px;font-weight:500">BDI aplicado nos materiais extraordinários. Atualiza 1x por dia no campo.</div>
+          <button onclick="salvarConfigBDI()" class="btn-a btn-orange" style="width:100%;justify-content:center;padding:12px">SALVAR BDI</button>
+        </div></div>
+      </div>
+      <div class="card"><div class="card-head"><h3>📊 Exportar Excel do BM</h3></div><div class="card-body" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;font-size:11px;color:var(--c2);font-weight:500">Exportar planilha com todos os materiais do BM ativo (Pricelist, Extraordinário, Material Vale).</div><button onclick="exportarBmExcel()" class="btn-a btn-green" style="padding:12px 20px">📥 EXPORTAR EXCEL</button></div></div>
+    </div>
+  </div>
+</div>
+<div class="pdf-overlay" id="pdfOverlay"><div class="pdf-toolbar"><div class="pdf-toolbar-left">📄 <span id="pdfViewerTitle">OM.pdf</span></div><div class="pdf-toolbar-right"><button class="pdf-btn pdf-btn-download" id="pdfDlBtn">⬇ Baixar</button><button class="pdf-btn pdf-btn-close" onclick="closePdfViewer()">✕ Fechar</button></div></div><div class="pdf-viewer" id="pdfViewer"><div class="pdf-loading">⏳ Carregando…</div></div></div>
+<div class="modal-overlay" id="omModal"><div class="modal-box"><div class="modal-head"><div class="modal-title" id="modalTitle">Detalhe da OM</div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn-a btn-danger" id="modalBtnDelete" style="padding:5px 10px;font-size:10px">🗑 Excluir</button><button class="modal-close" onclick="closeOmModal()">✕</button></div></div><div class="modal-body" id="modalBody"></div></div></div>
+<div class="hd-overlay" id="hdModal"><div class="hd-box"><div class="hd-title">📱 Habilitar Novo Dispositivo</div><div class="hd-sub">OM <span id="hdOmNum"></span> — <span id="hdOmTitulo"></span></div><div class="hd-alert">⚠️ O aparelho falhou. O tempo parado será registrado como desvio <strong>DISPOSITIVO EM FALHA</strong>.</div><div class="hd-row"><div><div class="hd-label">Executante(s)</div><div class="hd-value" id="hdExecAtual">—</div></div><div><div class="hd-label">Tempo parado</div><div class="hd-value" id="hdTempoParado">—</div></div></div><div class="hd-label">Equipe de retomada</div><div class="hd-radio-row"><label><input type="radio" name="hdEquipe" id="hdMesmaEquipe" value="mesma" checked> Mesma equipe</label><label><input type="radio" name="hdEquipe" id="hdEquipeDiferente" value="diferente"> Equipe diferente</label></div><div id="hdNovoExecRow" style="display:none"><div class="hd-label">Nome do novo responsável</div><input class="hd-input" id="hdNovoExec" type="text" placeholder="Nome completo"></div><div class="hd-btns"><button class="hd-btn hd-btn-cancel" onclick="hideHabilitarDispositivo()">Cancelar</button><button class="hd-btn hd-btn-confirm" id="hdBtnConfirmar" onclick="confirmarHabilitarDispositivo()">Habilitar</button></div></div></div>
+<div id="matEditModal" style="position:fixed;inset:0;background:rgba(10,15,26,.65);backdrop-filter:blur(4px);z-index:350;display:none;align-items:center;justify-content:center;padding:16px"><div style="background:#fff;border-radius:16px;width:100%;max-width:880px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,.25)"><div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0"><div style="font-size:14px;font-weight:800">✏️ Editar Materiais — OM <span id="matEditOMNum"></span></div><button onclick="document.getElementById('matEditModal').style.display='none'" class="modal-close">✕</button></div><div style="padding:20px 22px"><div id="matEditRows"></div><button onclick="adicionarMatLinha()" class="btn-a btn-ghost" style="margin-top:8px;width:100%;justify-content:center">+ Adicionar Material</button><div style="margin-top:10px;padding:8px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10px;font-weight:600;color:#92400E">⚠️ Após salvar, o PDF ficará desatualizado — dados corretos no banco e no Excel.</div><div style="display:flex;gap:8px;margin-top:12px"><button onclick="document.getElementById('matEditModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button><button id="btnSalvarMat" onclick="salvarMateriaisAdmin()" class="btn-a btn-primary" style="flex:2;justify-content:center;padding:12px">Salvar Alterações</button></div></div></div></div>
+<script src="assets/assets_admin/admin_utils.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_state.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_api.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_render.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_core.js?v=20260326"></script>
+<script src="assets/assets_admin/admin_events.js?v=20260326"></script>
 </body>
 </html>
