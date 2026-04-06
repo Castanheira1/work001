@@ -190,8 +190,18 @@ async function loadDashboard(silent){
       }
       return o;
     });
-    dashboardData.reports=(oms||[]).filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
+    // Filtrar OMs pelo período do BM ativo (se configurado)
+    if(_bmConfig.di&&_bmConfig.df){
+      var bmDi=new Date(_bmConfig.di+"T00:00:00"),bmDf=new Date(_bmConfig.df+"T23:59:59");
+      dashboardData.oms=dashboardData.oms.filter(function(o){var d=_getOmBaseDateSafe(o);return d&&d>=bmDi&&d<=bmDf;});
+    }
+    dashboardData.reports=dashboardData.oms.filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
     dashboardData.desvios=desvios||[];
+    // Filtrar desvios pelo período do BM ativo
+    if(_bmConfig.di&&_bmConfig.df){
+      var bmDiD=new Date(_bmConfig.di+"T00:00:00"),bmDfD=new Date(_bmConfig.df+"T23:59:59");
+      dashboardData.desvios=dashboardData.desvios.filter(function(d){var dt=d.created_at?new Date(d.created_at):null;return dt&&dt>=bmDiD&&dt<=bmDfD;});
+    }
     populateEquipeFilter();
   }catch(e){console.error("Falha ao carregar dashboard:",e);dashboardData={oms:[],reports:[],desvios:[]};}
   $("refreshDot").className="refresh-dot";$("refreshLabel").textContent="ao vivo";

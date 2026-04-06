@@ -1265,8 +1265,8 @@ function _getBMFilteredOms(){
   var di=new Date(_bmConfig.di+"T00:00:00");
   var df=new Date(_bmConfig.df+"T23:59:59");
   return oms.filter(function(o){
-    var d=new Date(o.created_at||o.updated_at||"");
-    return d>=di&&d<=df;
+    var d=_getOmBaseDateSafe(o);
+    return d&&d>=di&&d<=df;
   });
 }
 
