@@ -8,6 +8,7 @@
 <script src="assets/env-loader.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -159,7 +160,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
 .no-map-key{background:var(--bc);border:1px solid #a8d5b8;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:700;color:#0f3328;word-break:break-all;font-family:'JetBrains Mono',monospace}
 
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
-@media(max-width:900px){.detail-grid{grid-template-columns:1fr}.mapa-layout{grid-template-columns:1fr;height:auto}.mapa-container{height:400px}.mapa-painel{max-height:400px}}
+
+/* ═══════════ CARIMBO / STAMP UI ═══════════ */
+.stamp-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stamp-form label{font-size:11px;font-weight:800;color:var(--c2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
+.stamp-form input,.stamp-form textarea{width:100%;padding:10px 12px;border:2px solid var(--c5);border-radius:10px;font-size:13px;font-family:inherit;outline:none;transition:border .15s}
+.stamp-form input:focus,.stamp-form textarea:focus{border-color:var(--b3)}
+.stamp-form .full-width{grid-column:1/-1}
+.stamp-preview-box{background:linear-gradient(135deg,#fafafa,#f0f5f3);border:2px dashed #a8d5b8;border-radius:14px;padding:20px;margin-top:16px}
+.stamp-preview-inner{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px 20px;max-width:340px;margin:0 auto;font-family:'DM Sans',sans-serif}
+.stamp-preview-inner .stamp-line{font-size:11px;color:#333;line-height:1.6}
+.stamp-preview-inner .stamp-name{font-size:14px;font-weight:900;color:#0f3328;margin-bottom:2px}
+.stamp-preview-inner .stamp-role{font-size:11px;font-weight:700;color:#1A8754}
+.stamp-preview-inner .stamp-sep{border-top:1px solid #ddd;margin:6px 0}
+.stamp-preview-inner .stamp-date{font-size:10px;color:#888;font-weight:700}
+.stamp-canvas-wrap{border:2px solid var(--c5);border-radius:10px;background:#fff;cursor:crosshair;touch-action:none}
+.stamp-canvas-wrap canvas{display:block;border-radius:8px}
+.stamp-status{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800}
+.stamp-status.ok{background:#d1e7dd;color:#1A8754}
+.stamp-status.none{background:#fff3cd;color:#856404}
+.batch-progress{background:#f0f5f3;border:1px solid #a8d5b8;border-radius:10px;padding:14px;margin-top:12px}
+.batch-progress-bar{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;margin-top:8px}
+.batch-progress-fill{height:100%;background:linear-gradient(90deg,#1A8754,#2ecc71);border-radius:3px;transition:width .3s}
+.batch-progress-text{font-size:11px;font-weight:800;color:var(--c2);margin-bottom:4px}
+
+@media(max-width:900px){.detail-grid{grid-template-columns:1fr}.mapa-layout{grid-template-columns:1fr;height:auto}.mapa-container{height:400px}.mapa-painel{max-height:400px}.stamp-form{grid-template-columns:1fr}}
 @media(max-width:700px){.nav-center{display:none}}
 @media(max-width:600px){.mapa-kpis{grid-template-columns:repeat(3,1fr)}}
 </style>
@@ -174,6 +199,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
     </div>
     <div class="nav-center">
       <button class="nav-tab active" onclick="goPage('painel',this)">Painel</button>
+      <button class="nav-tab" onclick="goPage('carimbo',this)">Carimbo</button>
       <button class="nav-tab tab-map" onclick="goPage('mapa',this)">🗺 Mapa ao Vivo</button>
       <button class="nav-tab" onclick="goPage('arquivadas',this)">Arquivadas</button>
     </div>
@@ -215,7 +241,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">
           <h3>🟠 Bloco 2 — Com material, sem assinatura do cliente</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb2count"></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb2count"></span>
+            <button class="btn-a btn-orange" style="padding:7px 12px;font-size:11px" onclick="assinarLoteBloco('b2')">✍ Assinar em Lote</button>
+          </div>
         </div>
         <div class="card-body"><div id="fiscalB2"><div class="empty">Nenhuma OM.</div></div></div>
       </div>
@@ -223,7 +252,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">
           <h3>🔴 Bloco 3 — Material alterado pelo Admin</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb3count"></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb3count"></span>
+            <button class="btn-a btn-danger" style="padding:7px 12px;font-size:11px" onclick="assinarLoteBloco('b3')">✍ Assinar em Lote</button>
+          </div>
         </div>
         <div class="card-body"><div id="fiscalB3"><div class="empty">Nenhuma OM.</div></div></div>
       </div>
@@ -231,9 +263,76 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
       <div class="card" style="margin-bottom:16px">
         <div class="card-head">
           <h3>⚫ Bloco 4 — Canceladas</h3>
-          <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb4count"></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:var(--c3);font-weight:700" id="fb4count"></span>
+            <button class="btn-a btn-ghost" style="padding:7px 12px;font-size:11px" onclick="assinarLoteBloco('b4')">✍ Assinar em Lote</button>
+          </div>
         </div>
         <div class="card-body"><div id="fiscalB4"><div class="empty">Nenhuma OM.</div></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════ CARIMBO / ASSINATURA ═══════════ -->
+    <div class="page" id="pg-carimbo">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:18px;font-weight:900;color:var(--b1)">Carimbo de Assinatura Fiscal</div>
+          <div style="font-size:11px;color:var(--c3);font-weight:700;margin-top:2px">Configure seu carimbo para assinar PDFs em lote — funciona como uma assinatura de email</div>
+        </div>
+        <div id="stampStatusBadge"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head">
+          <h3>Dados do Carimbo</h3>
+          <button class="btn-a btn-primary" style="padding:7px 12px;font-size:11px" onclick="salvarCarimbo()">Salvar Carimbo</button>
+        </div>
+        <div class="card-body">
+          <div class="stamp-form">
+            <div>
+              <label>Nome Completo</label>
+              <input type="text" id="stampNome" placeholder="Ex: João da Silva">
+            </div>
+            <div>
+              <label>Cargo / Função</label>
+              <input type="text" id="stampCargo" placeholder="Ex: Fiscal de Contrato">
+            </div>
+            <div>
+              <label>Registro / CREA / Matrícula</label>
+              <input type="text" id="stampRegistro" placeholder="Ex: CREA-PA 12345">
+            </div>
+            <div>
+              <label>Empresa</label>
+              <input type="text" id="stampEmpresa" placeholder="Ex: Domo de Ferro">
+            </div>
+          </div>
+
+          <div style="margin-top:18px">
+            <label style="font-size:11px;font-weight:800;color:var(--c2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Assinatura Manuscrita (opcional — desenhe abaixo)</label>
+            <div class="stamp-canvas-wrap" style="max-width:400px">
+              <canvas id="stampCanvas" width="400" height="120"></canvas>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:8px">
+              <button class="btn-a btn-ghost" style="padding:5px 12px;font-size:11px" onclick="limparCanvasCarimbo()">Limpar Assinatura</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Pré-visualização do Carimbo</h3>
+        </div>
+        <div class="card-body">
+          <div class="stamp-preview-box">
+            <div class="stamp-preview-inner" id="stampPreview">
+              <div style="text-align:center;color:var(--c3);font-size:12px;padding:12px 0">Preencha os dados acima para ver a pré-visualização</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:var(--c3);font-weight:700;text-align:center">
+            Este carimbo será aplicado em todos os PDFs ao assinar em lote
+          </div>
+        </div>
       </div>
     </div>
 
@@ -313,13 +412,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--c1);min-h
 
 <!-- MODAL CONFIRMAR ASSINATURA -->
 <div id="signModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:none;align-items:center;justify-content:center;padding:16px">
-  <div style="background:#fff;border-radius:20px;width:100%;max-width:420px;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
+  <div style="background:#fff;border-radius:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 40px 100px rgba(0,0,0,.35)">
     <div style="font-size:17px;font-weight:900;color:var(--b1);margin-bottom:6px">✍ Confirmar Assinatura</div>
     <div style="font-size:12px;color:var(--c3);font-weight:700;margin-bottom:16px">OM <span id="signOMNum" style="font-family:'JetBrains Mono',monospace;color:var(--b1)"></span></div>
-    <div style="background:var(--bc);border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#0f3328;margin-bottom:18px">
-      Ao assinar, esta OM será arquivada definitivamente e removida do painel.
+    <div id="signStampPreviewArea" style="margin-bottom:14px"></div>
+    <div style="background:var(--bc);border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#0f3328;margin-bottom:14px">
+      Ao assinar, o carimbo será aplicado nos PDFs e a OM será arquivada definitivamente.
     </div>
-    <div style="display:flex;gap:10px">
+    <div id="signProgressArea" style="display:none"></div>
+    <div id="signButtonsArea" style="display:flex;gap:10px">
       <button onclick="document.getElementById('signModal').style.display='none'" class="btn-a btn-ghost" style="flex:1;justify-content:center">Cancelar</button>
       <button id="btnConfirmSign" onclick="confirmarAssinatura()" class="btn-a btn-green" style="flex:2;justify-content:center;padding:13px">✍ Assinar e Arquivar</button>
     </div>
@@ -365,9 +466,14 @@ class FiscalDashboard {
     this.currentUser     = null;
     this.fiscalData      = { b1: [], b2: [], b3: [], b4: [] };
     this.b1Selected      = {};
+    this.b2Selected      = {};
+    this.b3Selected      = {};
+    this.b4Selected      = {};
     this._signOM         = null;
+    this._signBlocoLote  = null;
     this._devolverOM     = null;
     this.realtimeChannel = null;
+    this.carimbo         = null;
     this.$               = id => document.getElementById(id);
     this.init();
   }
@@ -375,6 +481,8 @@ class FiscalDashboard {
   async init() {
     await this.verificarFiscal();
     this.setupRealtime();
+    this.carregarCarimbo();
+    this.setupStampCanvas();
     this.$("app").style.display = "block";
   }
 
@@ -527,8 +635,8 @@ class FiscalDashboard {
       html += `<td style="padding:8px 10px"><span class="badge-status" style="background:${statusBg};color:${statusColor}">${statusLabel}</span></td>`;
       html += `<td style="padding:8px 10px;text-align:right"><div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">`;
       html += `<button onclick="dashboard.abrirOMFiscal('${esc(om.num)}')" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Ver</button>`;
+      html += `<button onclick="dashboard.toggleSelectBloco('${blockType}','${esc(om.num)}', this)" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px" data-sel-${blockType}="${esc(om.num)}">Selecionar</button>`;
       if (blockType === "b1") {
-        html += `<button onclick="dashboard.toggleSelectB1('${esc(om.num)}', this)" class="btn-a btn-ghost" style="padding:5px 9px;font-size:10px">Selecionar</button>`;
         html += `<button onclick="dashboard.assinarOM('${esc(om.num)}')" class="btn-a btn-green" style="padding:5px 9px;font-size:10px">✍ Assinar</button>`;
       }
       if (blockType === "b2") {
@@ -547,66 +655,465 @@ class FiscalDashboard {
     container.innerHTML = html;
   }
 
-  toggleSelectB1(num, btn) {
-    if (this.b1Selected[num]) {
-      delete this.b1Selected[num];
+  // ═══════════ SELEÇÃO GENÉRICA POR BLOCO ═══════════
+
+  _getSelectedMap(bloco) {
+    const maps = { b1: this.b1Selected, b2: this.b2Selected, b3: this.b3Selected, b4: this.b4Selected };
+    return maps[bloco] || {};
+  }
+
+  toggleSelectBloco(bloco, num, btn) {
+    const map = this._getSelectedMap(bloco);
+    if (map[num]) {
+      delete map[num];
       btn.style.background = ""; btn.style.color = ""; btn.textContent = "Selecionar";
     } else {
-      this.b1Selected[num] = true;
+      map[num] = true;
       btn.style.background = "#1A8754"; btn.style.color = "#fff"; btn.textContent = "✓ Selecionado";
     }
   }
 
   assinarLoteBloco1() {
-    const nums = Object.keys(this.b1Selected);
-    if (!nums.length) return this.fiscalToast("Nenhuma OM selecionada no Bloco 1", "warn");
-    this._signOM = "__lote_b1__";
-    this.$("signOMNum").textContent = `${nums.length} OM(s) selecionadas`;
+    this.assinarLoteBloco("b1");
+  }
+
+  assinarLoteBloco(bloco) {
+    const map = this._getSelectedMap(bloco);
+    const nums = Object.keys(map);
+    if (!nums.length) return this.fiscalToast("Nenhuma OM selecionada neste bloco", "warn");
+    if (!this.carimbo || !this.carimbo.nome) {
+      this.fiscalToast("Configure seu carimbo antes de assinar em lote (aba Carimbo)", "warn");
+      return;
+    }
+    this._signOM = "__lote__";
+    this._signBlocoLote = bloco;
+    this.$("signOMNum").textContent = `${nums.length} OM(s) selecionadas — Bloco ${bloco.replace("b","")}`;
+    this._renderSignStampPreview();
+    this.$("signProgressArea").style.display = "none";
+    this.$("signProgressArea").innerHTML = "";
+    this.$("signButtonsArea").style.display = "flex";
     this.$("signModal").style.display = "flex";
   }
 
-  async _executarLoteB1() {
-    const nums = Object.keys(this.b1Selected);
+  _renderSignStampPreview() {
+    const area = this.$("signStampPreviewArea");
+    if (!this.carimbo || !this.carimbo.nome) {
+      area.innerHTML = '<div style="background:#fff3cd;border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#856404">⚠ Nenhum carimbo configurado. Vá na aba <strong>Carimbo</strong> para criar.</div>';
+      return;
+    }
+    area.innerHTML = `<div style="background:#e8f5ef;border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#0f3328">
+      <div style="font-size:10px;text-transform:uppercase;color:#2a7a5a;margin-bottom:6px;font-weight:900">Carimbo que será aplicado:</div>
+      <div style="font-weight:900;font-size:13px">${esc(this.carimbo.nome)}</div>
+      <div style="font-size:11px;color:#1a4a3a">${esc(this.carimbo.cargo || "")} ${this.carimbo.registro ? "• " + esc(this.carimbo.registro) : ""}</div>
+      ${this.carimbo.empresa ? '<div style="font-size:11px;color:#2a7a5a">' + esc(this.carimbo.empresa) + '</div>' : ''}
+      ${this.carimbo.assinatura ? '<img src="'+this.carimbo.assinatura+'" style="max-width:120px;max-height:40px;margin-top:4px;opacity:.8" alt="assinatura">' : ''}
+    </div>`;
+  }
+
+  async _executarLote() {
+    const bloco = this._signBlocoLote;
+    const map = this._getSelectedMap(bloco);
+    const nums = Object.keys(map);
     if (!nums.length) return;
+
     const btn = this.$("btnConfirmSign");
+    const progressArea = this.$("signProgressArea");
+    const buttonsArea = this.$("signButtonsArea");
     btn.disabled = true; btn.textContent = "Aguarde…";
+    buttonsArea.style.display = "none";
+    progressArea.style.display = "block";
+    progressArea.innerHTML = `<div class="batch-progress">
+      <div class="batch-progress-text" id="batchProgressText">Preparando assinatura em lote…</div>
+      <div class="batch-progress-bar"><div class="batch-progress-fill" id="batchProgressFill" style="width:0%"></div></div>
+    </div>`;
+
     const agora = new Date().toISOString();
+    let stampedCount = 0;
+    let failedPdfs = [];
+
     try {
+      // Step 1: Stamp PDFs for each OM
+      for (let i = 0; i < nums.length; i++) {
+        const num = nums[i];
+        const pct = Math.round(((i) / nums.length) * 80);
+        this.$("batchProgressText").textContent = `Carimbando PDF ${i+1}/${nums.length} — OM ${num}`;
+        this.$("batchProgressFill").style.width = pct + "%";
+
+        try {
+          await this._carimbaPDFsOM(num);
+          stampedCount++;
+        } catch (e) {
+          console.warn(`[FISCAL] Falha ao carimbar PDF da OM ${num}:`, e);
+          failedPdfs.push(num);
+        }
+      }
+
+      // Step 2: Bulk update DB
+      this.$("batchProgressText").textContent = "Atualizando banco de dados…";
+      this.$("batchProgressFill").style.width = "90%";
+
       const { error } = await this.sb.from("oms")
         .update({ fiscal_assinou: true, data_assinatura_fiscal: agora, estado_fluxo: "arquivada", updated_at: agora })
         .in("num", nums);
       if (error) throw error;
-      this.b1Selected = {};
-      this.fiscalToast(`${nums.length} OM(s) assinadas e arquivadas`, "success");
-      this.$("signModal").style.display = "none";
-      this._signOM = null;
-      await this.loadFiscal();
+
+      this.$("batchProgressFill").style.width = "100%";
+      this.$("batchProgressText").textContent = `Concluído! ${stampedCount} PDF(s) carimbados.`;
+
+      // Clear selection
+      if (bloco === "b1") this.b1Selected = {};
+      else if (bloco === "b2") this.b2Selected = {};
+      else if (bloco === "b3") this.b3Selected = {};
+      else if (bloco === "b4") this.b4Selected = {};
+
+      let msg = `${nums.length} OM(s) assinadas e arquivadas`;
+      if (stampedCount > 0) msg += ` — ${stampedCount} PDF(s) carimbados`;
+      if (failedPdfs.length > 0) msg += ` (${failedPdfs.length} PDF(s) sem carimbo: ${failedPdfs.join(", ")})`;
+      this.fiscalToast(msg, failedPdfs.length > 0 ? "warn" : "success");
+
+      setTimeout(() => {
+        this.$("signModal").style.display = "none";
+        this._signOM = null;
+        this._signBlocoLote = null;
+        this.loadFiscal();
+      }, 1200);
     } catch (err) {
       this.fiscalToast(`Erro ao assinar lote: ${err.message}`, "error");
+      buttonsArea.style.display = "flex";
     } finally {
       btn.disabled = false; btn.textContent = "✍ Assinar e Arquivar";
     }
   }
 
+  // ═══════════ CARIMBO / STAMP MODEL ═══════════
+
+  carregarCarimbo() {
+    try {
+      const raw = localStorage.getItem("fiscal_carimbo");
+      if (raw) {
+        this.carimbo = JSON.parse(raw);
+        this._preencherFormCarimbo();
+        this._atualizarPreviewCarimbo();
+        this._atualizarBadgeCarimbo();
+      }
+    } catch (e) { console.warn("[FISCAL] Falha ao carregar carimbo:", e); }
+  }
+
+  salvarCarimbo() {
+    const nome = (this.$("stampNome").value || "").trim();
+    const cargo = (this.$("stampCargo").value || "").trim();
+    const registro = (this.$("stampRegistro").value || "").trim();
+    const empresa = (this.$("stampEmpresa").value || "").trim();
+
+
+    if (!nome) return this.fiscalToast("Nome é obrigatório para o carimbo", "warn");
+
+    // Captura assinatura do canvas
+    const canvas = this.$("stampCanvas");
+    let assinatura = null;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const hasContent = data.some(c => c !== 0);
+      if (hasContent) assinatura = canvas.toDataURL("image/png");
+    }
+
+    this.carimbo = { nome, cargo, registro, empresa, assinatura, updatedAt: new Date().toISOString() };
+    localStorage.setItem("fiscal_carimbo", JSON.stringify(this.carimbo));
+    this._atualizarPreviewCarimbo();
+    this._atualizarBadgeCarimbo();
+    this.fiscalToast("Carimbo salvo com sucesso!", "success");
+  }
+
+  _preencherFormCarimbo() {
+    if (!this.carimbo) return;
+    const c = this.carimbo;
+    if (c.nome) this.$("stampNome").value = c.nome;
+    if (c.cargo) this.$("stampCargo").value = c.cargo;
+    if (c.registro) this.$("stampRegistro").value = c.registro;
+    if (c.empresa) this.$("stampEmpresa").value = c.empresa;
+    if (c.assinatura) {
+      const canvas = this.$("stampCanvas");
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0); };
+        img.src = c.assinatura;
+      }
+    }
+  }
+
+  _atualizarPreviewCarimbo() {
+    const el = this.$("stampPreview");
+    if (!el) return;
+    if (!this.carimbo || !this.carimbo.nome) {
+      el.innerHTML = '<div style="text-align:center;color:var(--c3);font-size:12px;padding:12px 0">Preencha os dados acima para ver a pré-visualização</div>';
+      return;
+    }
+    const c = this.carimbo;
+    const dataStr = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
+    let html = `<div class="stamp-name">${esc(c.nome)}</div>`;
+    if (c.cargo) html += `<div class="stamp-role">${esc(c.cargo)}</div>`;
+    if (c.registro) html += `<div class="stamp-line">${esc(c.registro)}</div>`;
+    if (c.empresa) html += `<div class="stamp-line">${esc(c.empresa)}</div>`;
+    html += '<div class="stamp-sep"></div>';
+    if (c.assinatura) html += `<img src="${c.assinatura}" style="max-width:180px;max-height:50px;margin-bottom:4px" alt="assinatura manuscrita">`;
+    html += `<div class="stamp-date">Assinado digitalmente em ${dataStr}</div>`;
+    el.innerHTML = html;
+  }
+
+  _atualizarBadgeCarimbo() {
+    const el = this.$("stampStatusBadge");
+    if (!el) return;
+    if (this.carimbo && this.carimbo.nome) {
+      el.innerHTML = '<span class="stamp-status ok">✓ Carimbo configurado</span>';
+    } else {
+      el.innerHTML = '<span class="stamp-status none">⚠ Sem carimbo</span>';
+    }
+  }
+
+  setupStampCanvas() {
+    const canvas = this.$("stampCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      if (e.touches) return { x: (e.touches[0].clientX - rect.left) * scaleX, y: (e.touches[0].clientY - rect.top) * scaleY };
+      return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    };
+
+    const start = (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const move = (e) => { if (!drawing) return; e.preventDefault(); const p = getPos(e); ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#111"; ctx.lineTo(p.x, p.y); ctx.stroke(); };
+    const stop = () => { drawing = false; };
+
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    canvas.addEventListener("mouseup", stop);
+    canvas.addEventListener("mouseleave", stop);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", stop);
+
+    // Live preview update on form input
+    ["stampNome","stampCargo","stampRegistro","stampEmpresa"].forEach(id => {
+      const el = this.$(id);
+      if (el) el.addEventListener("input", () => {
+        const temp = {
+          nome: (this.$("stampNome").value || "").trim(),
+          cargo: (this.$("stampCargo").value || "").trim(),
+          registro: (this.$("stampRegistro").value || "").trim(),
+          empresa: (this.$("stampEmpresa").value || "").trim(),
+          assinatura: this.carimbo ? this.carimbo.assinatura : null
+        };
+        const prev = this.carimbo;
+        this.carimbo = temp;
+        this._atualizarPreviewCarimbo();
+        this.carimbo = prev;
+      });
+    });
+  }
+
+  limparCanvasCarimbo() {
+    const canvas = this.$("stampCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // ═══════════ PDF STAMPING ENGINE ═══════════
+
+  async _carimbaPDFsOM(omNum) {
+    if (!this.carimbo || !this.carimbo.nome) return;
+    const tipos = [
+      { prefix: "reports/OM_", suffix: ".pdf" },
+      { prefix: "reports/CK_", suffix: ".pdf" },
+      { prefix: "reports/NC_", suffix: ".pdf" }
+    ];
+
+    for (const tipo of tipos) {
+      const path = tipo.prefix + omNum + tipo.suffix;
+      try {
+        await this._carimbarUmPDF(path);
+      } catch (e) {
+        // PDF might not exist for this OM - that's ok
+        if (e.message && (e.message.includes("404") || e.message.includes("not found") || e.message.includes("Object not found"))) {
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+
+  async _carimbarUmPDF(storagePath) {
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+    // 1. Download the PDF
+    const { data: urlData, error: urlErr } = await this.sb.storage.from("pcm-files").createSignedUrl(storagePath, 60);
+    if (urlErr) throw urlErr;
+
+    const resp = await fetch(urlData.signedUrl);
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const pdfBytes = await resp.arrayBuffer();
+
+    // 2. Load and modify PDF
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pages = pdfDoc.getPages();
+    const lastPage = pages[pages.length - 1];
+    const { width, height } = lastPage.getSize();
+
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const c = this.carimbo;
+    const dataStr = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
+
+    // Stamp dimensions
+    const stampW = 220;
+    const stampH = c.assinatura ? 95 : 72;
+    const stampX = width - stampW - 20;
+    const stampY = 18;
+
+    // Background box
+    lastPage.drawRectangle({
+      x: stampX, y: stampY, width: stampW, height: stampH,
+      color: rgb(0.96, 0.98, 0.96),
+      borderColor: rgb(0.1, 0.54, 0.33),
+      borderWidth: 1.2
+    });
+
+    // Green top bar
+    lastPage.drawRectangle({
+      x: stampX, y: stampY + stampH - 14, width: stampW, height: 14,
+      color: rgb(0.1, 0.54, 0.33)
+    });
+
+    lastPage.drawText("ASSINATURA FISCAL", {
+      x: stampX + 6, y: stampY + stampH - 11,
+      size: 7.5, font: fontBold, color: rgb(1, 1, 1)
+    });
+
+    // Content lines
+    let lineY = stampY + stampH - 28;
+    const lineGap = 10;
+
+    lastPage.drawText(c.nome.toUpperCase(), {
+      x: stampX + 8, y: lineY,
+      size: 8.5, font: fontBold, color: rgb(0.06, 0.2, 0.15)
+    });
+    lineY -= lineGap;
+
+    if (c.cargo) {
+      lastPage.drawText(c.cargo, {
+        x: stampX + 8, y: lineY,
+        size: 7, font, color: rgb(0.1, 0.54, 0.33)
+      });
+      lineY -= lineGap - 1;
+    }
+
+    if (c.registro) {
+      lastPage.drawText(c.registro, {
+        x: stampX + 8, y: lineY,
+        size: 6.5, font, color: rgb(0.25, 0.25, 0.25)
+      });
+      lineY -= lineGap - 1;
+    }
+
+    if (c.empresa) {
+      lastPage.drawText(c.empresa, {
+        x: stampX + 8, y: lineY,
+        size: 6.5, font, color: rgb(0.25, 0.25, 0.25)
+      });
+      lineY -= lineGap - 1;
+    }
+
+    // Signature image
+    if (c.assinatura) {
+      try {
+        const imgBytes = await fetch(c.assinatura).then(r => r.arrayBuffer());
+        const pngImage = await pdfDoc.embedPng(imgBytes);
+        const imgDims = pngImage.scale(0.35);
+        lastPage.drawImage(pngImage, {
+          x: stampX + 8, y: lineY - imgDims.height + 6,
+          width: Math.min(imgDims.width, stampW - 16),
+          height: Math.min(imgDims.height, 28)
+        });
+        lineY -= 22;
+      } catch (e) {
+        console.warn("[FISCAL] Falha ao inserir assinatura no PDF:", e);
+      }
+    }
+
+    // Separator line
+    lastPage.drawLine({
+      start: { x: stampX + 6, y: lineY + 2 },
+      end: { x: stampX + stampW - 6, y: lineY + 2 },
+      color: rgb(0.75, 0.75, 0.75),
+      thickness: 0.4
+    });
+
+    lastPage.drawText("Assinado em " + dataStr, {
+      x: stampX + 8, y: lineY - 7,
+      size: 5.5, font, color: rgb(0.5, 0.5, 0.5)
+    });
+
+    // 3. Save modified PDF
+    const modifiedPdfBytes = await pdfDoc.save();
+
+    // 4. Re-upload to Supabase Storage
+    const blob = new Blob([modifiedPdfBytes], { type: "application/pdf" });
+    const token = (await this.sb.auth.getSession())?.data?.session?.access_token || CONFIG.SUPABASE_ANON_KEY;
+    const uploadResp = await fetch(CONFIG.SUPABASE_URL + "/storage/v1/object/pcm-files/" + storagePath, {
+      method: "POST",
+      headers: {
+        "apikey": CONFIG.SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/pdf",
+        "x-upsert": "true"
+      },
+      body: blob
+    });
+    if (!uploadResp.ok) {
+      const txt = await uploadResp.text().catch(() => "");
+      throw new Error("Upload HTTP " + uploadResp.status + (txt ? " — " + txt : ""));
+    }
+  }
+
   assinarOM(num) {
     this._signOM = num;
+    this._signBlocoLote = null;
     this.$("signOMNum").textContent = num;
+    this._renderSignStampPreview();
+    this.$("signProgressArea").style.display = "none";
+    this.$("signProgressArea").innerHTML = "";
+    this.$("signButtonsArea").style.display = "flex";
     this.$("signModal").style.display = "flex";
   }
 
   async confirmarAssinatura() {
     if (!this._signOM) return;
-    if (this._signOM === "__lote_b1__") { await this._executarLoteB1(); return; }
+    if (this._signOM === "__lote__") { await this._executarLote(); return; }
+    if (this._signOM === "__lote_b1__") { this._signBlocoLote = "b1"; await this._executarLote(); return; }
     const btn = this.$("btnConfirmSign");
+    const num = this._signOM;
     btn.disabled = true; btn.textContent = "Aguarde…";
     const agora = new Date().toISOString();
     try {
+      // Stamp PDF if carimbo exists
+      if (this.carimbo && this.carimbo.nome) {
+        try { await this._carimbaPDFsOM(num); } catch (e) {
+          console.warn("[FISCAL] PDF stamp falhou para OM " + num + ":", e);
+        }
+      }
       const { error } = await this.sb.from("oms").update({
         fiscal_assinou: true, data_assinatura_fiscal: agora,
         estado_fluxo: "arquivada", updated_at: agora
-      }).eq("num", this._signOM);
+      }).eq("num", num);
       if (error) throw error;
-      this.fiscalToast(`OM ${this._signOM} assinada e arquivada`, "success");
+      this.fiscalToast(`OM ${num} assinada e arquivada`, "success");
       this.$("signModal").style.display = "none";
       this._signOM = null;
       await this.loadFiscal();
@@ -1261,6 +1768,7 @@ try {
 // FUNÇÕES GLOBAIS — Painel Fiscal
 // ════════════════════════════════════════════════════════════
 window.assinarLoteBloco1   = () => window.dashboard && window.dashboard.assinarLoteBloco1();
+window.assinarLoteBloco    = bloco => window.dashboard && window.dashboard.assinarLoteBloco(bloco);
 window.assinarOM           = num => dashboard.assinarOM(num);
 window.confirmarAssinatura = () => dashboard.confirmarAssinatura();
 window.devolverAdmin       = num => window.dashboard && window.dashboard.devolverAdmin(num);
@@ -1269,6 +1777,8 @@ window.abrirOMFiscal       = num => dashboard.abrirOMFiscal(num);
 window.doLogout            = () => dashboard.doLogout();
 window.loadFiscal          = () => window.dashboard && window.dashboard.loadFiscal();
 window.closeModal          = () => document.getElementById("omModal").classList.remove("show");
+window.salvarCarimbo       = () => window.dashboard && window.dashboard.salvarCarimbo();
+window.limparCanvasCarimbo = () => window.dashboard && window.dashboard.limparCanvasCarimbo();
 
 window.loadArquivadas = async () => {
   const { data, error } = await dashboard.sb.from("oms").select("num,titulo,equipe,cc,data_assinatura_fiscal,estado_fluxo")
@@ -1308,6 +1818,11 @@ window.goPage = (pg, btn) => {
 
   if (pg === "arquivadas") {
     window.loadArquivadas();
+  } else if (pg === "carimbo") {
+    if (window.dashboard) {
+      window.dashboard._atualizarPreviewCarimbo();
+      window.dashboard._atualizarBadgeCarimbo();
+    }
   } else if (pg === "mapa") {
     // Inicializar o módulo de mapa quando a aba for aberta pela primeira vez
     if (!window.mapaRastreamento) {

@@ -164,7 +164,7 @@
         }
 
         function _pdfUsableBottom(pdf) {
-            return _pdfPageHeight(pdf) - 24;
+            return _pdfPageHeight(pdf) - 18;
         }
 
         function _pdfEnsureSpace(pdf, y, requiredHeight, newPageStartY) {
@@ -222,9 +222,9 @@
 
             var executantes = Array.isArray(opts.executantes) && opts.executantes.length ? opts.executantes.join(', ') : '---';
             var execInfo = _pdfSplitText(pdf, executantes, W - M * 2 - 30, 3.8);
-            var signHeight = 26;
+            var signHeight = 22;
             var fiscalExtra = opts.fiscalName ? 8 : 0;
-            var totalHeight = 5.5 + execInfo.height + 8 + signHeight + fiscalExtra + 6;
+            var totalHeight = 5.5 + execInfo.height + 4 + signHeight + fiscalExtra + 6;
 
             y = _pdfEnsureSpace(pdf, y, totalHeight, 20);
             y = _pdfSecTitle(pdf, y, tituloAss);
@@ -237,7 +237,7 @@
             pdf.setFont(undefined, 'normal');
             pdf.setTextColor(30, 30, 30);
             pdf.text(execInfo.lines, M + 28, y);
-            y += execInfo.height + 6;
+            y += execInfo.height + 4;
 
             pdf.setDrawColor(180, 180, 180);
             pdf.setLineWidth(0.2);
@@ -286,7 +286,7 @@
             var tituloPDF = 'CHECKLIST ' + tipoChk;
             var y = _pdfHeader(pdf, tituloPDF);
             y = _pdfSection(pdf, y, 'INFORMACOES DA ORDEM', 18);
-            y = _pdfInfoGrid(pdf, y) + 8;
+            y = _pdfInfoGrid(pdf, y) + 4;
             y = _pdfSection(pdf, y, 'ITENS DO CHECKLIST', 18);
 
             var itens = currentOM.checklistDados || coletarChecklistDados();
@@ -295,7 +295,7 @@
             for (var i = 0; i < itens.length; i++) {
                 var item = itens[i];
                 if (item.secao !== secaoAtual) {
-                    rows.push([{ content: item.secao, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [245,245,245], textColor: [35,35,35], fontSize: 7.5, cellPadding: 2.5 } }]);
+                    rows.push([{ content: item.secao, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [245,245,245], textColor: [35,35,35], fontSize: 6.5, cellPadding: 1.5 } }]);
                     secaoAtual = item.secao;
                 }
                 rows.push([
@@ -312,8 +312,8 @@
                 body: rows,
                 theme: 'grid',
                 tableWidth: 180,
-                headStyles: { fillColor: cinzaHdr, textColor: [255,255,255], fontSize: 6.5, fontStyle: 'bold', cellPadding: 1.8 },
-                bodyStyles: { fontSize: 6.5, cellPadding: 1.7, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
+                headStyles: { fillColor: cinzaHdr, textColor: [255,255,255], fontSize: 6.5, fontStyle: 'bold', cellPadding: 1.4 },
+                bodyStyles: { fontSize: 6.5, cellPadding: 1.3, textColor: [30,30,30], lineColor: [205,205,205], lineWidth: 0.15, overflow: 'linebreak' },
                 columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 98 }, 2: { cellWidth: 22, halign: 'center' }, 3: { cellWidth: 50 } },
                 didParseCell: function(data) {
                     if (data.column.index === 2 && data.section === 'body') {
@@ -327,7 +327,7 @@
                 },
                 margin: { left: M, right: M }
             });
-            y = pdf.lastAutoTable.finalY + 8;
+            y = pdf.lastAutoTable.finalY + 4;
 
             var tipoAss = (currentOM.pendenteAssinatura || isCancelamento) ? 'ASSINATURA DO FISCAL' : 'ASSINATURA DO CLIENTE / RESPONSAVEL';
             y = _pdfDrawSignatureBlock(pdf, y, tipoAss, {
