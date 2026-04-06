@@ -32,8 +32,8 @@ async function verificarAdmin(){
     $("app").style.display="block";
     $("userLabel").textContent=currentUser.toUpperCase();
     $("avatarLetter").textContent=currentUser[0].toUpperCase();
+    await loadBMConfig();
     loadDashboard();
-    loadBMConfig();
     carregarPricelist();
     carregarBMsPeriodo();
     setInterval(function(){loadDashboard(true);},60000);
