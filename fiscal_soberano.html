@@ -1417,9 +1417,11 @@ class MapaRastreamento {
   // ─── Carregar dados das equipes ────────────────────────────
   async recarregar() {
     try {
+      const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
       const { data, error } = await this.sb
         .from("equipe_localizacao")
         .select("*")
+        .not("om_status", "in", `(${statusEncerrados.join(",")})`)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -1658,7 +1660,20 @@ class MapaRastreamento {
   _processarEventoRt(payload) {
     const novo = payload.new;
     if (!novo) return;
+    // Ignorar equipes com OMs encerradas
+    const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
     const idx = this.equipes.findIndex(e => e.device_id === novo.device_id);
+    if (statusEncerrados.includes(novo.om_status)) {
+      // Se já estava na lista, remover
+      if (idx >= 0) {
+        this.equipes.splice(idx, 1);
+        if (this.markers[novo.device_id]) { this.markers[novo.device_id].setMap(null); delete this.markers[novo.device_id]; }
+        if (this.infoWindows[novo.device_id]) { this.infoWindows[novo.device_id].close(); delete this.infoWindows[novo.device_id]; }
+        this._atualizarKPIs();
+        this._renderizarLista();
+      }
+      return;
+    }
     const agora = Date.now();
     const online = novo.online && (agora - new Date(novo.updated_at).getTime()) < this.TIMEOUT_OFFLINE;
     const equipeAtualizada = { ...novo, online };
