@@ -118,35 +118,29 @@ const checklistItens = {
             $('checklistContent').innerHTML = '';
             $('checklistContent').style.display = 'none';
             $('btnSalvarChecklist').style.display = 'none';
-            $('btnEditarChecklist').style.display = 'block';
             $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+            // Atualizar texto do btnChecklist para "EDITAR CHECKLIST"
+            var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 EDITAR CHECKLIST';
 
             const emEtapaOficina = !!(currentOM && currentOM.emOficina);
             const emEtapaMontagem = !!(currentOM && currentOM.retornouOficina);
             const fluxoOficinaAtiva = emEtapaOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && (atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
             const fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !emEtapaOficina && !emEtapaMontagem);
             if (fluxoOficinaAtiva) {
-                // Oficina com atividade iniciada — manter controles de atividade + FINALIZAR OFICINA
                 _aplicarModoChecklistFoco(false);
                 $('checklistSection').style.display = 'block';
-                $('checklistActions').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'block';
-                $('btnSalvarChecklist').style.display = 'none';
+                $('checklistActions').style.display = 'none';
                 _uiAtividade(true);
                 _setBtns({ btnFinalizarOficina:1, btnOficina:0, btnDevolverEquip:0, btnIniciarMontagem:0 });
             } else if (emEtapaMontagem) {
-                // Montagem (retorno da oficina) — restaurar UI normal com FINALIZAR visível
                 _aplicarModoChecklistFoco(false);
                 _aplicarModoOficinaMinimal(false);
                 $('checklistSection').style.display = 'block';
-                $('checklistActions').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'block';
-                $('btnSalvarChecklist').style.display = 'none';
-                _uiAtividade(true); // statusAtual='iniciada' → emFluxoOficina=false → btnFinalizar:1
+                $('checklistActions').style.display = 'none';
+                _uiAtividade(true);
             } else if (emEtapaOficina || fluxoChecklistAtivo) {
                 _aplicarModoChecklistFoco(false);
                 if (emEtapaOficina) {
-                    // Oficina pré-atividade — mostrar btnIniciar (INICIAR ATIVIDADE NA OFICINA)
                     $('checklistSection').style.display = 'none';
                     $('checklistActions').style.display = 'none';
                     _aplicarModoOficinaMinimal(true);
@@ -156,9 +150,7 @@ const checklistItens = {
                 } else {
                     _aplicarModoOficinaMinimal(false);
                     $('checklistSection').style.display = 'block';
-                    $('checklistActions').style.display = 'block';
-                    $('btnEditarChecklist').style.display = 'block';
-                    $('btnSalvarChecklist').style.display = 'none';
+                    $('checklistActions').style.display = 'none';
                     _uiAtividade(true);
                 }
             }
@@ -185,24 +177,18 @@ const checklistItens = {
             }
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
+            $('checklistContent').style.display = 'block';
+            $('checklistContent').innerHTML = renderChecklist();
+            var _showSalvar = true;
             if(isOficina || forcarAberto) {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                // Na oficina o mecânico precisa salvar (foto do depois) — sempre mostrar
-                $('btnSalvarChecklist').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'none';
+                _showSalvar = true;
             } else if(currentOM.checklistDados && currentOM.checklistDados.length > 0) {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = _podeEditarChecklistAgora() ? 'block' : 'none';
-                $('btnEditarChecklist').style.display = _podeEditarChecklistAgora() ? 'none' : 'block';
+                _showSalvar = _podeEditarChecklistAgora();
                 $('checklistSection').textContent = '📋 Checklist de Manutenção (continuando...)';
-            } else {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'none';
             }
+            $('btnSalvarChecklist').style.display = _showSalvar ? 'block' : 'none';
+            $('checklistActions').style.display = _showSalvar ? 'block' : 'none';
+            var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 CHECKLIST';
         }
 
         function salvarChecklistParcial() {

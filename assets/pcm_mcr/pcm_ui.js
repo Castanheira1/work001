@@ -288,9 +288,9 @@ function filtrarOMs() {
                        currentOM.checklistDados && currentOM.checklistDados.length > 0) {
                         $('checklistSection').style.display = 'block';
                         $('checklistSection').textContent = '📋 Checklist Salvo ✅';
-                        $('checklistActions').style.display = 'block';
-                        $('btnEditarChecklist').style.display = 'block';
+                        $('checklistActions').style.display = 'none';
                         $('btnSalvarChecklist').style.display = 'none';
+                        var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 EDITAR CHECKLIST';
                     }
                 } else {
                     // Aguardando início na oficina
