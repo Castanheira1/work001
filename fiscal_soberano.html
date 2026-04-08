@@ -1417,21 +1417,33 @@ class MapaRastreamento {
   // ─── Carregar dados das equipes ────────────────────────────
   async recarregar() {
     try {
-      const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
       const { data, error } = await this.sb
         .from("equipe_localizacao")
         .select("*")
-        .not("om_status", "in", `(${statusEncerrados.join(",")})`)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
 
-      // Marcar offline equipes que não atualizam há mais de TIMEOUT_OFFLINE
+      // Consultar status real das OMs na tabela oms
+      const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
+      const omNums = [...new Set((data || []).filter(e => e.om_num).map(e => e.om_num))];
+      let omsEncerradas = new Set();
+      if (omNums.length > 0) {
+        const { data: omsData } = await this.sb
+          .from("oms").select("num,estado_fluxo")
+          .in("num", omNums)
+          .in("estado_fluxo", statusEncerrados);
+        (omsData || []).forEach(om => omsEncerradas.add(om.num));
+      }
+
+      // Filtrar: excluir equipes cuja OM real está encerrada
       const agora = Date.now();
-      this.equipes = (data || []).map(e => ({
-        ...e,
-        online: e.online && (agora - new Date(e.updated_at).getTime()) < this.TIMEOUT_OFFLINE
-      }));
+      this.equipes = (data || [])
+        .filter(e => !e.om_num || !omsEncerradas.has(e.om_num))
+        .map(e => ({
+          ...e,
+          online: e.online && (agora - new Date(e.updated_at).getTime()) < this.TIMEOUT_OFFLINE
+        }));
 
       this._atualizarKPIs();
       this._renderizarLista();
@@ -1657,22 +1669,25 @@ class MapaRastreamento {
       });
   }
 
-  _processarEventoRt(payload) {
+  async _processarEventoRt(payload) {
     const novo = payload.new;
     if (!novo) return;
-    // Ignorar equipes com OMs encerradas
-    const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
+    // Verificar status real da OM na tabela oms
     const idx = this.equipes.findIndex(e => e.device_id === novo.device_id);
-    if (statusEncerrados.includes(novo.om_status)) {
-      // Se já estava na lista, remover
-      if (idx >= 0) {
-        this.equipes.splice(idx, 1);
-        if (this.markers[novo.device_id]) { this.markers[novo.device_id].setMap(null); delete this.markers[novo.device_id]; }
-        if (this.infoWindows[novo.device_id]) { this.infoWindows[novo.device_id].close(); delete this.infoWindows[novo.device_id]; }
-        this._atualizarKPIs();
-        this._renderizarLista();
+    if (novo.om_num) {
+      const statusEncerrados = ["arquivada","cancelada","pendente_fiscal","devolvida_admin","validada_admin","alterada_admin"];
+      const { data: omData } = await this.sb.from("oms").select("estado_fluxo").eq("num", novo.om_num).single();
+      if (omData && statusEncerrados.includes(omData.estado_fluxo)) {
+        // OM encerrada — remover do mapa se existir
+        if (idx >= 0) {
+          this.equipes.splice(idx, 1);
+          if (this.markers[novo.device_id]) { this.markers[novo.device_id].setMap(null); delete this.markers[novo.device_id]; }
+          if (this.infoWindows[novo.device_id]) { this.infoWindows[novo.device_id].close(); delete this.infoWindows[novo.device_id]; }
+          this._atualizarKPIs();
+          this._renderizarLista();
+        }
+        return;
       }
-      return;
     }
     const agora = Date.now();
     const online = novo.online && (agora - new Date(novo.updated_at).getTime()) < this.TIMEOUT_OFFLINE;
