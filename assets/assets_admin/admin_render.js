@@ -1,9 +1,8 @@
 ﻿/* Variáveis globais definidas em admin_state.js (carregado antes) */
 
-function renderAll(){renderKPIs();renderPipeline();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
+function renderAll(){renderKPIs();renderResumo();renderEscopoProd();renderList();renderPasta();if($("pg-analytics")&&$("pg-analytics").classList.contains("active"))renderAnalytics();}
 var _throughputDays=14;
 function setThroughputDays(d,btn){_throughputDays=d;document.querySelectorAll(".throughput-btn").forEach(function(b){b.classList.remove("active");});if(btn)btn.classList.add("active");_renderTimeline(dashboardData.oms);}
-function toggleAdvancedFilters(){_advancedFiltersOpen=!_advancedFiltersOpen;var p=$("advancedFiltersPanel");var b=$("btnAdvFilters");if(p)p.style.display=_advancedFiltersOpen?"block":"none";if(b)b.textContent=_advancedFiltersOpen?"Menos filtros":"Mais filtros";}
 function goToPage(pg){_currentPage=pg;renderList();var el=$("omList");if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
 
 function renderKPIs(){
@@ -19,19 +18,6 @@ function renderKPIs(){
   $("kpiDesvios").textContent=dashboardData.desvios.length;
 }
 
-function renderPipeline(){
-  var all=dashboardData.oms,h="";
-  PIPE_CFG.forEach(function(cfg){
-    var n=all.filter(function(o){return o.status===cfg.key;}).length;
-    var ac=currentPipe===cfg.key?" active":"";
-    h+='<div class="pipe-step'+ac+'" onclick="filterPipe(\''+cfg.key+'\')" style="border-bottom-color:'+(currentPipe===cfg.key?cfg.bar:"transparent")+'">';
-    h+='<div class="pipe-icon">'+cfg.icon+'</div>';
-    h+='<div class="pipe-count" style="color:'+cfg.color+'">'+n+'</div>';
-    h+='<div class="pipe-label">'+cfg.label+(cfg.key==="em_execucao"&&n>0?'<span class="pipe-live"></span>':'')+' </div>';
-    h+='</div>';
-  });
-  $("pipeline").innerHTML=h;
-}
 
 function renderResumo(){
   var fin=dashboardData.oms.filter(function(o){return o.status==="finalizada";});
@@ -117,47 +103,8 @@ function renderEscopoProd(){
 }
 
 
-function getFilteredOms(includeConcluidas){
-  var search=($("searchInput")&&$("searchInput").value||"").toLowerCase();
-  var eq=$("filterEquipe")?$("filterEquipe").value:"";
-  var fia=$("filterFIA")?$("filterFIA").value:"";
-  var filtroEscopo=$("filterEscopo")?$("filterEscopo").value:"";
-  var dtIni=$("filterDtInicio")?$("filterDtInicio").value:"";
-  var dtFim=$("filterDtFim")?$("filterDtFim").value:"";
-  var list=dashboardData.oms||[];
-  if(currentPipe)list=list.filter(function(o){return o.status===currentPipe;});
-  if(eq)list=list.filter(function(o){return(o.equipe||o.primeiro_executante)===eq;});
-  if(fia)list=list.filter(function(o){return String(o.fia||o.fia_numero||"")===String(fia);});
-  if(filtroEscopo)list=list.filter(function(o){return(o.escopo||'geral')===filtroEscopo;});
-  if(search)list=list.filter(function(o){return(o.num||"").toLowerCase().includes(search)||(o.titulo||"").toLowerCase().includes(search)||(o.operador||"").toLowerCase().includes(search)||(o.equipamento||"").toLowerCase().includes(search)||String(o.fia||o.fia_numero||"").toLowerCase().includes(search);});
-  function _parseDateSafe(v){
-    if(!v)return null;
-    if(v instanceof Date && !isNaN(v.getTime()))return v;
-    var d=new Date(v);
-    if(!isNaN(d.getTime()))return d;
-    if(typeof v==="string"){
-      var m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
-      if(m){
-        var hh=parseInt(m[4]||"0",10),mm=parseInt(m[5]||"0",10),ss=parseInt(m[6]||"0",10);
-        var d2=new Date(parseInt(m[3],10),parseInt(m[2],10)-1,parseInt(m[1],10),hh,mm,ss);
-        if(!isNaN(d2.getTime()))return d2;
-      }
-    }
-    return null;
-  }
-  function _pickDateOm(o){
-    var base=o.updated_at||o.created_at||o.data_execucao||o.data_finalizacao||o.uploaded_at||o.data_upload||"";
-    return _parseDateSafe(base);
-  }
-  if(dtIni){
-    var dIni=_parseDateSafe(dtIni+"T00:00:00");
-    if(dIni)list=list.filter(function(o){var d=_pickDateOm(o);return d&&d>=dIni;});
-  }
-  if(dtFim){
-    var dFim=_parseDateSafe(dtFim+"T23:59:59");
-    if(dFim)list=list.filter(function(o){var d=_pickDateOm(o);return d&&d<=dFim;});
-  }
-  return list;
+function getFilteredOms(){
+  return dashboardData.oms||[];
 }
 
 function toggleConcluidasPainel(){
@@ -167,108 +114,10 @@ function toggleConcluidasPainel(){
   renderList();
 }
 
-function renderOperationalTimeline(){
-  var el=$("operationalTimeline");if(!el)return;
-  var list=getFilteredOms();
-  if(!list.length){el.innerHTML='<div class="empty">Nenhuma OM para o período selecionado.</div>';return;}
-  var grouped={};
-  list.forEach(function(om){
-    var raw=om.updated_at||om.created_at||"";
-    var d=raw?new Date(raw):null;
-    var key=d&&!isNaN(d.getTime())?d.toISOString().split("T")[0]:"sem-data";
-    if(!grouped[key])grouped[key]=[];
-    grouped[key].push(om);
-  });
-  var keys=Object.keys(grouped).sort().reverse().slice(0,14);
-  var h="";
-  keys.forEach(function(k){
-    var arr=grouped[k];
-    var label=k==="sem-data"?"Sem data":new Date(k+"T00:00:00").toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit"});
-    h+='<div class="timeline-day"><div class="timeline-day-head"><div class="timeline-day-title">'+label+'</div><div class="timeline-day-count">'+arr.length+' OM(s)</div></div>';
-    arr.slice(0,6).forEach(function(om){
-      var cfg=(PIPE_CFG.find(function(p){return p.key===om.status;})||{});
-      h+='<div class="timeline-item" onclick="onOpenOM(\''+om.num+'\')">';
-      h+='<span class="timeline-dot" style="background:'+(cfg.bar||"#9CA3AF")+'"></span>';
-      h+='<div style="flex:1;min-width:0"><div class="timeline-label">'+esc(om.num+" • "+(om.titulo||"Sem título"))+'</div><div class="timeline-meta">'+esc((cfg.label||om.status||"Status")+" • "+(om.equipe||om.primeiro_executante||"Sem equipe"))+'</div></div></div>';
-    });
-    if(arr.length>6)h+='<div class="timeline-meta">+'+(arr.length-6)+' itens</div>';
-    h+='</div>';
-  });
-  el.innerHTML=h;
-}
-
-function renderPeriodoInsights(){
-  var el=$("painelPeriodoInsights");if(!el)return;
-  var list=getFilteredOms();
-  if(!list.length){el.innerHTML='<div class="empty" style="padding:10px">Sem dados para o período selecionado.</div>';return;}
-  function _pickDate(o){
-    var cands=[o.data_upload,o.uploaded_at,o.created_at,o.updated_at,o.data_finalizacao,o.data_execucao];
-    for(var i=0;i<cands.length;i++){if(cands[i]){var d=new Date(cands[i]);if(!isNaN(d.getTime()))return d;}}
-    return null;
-  }
-  var datas=list.map(_pickDate).filter(Boolean).sort(function(a,b){return a-b;});
-  var ini=datas[0]?datas[0].toLocaleDateString("pt-BR"):"—";
-  var fim=datas[datas.length-1]?datas[datas.length-1].toLocaleDateString("pt-BR"):"—";
-  var hh=list.reduce(function(s,o){return s+Number(o.hh_total||0);},0);
-  var mat=list.reduce(function(s,o){return s+Number(o.materiais_total||0);},0);
-  var ccMap={},eqMap={},stMap={};
-  list.forEach(function(o){
-    var cc=o.cc||"Sem CC";ccMap[cc]=(ccMap[cc]||0)+1;
-    var eq=o.equipe||o.primeiro_executante||"Sem equipe";eqMap[eq]=(eqMap[eq]||0)+1;
-    var st=o.status||"sem_status";stMap[st]=(stMap[st]||0)+1;
-  });
-  function top(map){var keys=Object.keys(map);if(!keys.length)return["—",0];keys.sort(function(a,b){return map[b]-map[a];});return[keys[0],map[keys[0]]];}
-  var tEq=top(eqMap),tCc=top(ccMap),tSt=top(stMap);
-  var h='<div class="periodo-insights-grid">';
-  h+='<div class="periodo-insight"><div class="tt">Contexto do período</div><div class="vv">'+ini+' → '+fim+'</div><div class="ss">'+list.length+' OMs filtradas</div></div>';
-  h+='<div class="periodo-insight"><div class="tt">HH Total</div><div class="vv">'+hh.toFixed(1)+'h</div><div class="ss">Executado no recorte</div></div>';
-  h+='<div class="periodo-insight"><div class="tt">Material</div><div class="vv">R$ '+mat.toFixed(2)+'</div><div class="ss">Custo no recorte</div></div>';
-  h+='<div class="periodo-insight"><div class="tt">Equipe destaque</div><div class="vv">'+esc(tEq[0])+'</div><div class="ss">'+tEq[1]+' OMs</div></div>';
-  h+='<div class="periodo-insight"><div class="tt">Centro de custo foco</div><div class="vv">'+esc(tCc[0])+'</div><div class="ss">'+tCc[1]+' OMs • '+esc(String(tSt[0]))+'</div></div>';
-  h+='</div>';
-  el.innerHTML=h;
-}
-
-function clearGlobalFilters(){
-  if($("searchInput"))$("searchInput").value="";
-  if($("filterEquipe"))$("filterEquipe").value="";
-  if($("filterFIA"))$("filterFIA").value="";
-  if($("filterEscopo"))$("filterEscopo").value="";
-  if($("filterStatus"))$("filterStatus").value="";
-  if($("filterDtInicio"))$("filterDtInicio").value="";
-  if($("filterDtFim"))$("filterDtFim").value="";
-  _showConcluidasPainel=false;
-  _currentPage=1;
-  if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent="Mostrar concluídas";
-  currentPipe=null;
-  renderPipeline();
-  renderList();
-}
-function filterPipeSelect(){currentPipe=$("filterStatus").value||null;_currentPage=1;renderPipeline();renderList();}
-function filterPipe(k){currentPipe=currentPipe===k?null:k;_currentPage=1;$("filterStatus").value=currentPipe||"";renderPipeline();renderList();}
-
-function populateEquipeFilter(){
-  var equipes=[...new Set(dashboardData.oms.map(function(o){return o.equipe||o.primeiro_executante;}).filter(Boolean))].sort();
-  var sel=$("filterEquipe");
-  if(sel){
-    var cur=sel.value;
-    sel.innerHTML='<option value="">Todas as equipes</option>';
-    equipes.forEach(function(e){sel.innerHTML+='<option value="'+e+'"'+(e===cur?' selected':'')+'>'+e+'</option>';});
-  }
-  var fiaSel=$("filterFIA");
-  if(fiaSel){
-    var curFia=fiaSel.value;
-    var fiasa=[...new Set((dashboardData.oms||[]).map(function(o){return o.fia||o.fia_numero;}).filter(Boolean))].sort(function(a,b){return String(a).localeCompare(String(b),"pt-BR",{numeric:true});});
-    fiaSel.innerHTML='<option value="">Todos os FIAs</option>';
-    fiasa.forEach(function(f){fiaSel.innerHTML+='<option value="'+f+'"'+(String(f)===String(curFia)?' selected':'')+'>FIA '+f+'</option>';});
-  }
-}
-
 function renderList(){
   var list=getFilteredOms();
   if($("btnToggleConcluidas"))$("btnToggleConcluidas").textContent=_showConcluidasPainel?"Ocultar concluídas":"Mostrar concluídas";
-  var cfg=currentPipe?PIPE_CFG.find(function(p){return p.key===currentPipe;}):null;
-  $("listTitle").textContent=cfg?cfg.icon+" "+cfg.label:"Todas as OMs";
+  $("listTitle").textContent="Todas as OMs";
   var totalFiltrado=list.length;
   var totalPages=Math.max(1,Math.ceil(totalFiltrado/_pageSize));
   if(_currentPage>totalPages)_currentPage=totalPages;
@@ -276,8 +125,6 @@ function renderList(){
   var startIdx=(_currentPage-1)*_pageSize;
   var endIdx=Math.min(startIdx+_pageSize,totalFiltrado);
   $("listCount").textContent=totalFiltrado>0?(startIdx+1)+"–"+endIdx+" de "+totalFiltrado+" ordem(ns)":"0 ordens";
-  renderOperationalTimeline();
-  renderPeriodoInsights();
   if(!list.length){$("omList").innerHTML='<div class="empty">Nenhuma OM encontrada.</div>';$("omPagination").innerHTML="";return;}
   var listShow=list.slice(startIdx,endIdx);
   var h="";
@@ -354,10 +201,8 @@ function exportarCsvPainel(){
       ].map(fmt).join(";"));
     });
     var csv="\uFEFF"+rows.join("\n");
-    var ini=$("filterDtInicio")&&$("filterDtInicio").value||"inicio";
-    var fim=$("filterDtFim")&&$("filterDtFim").value||"fim";
     var blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
-    forceDownloadBlob(blob,"painel_oms_"+ini+"_"+fim+".csv");
+    forceDownloadBlob(blob,"painel_oms_"+new Date().toISOString().split("T")[0]+".csv");
     adminToast("CSV exportado com "+list.length+" OMs","success");
   }catch(e){
     console.error("Erro ao exportar CSV:",e);
@@ -524,7 +369,7 @@ function _renderDeepOperationalInsights(all){
   var picoDesloc=topHour(horaPicoMap,false);
   var hrProdMais=topHour(prodHoraMap,false);
   var hrProdMenos=topHour(prodHoraMap,true);
-  var modoBM=_selectedBM?("BM "+_selectedBM):"Ao vivo";
+  var modoBM="Ao vivo";
   var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:10px">';
   h+='<div style="background:var(--bc);padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">ÂNCORA TEMPORAL</div><div style="font-size:13px;font-weight:900;color:var(--b1)">Upload (created_at)</div><div style="font-size:10px;color:var(--c3)">Modo: '+modoBM+'</div></div>';
   h+='<div style="background:var(--c6);padding:10px;border-radius:8px"><div style="font-size:9px;font-weight:800;color:var(--c3)">Tempo médio atendimento</div><div style="font-size:18px;font-weight:900;color:var(--b1)">'+(tempoMedio?tempoMedio.toFixed(1)+'h':'—')+'</div><div style="font-size:10px;color:var(--c3)">Upload → finalização</div></div>';
@@ -665,22 +510,10 @@ async function _renderCustoCC(){
   el.innerHTML='<div class="empty">⏳ Carregando custos do banco...</div>';
   try{
     var cli=ensureSupabaseClient();
-    var oms;
-    if(_selectedBM){
-      var{data:matRows,error:mErr}=await cli.from("bm_materiais").select("*").eq("bm_numero",_selectedBM);
-      if(mErr)throw mErr;
-      var omMap={};
-      (matRows||[]).forEach(function(r){
-        if(!omMap[r.om_num])omMap[r.om_num]={num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",materiais_usados:[]};
-        omMap[r.om_num].materiais_usados.push({codigo:r.codigo,nome:r.descricao,descricao:r.descricao,tipo:r.ct2,unidade:r.unidade,qtd:r.qtd,precoUnit:r.vl_unitario,total:r.vl_total});
-      });
-      oms=Object.values(omMap);
-    }else{
-      var{data:omsData,error}=await cli.from("oms").select("num,titulo,cc,materiais_usados,materiais_total,status").order("num");
-      if(error)throw error;
-      oms=omsData||[];
-    }
-    if(!oms||!oms.length){el.innerHTML='<div class="empty">Nenhum material no '+ (_selectedBM?"BM "+_selectedBM:"banco")+'</div>';return;}
+    var{data:omsData,error}=await cli.from("oms").select("num,titulo,cc,materiais_usados,materiais_total,status").order("num");
+    if(error)throw error;
+    var oms=omsData||[];
+    if(!oms||!oms.length){el.innerHTML='<div class="empty">Nenhum material no banco</div>';return;}
     var ccMap={};
     oms.forEach(function(om){
       var mats=safeParseArray(om.materiais_usados);
