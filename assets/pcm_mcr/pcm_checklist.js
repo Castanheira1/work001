@@ -1,4 +1,4 @@
-        var checklistItens = {
+const checklistItens = {
             mensal: [
                 'Limpeza do filtro e da frente plástica.',
                 'Limpeza de bandeja, desobstrução de dreno e conferência do fluxo da água na bandeja e na mangueira.',
@@ -21,19 +21,19 @@
         };
 
         function renderChecklist() {
-            var emOficina = currentOM && currentOM.retornouOficina;
+            const emOficina = currentOM && currentOM.retornouOficina;
             if(currentOM && currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
-            var html = '<div style="padding: 0 20px 20px;">';
+            let html = '<div style="padding: 0 20px 20px;">';
             html += '<div class="toolbar-row">' +
                     '<button type="button" onclick="marcarConformeMensal()" class="toolbar-btn">✅ Conforme MENSAL</button>' +
                     '<button type="button" onclick="marcarConformeTrimestral()" class="toolbar-btn" style="margin-left:8px;">✅ Conforme TRIMESTRAL</button>' +
                     '</div>';
             html += '<div class="checklist-subtitle">MENSAL</div>';
-            for(var i = 0; i < checklistItens.mensal.length; i++) {
+            for(let i = 0; i < checklistItens.mensal.length; i++) {
                 html += buildChecklistItem('m' + (i + 1), String(i + 1).padStart(2, '0'), checklistItens.mensal[i], emOficina);
             }
             html += '<div class="checklist-subtitle">TRIMESTRAL EM CASO DE ANOMALIA</div>';
-            for(var i = 0; i < checklistItens.trimestral.length; i++) {
+            for(let i = 0; i < checklistItens.trimestral.length; i++) {
                 html += buildChecklistItem('t' + (i + 1), String(i + 1).padStart(2, '0'), checklistItens.trimestral[i], emOficina);
             }
             html += '</div>';
@@ -41,15 +41,15 @@
         }
 
         function buildChecklistItem(name, num, titulo, emOficina) {
-            var foto = checklistFotos[name] || {};
-            var savedVal = '';
-            var savedObs = '';
-            var podeEditar = _podeEditarChecklistAgora();
+            const foto = checklistFotos[name] || {};
+            let savedVal = '';
+            let savedObs = '';
+            const podeEditar = _podeEditarChecklistAgora();
             if(currentOM && currentOM.checklistDados) {
-                var found = currentOM.checklistDados.find(function(c){ return c.titulo === titulo; });
+                const found = currentOM.checklistDados.find(function(c){ return c.titulo === titulo; });
                 if(found) { savedVal = found.valor; savedObs = found.obs || ''; }
             }
-            var h = '<div class="checklist-item" id="chkItem_' + name + '">';
+            let h = '<div class="checklist-item" id="chkItem_' + name + '">';
             h += '<div class="checklist-item-title">' + num + '. ' + titulo + '</div>';
             h += '<div class="checklist-radios">';
             h += '<label><input type="radio" name="' + name + '" value="normal" onchange="onChecklistChange(\'' + name + '\')"' + (savedVal === 'normal' ? ' checked' : '') + (podeEditar ? '' : ' disabled') + '> Normal</label>';
@@ -59,7 +59,7 @@
             h += '<button class="checklist-foto-btn' + (foto.antes ? ' ok' : '') + '" id="fotoAntesBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'antes\')">' + (foto.antes ? '📎 Foto Antes ✓' : '📷 Foto Antes *') + '</button>';
             h += '<button class="checklist-foto-btn depois' + (foto.depois ? ' ok' : '') + '" id="fotoDepoisBtn_' + name + '" onclick="capturarFoto(\'' + name + '\',\'depois\')" style="display:' + (foto.antes ? 'inline-block' : 'none') + ';">' + (foto.depois ? '📎 Foto Depois ✓' : '📷 Foto Depois') + '</button>';
             h += '</div>';
-            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + ((savedVal === 'anormal' && foto.antes) ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
+            h += '<input type="text" class="checklist-explicacao" id="explicacao_' + name + '" placeholder="Explicação do problema..." style="display:' + (savedVal === 'anormal' ? 'block' : 'none') + ';" value="' + (foto.explicacao || '').replace(/"/g, '&quot;') + '" oninput="salvarExplicacao(\'' + name + '\')"' + (podeEditar ? '' : ' readonly') + '>';
             h += '<input type="text" class="checklist-obs" placeholder="Observações..." value="' + savedObs.replace(/"/g, '&quot;') + '" oninput="salvarChecklistParcial()"' + (podeEditar ? '' : ' readonly') + '>';
             h += '</div>';
             return h;
@@ -67,17 +67,24 @@
 
         function _podeEditarChecklistAgora() {
             if(!currentOM) return false;
-            // Fluxo v2 oficina: permitir edicao quando atividade esta iniciada na oficina
-            if(currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+            // Oficina: só edita se a atividade foi iniciada na etapa OFICINA
+            if(currentOM.emOficina) {
+                if(currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                    return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
+                }
+                return false; // emOficina mas ainda aguardando inicio (etapa CAMPO)
+            }
+            // Montagem (retornou da oficina): edita somente se atividade iniciada
+            if(currentOM.retornouOficina || currentOM.devolvendoEquipamento) {
                 return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
             }
-            if(!currentOM.emOficina) return true;
-            return !!(atividadeJaIniciada || currentOM.statusAtual === 'iniciada' || currentOM.retornouOficina || currentOM.devolvendoEquipamento);
+            // Fluxo campo normal
+            return true;
         }
 
         function onChecklistChange(name) {
-            var sel = document.querySelector('input[name="' + name + '"]:checked');
-            var fotoRow = document.getElementById('fotoRow_' + name);
+            const sel = document.querySelector('input[name="' + name + '"]:checked');
+            const fotoRow = document.getElementById('fotoRow_' + name);
             if(sel && sel.value === 'anormal') {
                 fotoRow.style.display = 'flex';
                 if(!checklistFotos[name] || !checklistFotos[name].antes) {
@@ -89,43 +96,51 @@
             salvarChecklistParcial();
         }
 
-        var _chkSaveTimer = null;
+        let _chkSaveTimer = null;
+        function _temPassoOficinaNaOM() {
+            if(!currentOM) return false;
+            if(currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento) return true;
+            if(currentOM.statusOficina) return true;
+            var hist = Array.isArray(currentOM.historicoExecucao) ? currentOM.historicoExecucao : [];
+            for(var i = 0; i < hist.length; i++) {
+                var tag = String((hist[i] && hist[i].tag) || '').toUpperCase();
+                if(tag.indexOf('OFICINA') >= 0) return true;
+            }
+            return false;
+        }
+
         function salvarChecklistEFechar() {
+            // Foto Depois não é validada aqui — será exigida em showFinalizar (validarChecklist)
+            // somente se a OM for finalizada sem passar pelo fluxo de oficina.
             currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             salvarOMAtual();
             $('checklistContent').innerHTML = '';
             $('checklistContent').style.display = 'none';
             $('btnSalvarChecklist').style.display = 'none';
-            $('btnEditarChecklist').style.display = 'block';
             $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+            // Atualizar texto do btnChecklist para "EDITAR CHECKLIST"
+            var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 EDITAR CHECKLIST';
 
-            var emEtapaOficina = !!(currentOM && currentOM.emOficina);
-            var emEtapaMontagem = !!(currentOM && currentOM.retornouOficina);
-            var fluxoOficinaAtiva = emEtapaOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && atividadeJaIniciada;
-            var fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !emEtapaOficina && !emEtapaMontagem);
+            const emEtapaOficina = !!(currentOM && currentOM.emOficina);
+            const emEtapaMontagem = !!(currentOM && currentOM.retornouOficina);
+            const fluxoOficinaAtiva = emEtapaOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA && (atividadeJaIniciada || currentOM.statusAtual === 'iniciada');
+            const fluxoChecklistAtivo = !!(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva) && !emEtapaOficina && !emEtapaMontagem);
             if (fluxoOficinaAtiva) {
-                // Oficina com atividade iniciada — manter controles de atividade + FINALIZAR OFICINA
                 _aplicarModoChecklistFoco(false);
                 $('checklistSection').style.display = 'block';
-                $('checklistActions').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'block';
-                $('btnSalvarChecklist').style.display = 'none';
+                $('checklistActions').style.display = 'none';
                 _uiAtividade(true);
                 _setBtns({ btnFinalizarOficina:1, btnOficina:0, btnDevolverEquip:0, btnIniciarMontagem:0 });
             } else if (emEtapaMontagem) {
-                // Montagem (retorno da oficina) — restaurar UI normal com FINALIZAR visível
                 _aplicarModoChecklistFoco(false);
                 _aplicarModoOficinaMinimal(false);
                 $('checklistSection').style.display = 'block';
-                $('checklistActions').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'block';
-                $('btnSalvarChecklist').style.display = 'none';
-                _uiAtividade(true); // statusAtual='iniciada' → emFluxoOficina=false → btnFinalizar:1
+                $('checklistActions').style.display = 'none';
+                _uiAtividade(true);
             } else if (emEtapaOficina || fluxoChecklistAtivo) {
                 _aplicarModoChecklistFoco(false);
                 if (emEtapaOficina) {
-                    // Oficina pré-atividade — mostrar btnIniciar (INICIAR ATIVIDADE NA OFICINA)
                     $('checklistSection').style.display = 'none';
                     $('checklistActions').style.display = 'none';
                     _aplicarModoOficinaMinimal(true);
@@ -135,9 +150,7 @@
                 } else {
                     _aplicarModoOficinaMinimal(false);
                     $('checklistSection').style.display = 'block';
-                    $('checklistActions').style.display = 'block';
-                    $('btnEditarChecklist').style.display = 'block';
-                    $('btnSalvarChecklist').style.display = 'none';
+                    $('checklistActions').style.display = 'none';
                     _uiAtividade(true);
                 }
             }
@@ -146,43 +159,42 @@
         }
 
         function editarChecklist() {
-            $('checklistContent').style.display = 'block';
-            $('checklistContent').innerHTML = renderChecklist();
-            $('btnSalvarChecklist').style.display = 'block';
-            $('btnEditarChecklist').style.display = 'none';
+            _mostrarChecklistUI(true);
             $('checklistSection').textContent = '📋 Checklist de Manutenção';
         }
 
         function _mostrarChecklistUI(forcarAberto) {
-            var isOficina = currentOM && currentOM.emOficina && !currentOM.retornouOficina && !currentOM.devolvendoEquipamento;
+            const isOficina = currentOM && currentOM.emOficina && !currentOM.retornouOficina && !currentOM.devolvendoEquipamento;
+            const atividadeAtiva = atividadeJaIniciada || (currentOM && currentOM.statusAtual === 'iniciada');
             _aplicarModoChecklistFoco(true);
-            _aplicarModoOficinaMinimal(isOficina);
+            // oficina-minimal só na fase PRÉ-atividade: exibe btnIniciar e VOLTAR ao lado do checklist.
+            // Com atividade já iniciada, .controls fica completamente oculto pelo checklist-focus.
+            _aplicarModoOficinaMinimal(isOficina && !atividadeAtiva);
+            // Redundância de segurança: garantir btnIniciar oculto caso CSS conflite.
+            if(isOficina && atividadeAtiva) {
+                var _btnIn = $('btnIniciar');
+                if(_btnIn) _btnIn.style.setProperty('display', 'none', 'important');
+            }
             $('checklistSection').style.display = 'block';
             $('checklistActions').style.display = 'block';
+            $('checklistContent').style.display = 'block';
+            $('checklistContent').innerHTML = renderChecklist();
+            var _showSalvar = true;
             if(isOficina || forcarAberto) {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                // Na oficina o mecânico precisa salvar (foto do depois) — sempre mostrar
-                $('btnSalvarChecklist').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'none';
+                _showSalvar = true;
             } else if(currentOM.checklistDados && currentOM.checklistDados.length > 0) {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = _podeEditarChecklistAgora() ? 'block' : 'none';
-                $('btnEditarChecklist').style.display = _podeEditarChecklistAgora() ? 'none' : 'block';
+                _showSalvar = _podeEditarChecklistAgora();
                 $('checklistSection').textContent = '📋 Checklist de Manutenção (continuando...)';
-            } else {
-                $('checklistContent').style.display = 'block';
-                $('checklistContent').innerHTML = renderChecklist();
-                $('btnSalvarChecklist').style.display = 'block';
-                $('btnEditarChecklist').style.display = 'none';
             }
+            $('btnSalvarChecklist').style.display = _showSalvar ? 'block' : 'none';
+            $('checklistActions').style.display = _showSalvar ? 'block' : 'none';
+            var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 CHECKLIST';
         }
 
         function salvarChecklistParcial() {
             try {
                 if(!currentOM || (!currentOM.planoCod && !currentOM.checklistCorretiva)) return;
-                var secao = $('checklistSection');
+                const secao = $('checklistSection');
                 if(!secao || secao.style.display === 'none') return;
                 if(_chkSaveTimer) clearTimeout(_chkSaveTimer);
                 _chkSaveTimer = setTimeout(function() {
@@ -196,10 +208,10 @@
         }
 
         function _detectarTipoChecklist() {
-            var totalT = checklistItens.trimestral.length;
-            var preenchidosT = 0;
-            for(var i = 0; i < totalT; i++) {
-                var sel = document.querySelector('input[name="t' + (i + 1) + '"]:checked');
+            const totalT = checklistItens.trimestral.length;
+            let preenchidosT = 0;
+            for(let i = 0; i < totalT; i++) {
+                const sel = document.querySelector('input[name="t' + (i + 1) + '"]:checked');
                 if(sel) preenchidosT++;
             }
             if(preenchidosT === 0) return 'MENSAL';
@@ -208,13 +220,13 @@
         }
 
         function _marcarNomesNormal(nomes) {
-            for(var n = 0; n < nomes.length; n++) {
-                var name = nomes[n];
-                var r = document.querySelector('input[name="' + name + '"][value="normal"]');
+            for(let n = 0; n < nomes.length; n++) {
+                const name = nomes[n];
+                const r = document.querySelector('input[name="' + name + '"][value="normal"]');
                 if(r) r.checked = true;
-                var row = document.getElementById('fotoRow_' + name);
+                const row = document.getElementById('fotoRow_' + name);
                 if(row) row.style.display = 'none';
-                var exp = document.getElementById('explicacao_' + name);
+                const exp = document.getElementById('explicacao_' + name);
                 if(exp) exp.style.display = 'none';
             }
             salvarChecklistParcial();
@@ -223,22 +235,22 @@
         function marcarConformeMensal() {
             if(!currentOM || (!currentOM.planoCod && !currentOM.checklistCorretiva)) return;
             if(!confirm('Marcar itens MENSAL (m1–m6) como CONFORME?')) return;
-            var nomes = [];
-            for(var i = 0; i < checklistItens.mensal.length; i++) nomes.push('m' + (i + 1));
+            const nomes = [];
+            for(let i = 0; i < checklistItens.mensal.length; i++) nomes.push('m' + (i + 1));
             _marcarNomesNormal(nomes);
         }
 
         function marcarConformeTrimestral() {
             if(!currentOM || (!currentOM.planoCod && !currentOM.checklistCorretiva)) return;
             if(!confirm('Marcar TODOS os itens (Mensal + Trimestral) como CONFORME?')) return;
-            var nomes = [];
-            for(var i = 0; i < checklistItens.mensal.length; i++) nomes.push('m' + (i + 1));
-            for(var j = 0; j < checklistItens.trimestral.length; j++) nomes.push('t' + (j + 1));
+            const nomes = [];
+            for(let i = 0; i < checklistItens.mensal.length; i++) nomes.push('m' + (i + 1));
+            for(let j = 0; j < checklistItens.trimestral.length; j++) nomes.push('t' + (j + 1));
             _marcarNomesNormal(nomes);
         }
 
 function capturarFoto(name, tipo) {
-            var fotoAtual = (checklistFotos[name] || {})[tipo];
+            const fotoAtual = (checklistFotos[name] || {})[tipo];
             if(!_podeEditarChecklistAgora()) {
                 if(fotoAtual) { visualizarFotoChecklist(fotoAtual); return; }
                 alert('⚠️ Inicie a atividade para preencher este item.');
@@ -265,9 +277,9 @@ function capturarFoto(name, tipo) {
         }
 
         function handleFotoCapture(event) {
-            var file = event.target.files[0];
+            const file = event.target.files[0];
             if(!file) return;
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function(e) {
                 comprimirImagem(e.target.result, function(compressed) {
                     if(!checklistFotos[fotoAtualItem]) checklistFotos[fotoAtualItem] = {};
@@ -283,14 +295,14 @@ function capturarFoto(name, tipo) {
         }
 
         function comprimirImagem(base64, callback) {
-            var img = new Image();
+            const img = new Image();
             img.onload = function() {
-                var cvs = document.createElement('canvas');
-                var maxW = 1200;
-                var scale = Math.min(1, maxW / img.width);
+                const cvs = document.createElement('canvas');
+                const maxW = 1200;
+                const scale = Math.min(1, maxW / img.width);
                 cvs.width = img.width * scale;
                 cvs.height = img.height * scale;
-                var ctx2 = cvs.getContext('2d');
+                const ctx2 = cvs.getContext('2d');
                 ctx2.drawImage(img, 0, 0, cvs.width, cvs.height);
                 callback(cvs.toDataURL('image/jpeg', 0.8));
             };
@@ -298,8 +310,8 @@ function capturarFoto(name, tipo) {
         }
 
         function atualizarBotoesFoto(name) {
-            var foto = checklistFotos[name] || {};
-            var btnAntes = document.getElementById('fotoAntesBtn_' + name);
+            const foto = checklistFotos[name] || {};
+            const btnAntes = document.getElementById('fotoAntesBtn_' + name);
             if(btnAntes) {
                 if(foto.antes) {
                     btnAntes.className = 'checklist-foto-btn ok';
@@ -309,9 +321,11 @@ function capturarFoto(name, tipo) {
                     btnAntes.textContent = '📷 Foto Antes *';
                 }
             }
-            var btnDepois = document.getElementById('fotoDepoisBtn_' + name);
+            const btnDepois = document.getElementById('fotoDepoisBtn_' + name);
+            const selChk = document.querySelector('input[name="' + name + '"]:checked');
+            const isAnorm = selChk && selChk.value === 'anormal';
             if(btnDepois) {
-                btnDepois.style.display = foto.antes ? 'inline-block' : 'none';
+                btnDepois.style.display = (foto.antes || isAnorm) ? 'inline-block' : 'none';
                 if(foto.depois) {
                     btnDepois.className = 'checklist-foto-btn depois ok';
                     btnDepois.textContent = '📎 Foto Depois ✓';
@@ -320,14 +334,14 @@ function capturarFoto(name, tipo) {
                     btnDepois.textContent = '📷 Foto Depois *';
                 }
             }
-            var explicacao = document.getElementById('explicacao_' + name);
+            const explicacao = document.getElementById('explicacao_' + name);
             if(explicacao && foto.antes) {
                 explicacao.style.display = 'block';
             }
         }
 
         function salvarExplicacao(name) {
-            var el = document.getElementById('explicacao_' + name);
+            const el = document.getElementById('explicacao_' + name);
             if(!el) return;
             if(!checklistFotos[name]) checklistFotos[name] = {};
             checklistFotos[name].explicacao = el.value;

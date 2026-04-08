@@ -90,9 +90,28 @@ async function loadDashboard(silent){
     ]);
     if(omsError)throw omsError;
     if(desviosError)throw desviosError;
-    dashboardData.oms=(oms||[]).map(function(o){o.materiais_total=_recalcOmMateriaisTotalSafe(o);return o;});
-    dashboardData.reports=(oms||[]).filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
+    dashboardData.oms=(oms||[]).map(function(o){
+      o.materiais_total=_recalcOmMateriaisTotalSafe(o);
+      // Recalcular hh_total a partir do historico_execucao para corrigir dados corrompidos no banco
+      if(Array.isArray(o.historico_execucao)&&o.historico_execucao.length>0){
+        var hhCalc=0;
+        o.historico_execucao.forEach(function(h){hhCalc+=Number(h.hhTotal||0);});
+        if(Math.abs(Number(o.hh_total||0)-hhCalc)>1){o.hh_total=hhCalc;}
+      }
+      return o;
+    });
+    // Filtrar OMs pelo período do BM ativo (se configurado)
+    if(_bmConfig.di&&_bmConfig.df){
+      var bmDi=new Date(_bmConfig.di+"T00:00:00"),bmDf=new Date(_bmConfig.df+"T23:59:59");
+      dashboardData.oms=dashboardData.oms.filter(function(o){var d=_getOmBaseDateSafe(o);return d&&d>=bmDi&&d<=bmDf;});
+    }
+    dashboardData.reports=dashboardData.oms.filter(function(o){return o.status==="finalizada"||o.status==="cancelada";});
     dashboardData.desvios=desvios||[];
+    // Filtrar desvios pelo período do BM ativo
+    if(_bmConfig.di&&_bmConfig.df){
+      var bmDiD=new Date(_bmConfig.di+"T00:00:00"),bmDfD=new Date(_bmConfig.df+"T23:59:59");
+      dashboardData.desvios=dashboardData.desvios.filter(function(d){var dt=d.created_at?new Date(d.created_at):null;return dt&&dt>=bmDiD&&dt<=bmDfD;});
+    }
   }catch(e){console.error("Falha ao carregar dashboard:",e);dashboardData={oms:[],reports:[],desvios:[]};}
   $("refreshDot").className="refresh-dot";$("refreshLabel").textContent="ao vivo";
   renderAll();

@@ -1,4 +1,4 @@
-        function filtrarOMs() {
+function filtrarOMs() {
             const lista = $('omList');
             lista.innerHTML = '';
             
@@ -44,7 +44,7 @@
                     statusClass = 'em-execucao';
                     statusText = '🔧 AGUARDANDO DEVOLUÇÃO';
                     clickAction = () => showDetail(idx);
-                } else if(om.emOficina && !om.lockDeviceId) {
+                } else if(om.emOficina) {
                     statusClass = 'em-execucao';
                     statusText = '🔧 OFICINA — Disponível';
                     clickAction = () => showDetail(idx);
@@ -97,11 +97,11 @@
                 }
                 
                 var icone = om.pendenteAssinatura ? '✍️'
+                    : om.emOficina ? '🔧'
                     : om.cancelada ? '❌'
                     : (om.desativada && om.finalizada) ? '⛔'
                     : om.finalizada ? '✅'
                     : om.desvioApontado ? '⚠️'
-                    : om.emOficina ? '🔧'
                     : (om.statusAtual === 'em_deslocamento') ? '🚗'
                     : (om.statusAtual === 'iniciada') ? '⚡'
                     : bloqueadaOutraEquipe ? '🔒'
@@ -135,13 +135,28 @@
             var alvoOM = oms[idx];
             if(!alvoOM) return;
             if(navigator.onLine) {
-                var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
-                if(estadoServidor && estadoServidor.lock_device_id && estadoServidor.lock_device_id !== deviceId && !estadoServidor.admin_unlock) {
-                    alvoOM.lockDeviceId = estadoServidor.lock_device_id;
-                    salvarOMs();
-                    filtrarOMs();
-                    alert('⚠️ OM em uso por outro operador!');
-                    return;
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    if(typeof window._garantirSyncPushDisponivel === 'function') {
+                        await window._garantirSyncPushDisponivel();
+                    }
+                }
+                if(typeof _obterEstadoServidorOM !== 'function') {
+                    console.warn('[PCM] Dependência ausente: _obterEstadoServidorOM(). Seguindo sem validação de lock remoto. Verifique assets/pcm_mcr/pcm_sync_push.js.');
+                } else {    
+                    var estadoServidor = await _obterEstadoServidorOM(alvoOM.num);
+                    if(estadoServidor) {
+                        if(!estadoServidor.lock_device_id || estadoServidor.admin_unlock) {
+                            // Servidor desbloqueou (admin habilitou ou lock expirou) — sincronizar local
+                            alvoOM.lockDeviceId = null;
+                            salvarOMs();
+                        } else if(estadoServidor.lock_device_id !== deviceId) {
+                            alvoOM.lockDeviceId = estadoServidor.lock_device_id;
+                            salvarOMs();
+                            filtrarOMs();
+                            alert('⚠️ OM em uso por outro operador!');
+                            return;
+                        }
+                    }
                 }
             }
             currentOM = alvoOM;
@@ -217,6 +232,11 @@
                 if(!deslocamentoInicio && currentOM._deslocHoraInicio) {
                     deslocamentoInicio = new Date(currentOM._deslocHoraInicio);
                 }
+                if(!deslocamentoInicio) {
+                    // _deslocHoraInicio ausente (estado legado sem o campo) — usar agora como fallback
+                    deslocamentoInicio = new Date();
+                    currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
+                }
 
                 var infoDiv = $('timerDateInfo');
                 if(infoDiv && deslocamentoInicio) {
@@ -227,13 +247,10 @@
                 if(timerInterval) clearInterval(timerInterval);
                 timerInterval = setInterval(() => {
                     const diff = Math.floor((new Date() - deslocamentoInicio) / 1000);
-                    const m = Math.floor(diff / 60);
-                    const s = diff % 60;
-                    $('timerDisplay').textContent =
-                        String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+                    $('timerDisplay').textContent = _fmtDuracaoRelogio(diff);
                     deslocamentoSegundos = diff;
-                    deslocamentoMinutos = m;
-                    $('hhDeslocamento').textContent = (diff < 60 ? (diff + ' s') : (m + ' min'));
+                    deslocamentoMinutos = Math.floor(diff / 60);
+                    $('hhDeslocamento').textContent = _fmtDeslocResumo(diff);
                 }, 1000);
                 
             } else if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
@@ -255,30 +272,42 @@
                 if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
                 _setBtns({
                     btnDeslocamento:0, btnIniciar:0, btnCancelar:0, btnExcluir:0,
-                    timerDisplay:0, timerAtividade:0, btnGroupAtividade:0, btnRowExecOficina:0,
+                    timerDisplay:0, timerAtividade:0, btnMateriais:0, btnRowExecOficina:0,
                     btnFinalizar:0, btnDevolverEquip:0, btnOficina:0, btnFinalizarOficina:0,
                     btnIniciarMontagem:1
                 });
                 renderHistoricoExecucao();
             } else if(currentOM.emOficina) {
-                _aplicarModoOficinaMinimal(true);
                 if(currentOM.checklistFotos) checklistFotos = currentOM.checklistFotos;
-                if(timerInterval) clearInterval(timerInterval);
-                if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-                $('btnDeslocamento').style.display = 'none';
-                $('btnIniciar').style.display = 'block';
-                $('btnIniciar').disabled = false;
-                $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
-                $('btnIniciar').onclick = function() { showExecutantesOficina(); };
-                $('btnCancelar').style.display = 'none';
-                $('btnExcluir').style.display = 'none';
-                $('timerDisplay').style.display = 'none';
-                $('timerAtividade').style.display = 'none';
-                $('timerDateInfo').style.display = 'none';
-                $('timerAtivDateInfo').style.display = 'none';
-                _btnOficinaCk();
-                if((currentOM.planoCod || currentOM.checklistCorretiva) && !(currentOM.checklistDados && currentOM.checklistDados.length > 0)) {
-                    _mostrarChecklistUI(true);
+                _aplicarModoOficinaMinimal(true);
+                if(currentOM.statusAtual === 'iniciada' && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA) {
+                    // Atividade já iniciada na oficina: retomarDoEstadoSalvo restaurou UI, só ajusta botões
+                    _btnOficinaCk();
+                    // Restaurar seção de checklist em estado salvo, se já preenchido
+                    if((currentOM.planoCod || currentOM.checklistCorretiva) &&
+                       currentOM.checklistDados && currentOM.checklistDados.length > 0) {
+                        $('checklistSection').style.display = 'block';
+                        $('checklistSection').textContent = '📋 Checklist Salvo ✅';
+                        $('checklistActions').style.display = 'none';
+                        $('btnSalvarChecklist').style.display = 'none';
+                        var _bc = $('btnChecklist'); if(_bc) _bc.innerHTML = '📋 EDITAR CHECKLIST';
+                    }
+                } else {
+                    // Aguardando início na oficina
+                    if(timerInterval) clearInterval(timerInterval);
+                    if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+                    $('btnDeslocamento').style.display = 'none';
+                    $('btnIniciar').style.display = 'block';
+                    $('btnIniciar').disabled = false;
+                    $('btnIniciar').textContent = '▶️ INICIAR ATIVIDADE NA OFICINA';
+                    $('btnIniciar').onclick = function() { showExecutantesOficina(); };
+                    $('btnCancelar').style.display = 'none';
+                    $('btnExcluir').style.display = 'none';
+                    $('timerDisplay').style.display = 'none';
+                    $('timerAtividade').style.display = 'none';
+                    $('timerDateInfo').style.display = 'none';
+                    $('timerAtivDateInfo').style.display = 'none';
+                    _btnOficinaCk();
                 }
             }
 
@@ -453,7 +482,7 @@
             if(historico.materiaisUsados) materiaisUsados = historico.materiaisUsados;
             
             _uiAtividade();
-            $('hhDeslocamento').textContent = (deslocamentoSegundos < 60 ? (deslocamentoSegundos + ' s') : (deslocamentoMinutos + ' min'));
+            $('hhDeslocamento').textContent = _fmtDeslocResumo(deslocamentoSegundos);
 
             iniciarCronometroAtividade();
         }
@@ -482,7 +511,7 @@
             $('hhTotal').textContent = '0.00h';
             
             _setBtns({
-                btnDeslocamento:1, btnIniciar:0, btnGroupAtividade:0,
+                btnDeslocamento:1, btnIniciar:0, btnMateriais:0,
                 btnChecklist:0, btnRowExecOficina:0, btnFinalizar:0,
                 btnDevolverEquip:0, btnCancelar:0, btnCancelarDesvio:0, btnExcluir:1
             });

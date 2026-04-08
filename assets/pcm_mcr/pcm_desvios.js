@@ -35,20 +35,14 @@
         };
 
         function showMenuDesvios() {
-            var emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
-            var naOficinaAtiva = !!(currentOM && currentOM.emOficina && currentOM.etapaOficina === ETAPA_OFICINA.OFICINA);
-            var itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
-            for(var i = 0; i < itensRestritos.length; i++) {
+            const emFluxoOficina = !!(currentOM && (currentOM.emOficina || currentOM.retornouOficina || currentOM.devolvendoEquipamento));
+            const itensRestritos = document.querySelectorAll('#popupMenuDesvios .btn-desvio-oficina-restrito');
+            for(let i = 0; i < itensRestritos.length; i++) {
                 itensRestritos[i].style.display = emFluxoOficina ? 'none' : 'block';
             }
             // Esconder label "Operacional" quando em oficina (3.1-3.5 não se aplicam)
-            var labelOp = document.getElementById('labelOperacional');
+            const labelOp = document.getElementById('labelOperacional');
             if(labelOp) labelOp.style.display = emFluxoOficina ? 'none' : 'block';
-            // Mostrar/esconder botao de finalizar oficina
-            var btnFinOficMenu = document.getElementById('btnFinalizarOficinaMenu');
-            if(btnFinOficMenu) {
-                btnFinOficMenu.style.display = naOficinaAtiva ? 'block' : 'none';
-            }
             $('popupMenuDesvios').classList.add('active');
         }
         function hideMenuDesvios() { $('popupMenuDesvios').classList.remove('active'); }
@@ -64,26 +58,13 @@
                 }
                 return;
             }
-            if(tipo === 'finalizar_oficina') { finalizarOficina(); return; }
             if(tipo === 'reprogramar') { executarReprogramar(); return; }
             if(tipo === 'desativar') { showDesvioDesativar(); return; }
         }
 
+        // REFACTOR P3: Agora delegado para _fecharHistoricoAtual centralizado
         function _salvarHistoricoAtual(tag) {
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var h = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(h.dataInicio && !h.dataFim) {
-                    var diff = Math.floor((new Date() - new Date(h.dataInicio)) / 1000) - tempoPausadoTotal;
-                    h.dataFim = new Date().toISOString();
-                    h.hhAtividade = diff / 3600;
-                    h.hhDeslocamento = (h.deslocamentoSegundos || 0) / 3600;
-                    _calcHH(h);
-                    h.tempoPausadoTotal = tempoPausadoTotal;
-                    h.materiaisUsados = [...materiaisUsados];
-                    h.tag = tag;
-                }
-            }
+            _fecharHistoricoAtual(tag);
         }
         function _salvarDesvioLocal(rec) {
             var d = JSON.parse(localStorage.getItem(STORAGE_KEY_DESVIOS) || '[]');
@@ -299,12 +280,11 @@
             var obs = $('d3Obs').value.trim();
             var info = DESVIO_TIPOS[_desvioTipoAtual];
 
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var hLast = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(hLast.dataInicio && !hLast.dataFim) hLast.dataFim = new Date().toISOString();
-                hLast.tempoPausadoTotal = tempoPausadoTotal;
-                var _totalSeg = (hLast.dataInicio && hLast.dataFim) ? Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (tempoPausadoTotal || 0)) : 0;
+            // REFACTOR P3: Fechar histórico via função centralizada + lógica custom de desvio
+            var hLast = _fecharHistoricoAtual(info.cod + ' - ' + info.label, { marcarDesvio: true, skipMateriais: true });
+            // Lógica de desvio: todo o tempo vira deslocamento (hhAtividade=0)
+            if(hLast && hLast.dataInicio && hLast.dataFim) {
+                var _totalSeg = Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (hLast.tempoPausadoTotal || 0));
                 var _deslOriginal = hLast.deslocamentoSegundos || 0;
                 hLast.deslocamentoSegundos = _deslOriginal + _totalSeg;
                 if(!hLast.deslocamentoHoraInicio) hLast.deslocamentoHoraInicio = hLast.dataInicio;
@@ -312,11 +292,9 @@
                 hLast.hhDeslocamento = hLast.deslocamentoSegundos / 3600;
                 hLast.hhAtividade = 0;
                 _calcHH(hLast);
-                hLast.tag = info.cod + ' - ' + info.label;
-                hLast.desvio = true;
             }
-            var tempoTotalDesvio = (typeof hLast !== 'undefined' && hLast && hLast.dataInicio && hLast.dataFim)
-                ? Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (tempoPausadoTotal || 0))
+            var tempoTotalDesvio = (hLast && hLast.dataInicio && hLast.dataFim)
+                ? Math.max(0, Math.floor((new Date(hLast.dataFim) - new Date(hLast.dataInicio)) / 1000) - (hLast.tempoPausadoTotal || 0))
                 : (atividadeSegundos || 0);
 
             var rec = {
@@ -356,16 +334,14 @@
             currentOM.ultimoDesvioLabel = rec.tipoLabel;
             currentOM.statusAtual = null;
             currentOM.lockDeviceId = null;
-            deslocamentoSegundos = 0;
-            atividadeSegundos = 0;
-            tempoPausadoTotal = 0;
-            atividadeJaIniciada = false;
-            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            // REFACTOR P4: Reset centralizado
+            _resetEstadoExecucao();
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
 
             hideDesvioLocalFechado();
-            _abrirDecisaoDesvio(rec, info);
+            hideDetail();
+            filtrarOMs();
         }
 
         function _enviarDesviosPendentes() {
@@ -469,6 +445,8 @@
                 currentOM.desvioMesmaEquipe = false;
                 currentOM.desvioProxSemDesl = false;
             }
+            // FIX P1: Limpar desvios da tentativa anterior para não aparecerem na próxima assinatura
+            currentOM.desviosRegistrados = [];
             // Desvio temporário: NÃO envia ao Supabase
             executantesNomes = [];
             materiaisUsados = [];
@@ -490,26 +468,16 @@
             $('popupReprogramar').classList.add('active');
         }
 
+        // REFACTOR P3/P6: Troca de turno campo - usando funções centralizadas
         function confirmarTrocaTurno() {
             if(!confirm('🔄 TROCA DE TURNO\n\nA OM será pausada e ficará disponível para a próxima equipe.\n\nConfirmar?')) return;
 
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-
-            var atividadeSeg = 0;
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var hExec = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(hExec.dataInicio && !hExec.dataFim) {
-                    atividadeSeg = Math.floor((new Date() - new Date(hExec.dataInicio)) / 1000) - tempoPausadoTotal;
-                    if(atividadeSeg < 0) atividadeSeg = 0;
-                    hExec.dataFim = new Date().toISOString();
-                    hExec.hhAtividade = atividadeSeg / 3600;
-                    hExec.hhDeslocamento = (hExec.deslocamentoSegundos || 0) / 3600;
-                    _calcHH(hExec);
-                    hExec.tempoPausadoTotal = tempoPausadoTotal;
-                    var _ofiTags = ['OFICINA','OFICINA_FIM','OFICINA_DEVOLUCAO'];
-                    hExec.tag = _ofiTags.indexOf(hExec.tag) >= 0 ? 'OFICINA_TROCA_TURNO' : 'TROCA DE TURNO';
-                }
-            }
+            // Determinar tag correta baseada no contexto (oficina ou campo)
+            var hExec = (currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0)
+                ? currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1] : null;
+            var _ofiTags = ['OFICINA','OFICINA_FIM','OFICINA_DEVOLUCAO'];
+            var tagTroca = (hExec && _ofiTags.indexOf(hExec.tag) >= 0) ? 'OFICINA_TROCA_TURNO' : 'TROCA DE TURNO';
+            _fecharHistoricoAtual(tagTroca);
 
             currentOM.pausada = true;
             currentOM.pausaMotivo = '0018 - Troca de Turno';
@@ -521,12 +489,7 @@
             currentOM.statusAtual = 'pausada';
             currentOM.lockDeviceId = null;
 
-            deslocamentoSegundos = 0;
-            atividadeSegundos = 0;
-            tempoPausadoTotal = 0;
-            executantesNomes = [];
-            atividadeJaIniciada = false;
-            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            _resetEstadoExecucao();
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
 
@@ -779,7 +742,7 @@
             if(_chkAct) _chkAct.style.display = 'none';
 
             hideDesvioDesativar();
-            $('btnGroupAtividade').style.display = 'none';
+            $('btnMateriais').style.display = 'none';
             showFinalizar();
         }
 

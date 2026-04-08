@@ -1,5 +1,4 @@
-
-        function _obterValorChecklistItem(nome) {
+function _obterValorChecklistItem(nome) {
             var sel = document.querySelector('input[name="' + nome + '"]:checked');
             if (sel && sel.value) return sel.value;
             if (!currentOM || !Array.isArray(currentOM.checklistDados)) return '';
@@ -17,53 +16,39 @@
 
         var _nomesChecklist = ['m1','m2','m3','m4','m5','m6','t1','t2','t3','t4','t5','t6','t7','t8','t9'];
 
+        function _ehDesvioExibivelNaAssinatura(dev) {
+            if(!dev) return false;
+            var cod = String(dev.tipoCod || '').toUpperCase();
+            var tipo = String(dev.tipo || '').toUpperCase();
+            if(cod === 'DESATIVACAO') return false;
+            if(tipo.indexOf('DESATIVACAO') >= 0) return false;
+            return true;
+        }
+
         function enviarParaOficina() {
             if(!currentOM.planoCod && !currentOM.checklistCorretiva) {
                 alert('⚠️ Habilite o checklist primeiro (botão 📋 CHECKLIST).');
                 return;
             }
             
-            var temAnormal = false;
-            for(var i = 0; i < _nomesChecklist.length; i++) {
-                var nomeItem = _nomesChecklist[i];
-                var valorItem = _obterValorChecklistItem(nomeItem);
-                if(valorItem === 'anormal') {
-                    if(!checklistFotos[nomeItem] || !checklistFotos[nomeItem].antes) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' marcado como ANORMAL sem foto do ANTES.\n\nTodos os itens anormais precisam de foto.');
-                        return;
-                    }
-                    temAnormal = true;
-                }
-            }
-            
-            if(!temAnormal) {
+            // REFACTOR P5: Usar verificação centralizada de anormais
+            var checkAnormal = _verificarItensAnormais();
+
+            if(!checkAnormal.temAnormal) {
                 alert('⚠️ Nenhum item anormal encontrado.\n\nA oficina só é necessária quando há não conformidades.');
                 return;
             }
-            
+
             if(!confirm('🔧 ENVIAR PARA OFICINA?\n\nO HH e deslocamento serão salvos automaticamente.\nA OM ficará com status OFICINA.')) return;
-            
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
+
+            // REFACTOR P3: Fechar histórico via função centralizada
             if(timerInterval) clearInterval(timerInterval);
-            
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(historicoAtual.dataInicio && !historicoAtual.dataFim) {
-                    var diff = Math.floor((new Date() - new Date(historicoAtual.dataInicio)) / 1000) - tempoPausadoTotal;
-                    var atividadeHoras = diff / 3600;
-                    historicoAtual.dataFim = new Date().toISOString();
-                    historicoAtual.hhAtividade = atividadeHoras;
-                    historicoAtual.hhDeslocamento = (((historicoAtual.deslocamentoSegundos !== undefined) ? historicoAtual.deslocamentoSegundos : ((historicoAtual.deslocamentoMinutos || 0) * 60)) / 3600);
-                    _calcHH(historicoAtual);
-                    historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
-                    historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'ENVIO_OFICINA';
-                }
-            }
+            _fecharHistoricoAtual('ENVIO_OFICINA');
 
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
             currentOM.emOficina = true;
+            currentOM.statusAtual = null;
             currentOM.retornouOficina = false;
             currentOM.devolvendoEquipamento = false;
             currentOM.dataEnvioOficina = new Date().toISOString();
@@ -93,22 +78,21 @@
         function finalizarOficina() {
             if(!confirm('🔧 FINALIZAR ATIVIDADE NA OFICINA?\n\nO HH será pausado.\nA OM ficará com status AGUARDANDO DEVOLUÇÃO.')) return;
 
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-            if(timerInterval) clearInterval(timerInterval);
-
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(historicoAtual.dataInicio && !historicoAtual.dataFim) {
-                    var diff = Math.floor((new Date() - new Date(historicoAtual.dataInicio)) / 1000) - tempoPausadoTotal;
-                    historicoAtual.dataFim = new Date().toISOString();
-                    historicoAtual.hhAtividade = diff / 3600;
-                    historicoAtual.hhDeslocamento = 0;
-                    _calcHH(historicoAtual);
-                    historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
-                    historicoAtual.materiaisUsados = materiaisUsados.slice();
-                    historicoAtual.tag = 'OFICINA_FIM';
+            // REFACTOR P5: Verificação centralizada de foto depois para itens anormais
+            if(currentOM && (currentOM.planoCod || currentOM.checklistCorretiva)) {
+                var checkAnormal = _verificarItensAnormais({ verificarDepois: true });
+                if(checkAnormal.semFotoDepois.length > 0) {
+                    alert('📷 Não é possível finalizar a oficina.\n\n' +
+                        checkAnormal.semFotoDepois.length + ' item(ns) ANORMAL sem Foto Depois:\n' +
+                        checkAnormal.semFotoDepois.join(', ') +
+                        '\n\nAnexe a foto do serviço executado antes de finalizar.');
+                    return;
                 }
             }
+
+            // REFACTOR P3: Fechar histórico via função centralizada (oficina: zerarDeslocamento)
+            if(timerInterval) clearInterval(timerInterval);
+            _fecharHistoricoAtual('OFICINA_FIM', { zerarDeslocamento: true });
 
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
@@ -120,11 +104,8 @@
             currentOM.lockDeviceId = null;
             currentOM.statusAtual = null;
 
-            deslocamentoSegundos = 0;
-            tempoPausadoTotal = 0;
-            executantesNomes = [];
-            atividadeJaIniciada = false;
-            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            // REFACTOR P4: Reset centralizado
+            _resetEstadoExecucao();
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
 
@@ -134,24 +115,11 @@
         }
 
         // --- Troca de turno na oficina ---
+        // REFACTOR P3/P6: Troca de turno oficina - usando funções centralizadas
         function confirmarTrocaTurnoOficina() {
             if(!confirm('🔄 TROCA DE TURNO NA OFICINA\n\nA OM será pausada e ficará disponível para a próxima equipe na oficina.\n\nConfirmar?')) return;
 
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var hExec = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(hExec.dataInicio && !hExec.dataFim) {
-                    var atividadeSeg = Math.floor((new Date() - new Date(hExec.dataInicio)) / 1000) - tempoPausadoTotal;
-                    if(atividadeSeg < 0) atividadeSeg = 0;
-                    hExec.dataFim = new Date().toISOString();
-                    hExec.hhAtividade = atividadeSeg / 3600;
-                    hExec.hhDeslocamento = 0;
-                    _calcHH(hExec);
-                    hExec.tempoPausadoTotal = tempoPausadoTotal;
-                    hExec.tag = 'OFICINA_TROCA_TURNO';
-                }
-            }
+            _fecharHistoricoAtual('OFICINA_TROCA_TURNO', { zerarDeslocamento: true, skipMateriais: true });
 
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
@@ -164,11 +132,7 @@
             currentOM.lockDeviceId = null;
             currentOM.statusAtual = null;
 
-            deslocamentoSegundos = 0;
-            tempoPausadoTotal = 0;
-            executantesNomes = [];
-            atividadeJaIniciada = false;
-            localStorage.removeItem(STORAGE_KEY_CURRENT);
+            _resetEstadoExecucao();
             salvarOMs();
             _pushOMStatusSupabase(currentOM);
 
@@ -177,43 +141,18 @@
             filtrarOMs();
         }
 
+        // REFACTOR P3/P5: Devolver equipamento - usando funções centralizadas
         function devolverEquipamento() {
-            var temAnormal = false;
-            for(var i = 0; i < _nomesChecklist.length; i++) {
-                var nomeItem = _nomesChecklist[i];
-                var valorItem = _obterValorChecklistItem(nomeItem);
-                if(valorItem === 'anormal') {
-                    temAnormal = true;
-                    var foto = checklistFotos[nomeItem] || {};
-                    if(!foto.antes) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
-                        return;
-                    }
-                    if(foto.antes && !foto.depois) {
-                        alert('⚠️ Item ' + nomeItem.toUpperCase() + ' tem Foto ANTES mas falta a Foto DEPOIS.\n\nTire a foto após o reparo antes de devolver.');
-                        return;
-                    }
-                }
+            // Verificação centralizada de anormais com foto antes
+            var checkAnormal = _verificarItensAnormais();
+            if(checkAnormal.semFotoAntes.length > 0) {
+                alert('⚠️ Item ' + checkAnormal.semFotoAntes[0] + ' ANORMAL sem foto do ANTES.\n\nTire a foto do problema encontrado.');
+                return;
             }
-            
+
             if(!confirm('🔧 DEVOLVER EQUIPAMENTO?\n\nIniciará o deslocamento para montagem.')) return;
-            
-            if(timerAtividadeInterval) clearInterval(timerAtividadeInterval);
-            
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(historicoAtual.dataInicio && !historicoAtual.dataFim) {
-                    var diff = Math.floor((new Date() - new Date(historicoAtual.dataInicio)) / 1000) - tempoPausadoTotal;
-                    var atividadeHoras = diff / 3600;
-                    historicoAtual.dataFim = new Date().toISOString();
-                    historicoAtual.hhAtividade = atividadeHoras;
-                    historicoAtual.hhDeslocamento = 0;
-                    _calcHH(historicoAtual);
-                    historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
-                    historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.tag = 'OFICINA_DEVOLUCAO';
-                }
-            }
+
+            _fecharHistoricoAtual('OFICINA_DEVOLUCAO', { zerarDeslocamento: true });
 
             if(document.querySelector('#checklistContent input[type="radio"]')) currentOM.checklistDados = coletarChecklistDados();
             currentOM.checklistFotos = checklistFotos;
@@ -225,7 +164,7 @@
             deslocamentoInicio = new Date();
             currentOM._deslocHoraInicio = deslocamentoInicio.toISOString();
             currentOM._deslocHoraFim = null;
-            $('btnGroupAtividade').style.display = 'none';
+            $('btnMateriais').style.display = 'none';
             $('btnChecklist').style.display = 'none';
             $('btnRowExecOficina').style.display = 'none';
             _setBtns({
@@ -260,24 +199,15 @@
             var hhDeslocamento = '0.00';
             var hhTotal = '0.00';
             
-            if(currentOM.historicoExecucao && currentOM.historicoExecucao.length > 0) {
-                var historicoAtual = currentOM.historicoExecucao[currentOM.historicoExecucao.length - 1];
-                if(historicoAtual.dataInicio) {
-                    var diff = Math.floor((new Date() - new Date(historicoAtual.dataInicio)) / 1000) - tempoPausadoTotal;
-                    atividadeHoras = (diff / 3600).toFixed(2);
-                    hhPorPessoa = (atividadeHoras * numExecutantes).toFixed(2);
-                    var hhDeslocRaw = deslocamentoSegundos / 3600;
-                    hhDeslocamento = hhDeslocRaw.toFixed(2);
-                    var hhDeslocEquipe = (hhDeslocRaw * numExecutantes).toFixed(2);
-                    hhTotal = (parseFloat(hhPorPessoa) + parseFloat(hhDeslocEquipe)).toFixed(2);
-                    historicoAtual.dataFim = new Date().toISOString();
-                    historicoAtual.hhAtividade = parseFloat(atividadeHoras);
-                    historicoAtual.hhDeslocamento = parseFloat(hhDeslocamento);
-                    _calcHH(historicoAtual);
-                    historicoAtual.tempoPausadoTotal = tempoPausadoTotal;
-                    historicoAtual.materiaisUsados = [...materiaisUsados];
-                    historicoAtual.deslocamentoSegundos = deslocamentoSegundos;
-                }
+            // REFACTOR P3: Fechar histórico via função centralizada
+            var historicoAtual = _fecharHistoricoAtual(null);
+            if(historicoAtual) {
+                historicoAtual.deslocamentoSegundos = deslocamentoSegundos;
+                atividadeHoras = (historicoAtual.hhAtividade || 0).toFixed(2);
+                hhPorPessoa = (parseFloat(atividadeHoras) * numExecutantes).toFixed(2);
+                hhDeslocamento = (historicoAtual.hhDeslocamento || 0).toFixed(2);
+                var hhDeslocEquipe = (parseFloat(hhDeslocamento) * numExecutantes).toFixed(2);
+                hhTotal = (parseFloat(hhPorPessoa) + parseFloat(hhDeslocEquipe)).toFixed(2);
             }
             
             $('resumoHHAtividade').textContent = atividadeHoras + 'h';
@@ -317,31 +247,9 @@
             
             $('popupFinalizar').classList.add('active');
 
+            // FIX P1: Usar apenas desviosRegistrados da OM atual (não mais fallback para localStorage que trazia desvios antigos)
             var desviosDiv = $('resumoDesviosOM');
-            var desviosOM = currentOM.desviosRegistrados || [];
-            var desviosLocal = _getDesviosDaOM(currentOM.num);
-            var desviosAll = desviosOM.length > 0 ? desviosOM : desviosLocal;
-            if(desviosAll.length > 0) {
-                var devHtml = '<div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border:2px solid #e65100;border-radius:12px;padding:14px;margin-bottom:16px;">';
-                devHtml += '<div style="font-size:16px;font-weight:800;color:#e65100;margin-bottom:10px;">⚠️ Desvios Registrados (' + desviosAll.length + ')</div>';
-                var totalDevSeg = 0;
-                for(var dv = 0; dv < desviosAll.length; dv++) {
-                    var dev = desviosAll[dv];
-                    totalDevSeg += (dev.tempoSegundos || 0);
-                    devHtml += '<div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:6px;border-left:4px solid #e65100;">';
-                    devHtml += '<div style="font-weight:800;font-size:13px;color:#e65100;">' + (dev.tipoCod || '') + ' - ' + (dev.tipoLabel || dev.tipo || '') + '</div>';
-                    devHtml += '<div style="font-size:12px;color:#555;">TAG: <strong>' + (dev.tagEquipamento || '---') + '</strong> | Local: ' + (dev.localInstalacao || '---') + '</div>';
-                    devHtml += '<div style="font-size:12px;color:#555;">Data: ' + new Date(dev.data).toLocaleString('pt-BR') + ' | Tempo: <strong>' + _formatarTempo(dev.tempoSegundos || 0) + '</strong></div>';
-                    devHtml += '</div>';
-                }
-                devHtml += '<div style="text-align:center;padding:8px;background:#e65100;border-radius:8px;color:#fff;font-weight:800;font-size:14px;margin-top:8px;">⏱️ Tempo Total Desvios: ' + _formatarTempo(totalDevSeg) + '</div>';
-                devHtml += '</div>';
-                desviosDiv.innerHTML = devHtml;
-                desviosDiv.style.display = 'block';
-            } else {
-                desviosDiv.style.display = 'none';
-                desviosDiv.innerHTML = '';
-            }
+            _renderDesviosResumo(desviosDiv, currentOM);
 
             setTimeout(function(){ setupSignaturePad(); }, 300);
         }
@@ -697,6 +605,21 @@
                 if(preenchidosTri > 0 && naoMarcadosTri.length > 0) erros.push('⚠️ ' + naoMarcadosTri.length + ' item(ns) TRIMESTRAL sem marcação: ' + naoMarcadosTri.join(', ').toUpperCase());
             }
             if(semFoto.length > 0) erros.push('📷 ' + semFoto.length + ' item(ns) ANORMAL sem Foto Antes: ' + semFoto.join(', ').toUpperCase());
+            // Foto Depois obrigatória ao finalizar somente se a OM não passa pela oficina
+            if(typeof _temPassoOficinaNaOM === 'function' && !_temPassoOficinaNaOM()) {
+                var semFotoDepois = [];
+                for(var fd = 0; fd < nomesTodos.length; fd++) {
+                    var nomeFd = nomesTodos[fd];
+                    if(_valorChecklist(nomeFd) === 'anormal') {
+                        var fotoFd = checklistFotos[nomeFd] || {};
+                        if(fotoFd.antes && !fotoFd.depois) semFotoDepois.push(nomeFd.toUpperCase());
+                    }
+                }
+                if(semFotoDepois.length > 0) {
+                    erros.push('📷 ' + semFotoDepois.length + ' item(ns) ANORMAL sem Foto Depois: ' +
+                        semFotoDepois.join(', ') + '\n\nAnexe a foto do serviço executado antes de finalizar.');
+                }
+            }
             return erros;
         }
 

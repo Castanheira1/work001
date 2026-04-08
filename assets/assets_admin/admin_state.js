@@ -29,7 +29,7 @@ var PIPE_CFG=[
   {key:"cancelada",icon:"❌",label:"Canceladas",color:"var(--vm)",bar:"var(--vm)"}
 ];
 
-var DESVIO_COLORS={"DISPOSITIVO EM FALHA":["#e67e00","#fff8e6"],"PAUSA":["#0d6efd","#e8f0fe"],"CANCELAMENTO":["#dc3545","#fde8ea"]};
+var DESVIO_COLORS={"DISPOSITIVO EM FALHA":["#e67e00","#fff8e6"],"PAUSA":["#0d6efd","#e8f0fe"],"CANCELAMENTO":["#dc3545","#fde8ea"],"MATERIAL ALTERADO ADMIN":["#6f42c1","#f3eefe"],"Local Fechado":["#6c757d","#f0f0f0"],"Local Obstruído por Móvel":["#6c757d","#f0f0f0"],"Sala em Reforma":["#795548","#efebe9"],"Sala utilizada para Reunião ou Treinamento":["#00897b","#e0f2f1"],"Sem Acesso à Área":["#d32f2f","#ffebee"],"TROCA DE TURNO":["#ff9800","#fff3e0"],"REPROGRAMACAO":["#5c6bc0","#e8eaf6"],"DESATIVACAO":["#455a64","#eceff1"]};
 var fluxoData={b1:[],b2:[],b3:[],b4:[],b5:[],b6:[]};
 var matEditOM=null;
 var _matEditData=[];

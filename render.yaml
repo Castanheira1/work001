@@ -14,6 +14,8 @@ services:
         sync: false
       - key: SYNC_SHARED_SECRET
         sync: false
+      - key: GOOGLE_MAPS_KEY
+        sync: false
       - key: NODE_ENV
         value: production
     headers:
@@ -28,7 +30,7 @@ services:
           - key: "Referrer-Policy"
             value: "strict-origin-when-cross-origin"
           - key: "Permissions-Policy"
-            value: "geolocation=(), microphone=()"
+            value: "geolocation=self, microphone=()"
     routes:
       - path: "/assets/vendor/*"
         cacheControl: "public, max-age=86400, immutable"

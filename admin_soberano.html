@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SOBERANO MCR — Admin</title>
+<link rel="icon" sizes="192x192" href="assets/icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="assets/env-loader.js"></script>
@@ -109,14 +110,50 @@
         </div>
       </div>
     </div>
-    <div class="page" id="pg-equipes"><div class="card"><div class="card-head"><h3>👥 Desempenho por Equipe</h3></div><div class="card-body" id="equipesGrid"><div class="empty">Carregando…</div></div></div></div>
+    <div class="page" id="pg-equipes">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:17px;font-weight:800;color:var(--c1)">Desempenho por Equipe</div><div style="font-size:10px;color:var(--c3);font-weight:600;margin-top:3px">Comparativo de produtividade e eficiencia</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--c3);font-weight:600">Ranking por:</span>
+          <select class="filter-select" id="eqRankMetric" onchange="renderEquipes()" style="min-width:130px">
+            <option value="fin">OMs Finalizadas</option>
+            <option value="taxa">Taxa Atendimento</option>
+            <option value="hh">HH Total</option>
+            <option value="mat">Custo Materiais</option>
+          </select>
+        </div>
+      </div>
+      <div id="equipesKPIs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="eqChartsRow">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Ranking de Equipes</h3></div><div class="card-body" style="padding:12px 16px;min-height:200px" id="eqRankingChart"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Radar — Equipe vs Media</h3><select class="filter-select" id="eqRadarSelect" onchange="renderEquipes()" style="min-width:120px;font-size:10px"></select></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:280px" id="eqRadarChart"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Equipes — Detalhes</h3></div><div class="card-body" id="equipesGrid"><div class="empty">Carregando...</div></div></div>
+      <div class="card"><div class="card-head"><h3>Tabela Comparativa</h3><button class="btn-a btn-ghost" style="padding:4px 10px;font-size:10px" onclick="exportarEquipesCsv()">Exportar CSV</button></div><div class="card-body" style="overflow-x:auto" id="eqTabelaWrap"></div></div>
+    </div>
     <div class="page" id="pg-desvios">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:17px;font-weight:800;color:var(--c1)">Analise de Desvios</div><div style="font-size:10px;color:var(--c3);font-weight:600;margin-top:3px">Causas, distribuicao e impacto operacional</div></div>
+        <span style="font-size:11px;color:var(--c3);font-weight:700" id="desviosCount"></span>
+      </div>
+      <div id="desviosKPIs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Distribuicao por Tipo</h3></div><div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:260px" id="desvDonutTipo"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios por Escopo</h3></div><div class="card-body" style="padding:12px 16px;min-height:200px" id="desvBarEscopo"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios por Equipe</h3></div><div class="card-body" style="padding:12px 16px;min-height:200px" id="desvBarEquipe"></div></div>
+        <div class="card" style="margin:0"><div class="card-head"><h3>Desvios por Local</h3></div><div class="card-body" style="padding:12px 16px;min-height:200px" id="desvBarLocal"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-head"><h3>Timeline de Desvios</h3></div><div class="card-body" style="padding:12px 16px;min-height:140px" id="desvTimeline"></div></div>
       <div class="card">
-        <div class="card-head"><h3>⚠️ Registro de Desvios</h3><span style="font-size:10px;color:var(--c3);font-weight:600" id="desviosCount"></span></div>
+        <div class="card-head"><h3>Registros</h3></div>
         <div class="card-body">
-          <div class="toolbar">
-            <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="searchDesvios" placeholder="Buscar OM ou tipo…" oninput="renderDesvios()"></div>
-            <select class="filter-select" id="filterDesvioTipo" onchange="renderDesvios()"><option value="">Todos os tipos</option><option value="DISPOSITIVO EM FALHA">Dispositivo em Falha</option><option value="PAUSA">Pausa</option><option value="CANCELAMENTO">Cancelamento</option></select>
+          <div class="toolbar" style="margin-bottom:10px">
+            <div class="search-box"><span class="search-icon">?</span><input type="text" id="searchDesvios" placeholder="Buscar OM ou tipo..." oninput="renderDesvios()"></div>
+            <select class="filter-select" id="filterDesvioTipo" onchange="renderDesvios()"><option value="">Todos os tipos</option></select>
+            <select class="filter-select" id="filterDesvioEscopo" onchange="renderDesvios()"><option value="">Todos os escopos</option><option value="preventiva_usina">Usina</option><option value="preventiva_mina">Mina</option><option value="preventiva_turno">Turno</option><option value="corretiva">Corretiva</option><option value="geral">Geral</option></select>
+            <select class="filter-select" id="filterDesvioEquipe" onchange="renderDesvios()"><option value="">Todas equipes</option></select>
           </div>
           <div id="desviosList"><div class="empty">Nenhum desvio.</div></div>
         </div>
