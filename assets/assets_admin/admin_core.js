@@ -35,7 +35,6 @@ async function verificarAdmin(){
     await loadBMConfig();
     loadDashboard();
     carregarPricelist();
-    carregarBMsPeriodo();
     setInterval(function(){loadDashboard(true);},60000);
     _iniciarRealtime();
   }catch(e){

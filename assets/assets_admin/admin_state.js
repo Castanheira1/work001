@@ -18,7 +18,7 @@ var sb=null;
 function hasSupabaseClient(){return!!(window.supabase&&typeof window.supabase.createClient==="function");}
 function ensureSupabaseClient(){if(sb)return sb;if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error("Configuração Supabase ausente");if(!hasSupabaseClient())throw new Error("Biblioteca Supabase indisponível");sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);return sb;}
 
-var currentUser=null,currentPipe=null;
+var currentUser=null;
 var dashboardData={oms:[],reports:[],desvios:[]};
 
 var PIPE_CFG=[
@@ -40,10 +40,8 @@ var _realtimeChannel=null;
 var _realtimeDebounce=null;
 var _hdOmNum=null,_hdFalhaInicio=null;
 var _adminPricelist=[];
-var _selectedBM="";
 var _showConcluidasPainel=false;
 var _sugResultados=[];
 var _currentPage=1;
 var _pageSize=25;
-var _advancedFiltersOpen=false;
 var _bmConfig={numero:"",di:"",df:""};

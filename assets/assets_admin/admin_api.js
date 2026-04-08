@@ -61,95 +61,6 @@ async function carregarPricelist(){
   }catch(e){console.warn("Erro ao carregar pricelist:",e.message);_adminPricelist=[];}
 }
 
-async function carregarBMsPeriodo(){
-  try{
-    var cli=ensureSupabaseClient();
-    var{data:matBMs}=await cli.from("bm_materiais").select("bm_numero,bm_data_inicio,bm_data_fim").order("bm_numero",{ascending:false});
-    var{data:hhBMs}=await cli.from("bm_hh").select("bm_numero,bm_data_inicio,bm_data_fim").order("bm_numero",{ascending:false});
-    var bmMap={};
-    (matBMs||[]).concat(hhBMs||[]).forEach(function(r){
-      if(r.bm_numero&&!bmMap[r.bm_numero])bmMap[r.bm_numero]={num:r.bm_numero,di:r.bm_data_inicio||"",df:r.bm_data_fim||""};
-    });
-    var sel=$("filterBM");if(!sel)return;
-    var cur=sel.value;
-    sel.innerHTML='<option value="">Atual (ao vivo)</option>';
-    Object.keys(bmMap).sort(function(a,b){return Number(b)-Number(a);}).forEach(function(k){
-      var bm=bmMap[k];
-      var label="BM "+bm.num+(bm.di?" ("+bm.di+" a "+bm.df+")":"");
-      sel.innerHTML+='<option value="'+bm.num+'"'+(cur===bm.num?" selected":"")+'>'+label+'</option>';
-    });
-  }catch(e){console.warn("Erro ao carregar BMs:",e);}
-}
-
-async function onBMFilterChange(){
-  _selectedBM=$("filterBM").value;
-  if(typeof clearGlobalFilters==="function")clearGlobalFilters();
-  if(!_selectedBM){
-    $("bmPeriodoLabel").textContent="Dados ao vivo do Supabase";
-    loadDashboard();
-    return;
-  }
-  $("bmPeriodoLabel").textContent="⏳ Carregando BM "+_selectedBM+"...";
-  try{
-    var cli=ensureSupabaseClient();
-    var hhRes=await cli.from("bm_hh").select("*").eq("bm_numero",_selectedBM);
-    var matRes=await cli.from("bm_materiais").select("*").eq("bm_numero",_selectedBM);
-    if(hhRes.error)throw hhRes.error;
-    if(matRes.error)throw matRes.error;
-    var hhRows=hhRes.data||[];
-    var matRows=matRes.data||[];
-    var omMap={};
-    hhRows.forEach(function(r){
-      if(!omMap[r.om_num]){
-        omMap[r.om_num]={
-          num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:r.equipe||"",escopo:r.escopo||"geral",
-          status:r.status||"finalizada",hh_total:Number(r.hh_total||0),materiais_total:Number(r.materiais_total||0),
-          has_relatorio:false,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:r.executante||"",
-          materiais_usados:[],updated_at:r.created_at||null
-        };
-      }
-    });
-    matRows.forEach(function(r){
-      if(!omMap[r.om_num]){
-        omMap[r.om_num]={
-          num:r.om_num,titulo:r.titulo_om||"",cc:r.cc||"",equipe:"",escopo:"geral",status:"finalizada",hh_total:0,materiais_total:0,
-          has_relatorio:false,has_checklist:false,has_nc:false,has_fotos:false,primeiro_executante:"",
-          materiais_usados:[],updated_at:r.created_at||null
-        };
-      }
-      omMap[r.om_num].materiais_usados.push({
-        codigo:r.codigo,nome:r.descricao,descricao:r.descricao,tipo:r.ct2,unidade:r.unidade,qtd:r.qtd,
-        precoUnit:r.vl_unitario,preco:r.vl_unitario,total:r.vl_total,bdiPercentual:r.bdi_percentual,bdiValor:r.bdi_valor,cc:r.cc
-      });
-    });
-    var nums=Object.keys(omMap),liveOms=[],liveDesvios=[];
-    if(nums.length){
-      var liveRes=await cli.from("oms").select("*").in("num",nums);
-      if(liveRes.error)throw liveRes.error;
-      liveOms=liveRes.data||[];
-      var desvRes=await cli.from("desvios").select("*").in("om_num",nums).order("created_at",{ascending:false});
-      if(desvRes.error)throw desvRes.error;
-      liveDesvios=desvRes.data||[];
-    }
-    var liveByNum={};liveOms.forEach(function(o){liveByNum[String(o.num)]=o;});
-    var omsVirtuais=nums.map(function(num){
-      var base=omMap[num],live=liveByNum[String(num)]||{};
-      return Object.assign({},live,base,{
-        status:live.status||base.status||"finalizada",
-        has_relatorio:!!live.has_relatorio,has_checklist:!!live.has_checklist,has_nc:!!live.has_nc,has_fotos:!!live.has_fotos,
-        materiais_total:_recalcOmMateriaisTotalSafe(base)
-      });
-    });
-    dashboardData.oms=omsVirtuais;
-    dashboardData.reports=omsVirtuais.filter(function(o){return(o.status==="finalizada"||o.status==="cancelada")&&o.has_relatorio;});
-    dashboardData.desvios=liveDesvios;
-    populateEquipeFilter();
-    renderAll();
-    var bmInfo=hhRows[0]||matRows[0]||null;
-    $("bmPeriodoLabel").textContent="BM "+_selectedBM+(bmInfo?" | "+(bmInfo.bm_data_inicio||"")+" a "+(bmInfo.bm_data_fim||""):"")+" | "+omsVirtuais.length+" OMs | "+hhRows.length+" HH | "+matRows.length+" materiais";
-  }catch(e){$("bmPeriodoLabel").textContent="Erro: "+e.message;console.error(e);}
-}
-
 function buscarMaterialPricelist(termo){
   if(!termo||termo.length<2)return[];
   var t=termo.toLowerCase();
@@ -170,7 +81,6 @@ function selecionarMaterialPricelist(idx,mat){
 }
 
 async function loadDashboard(silent){
-  if(_selectedBM){renderAll();return;}
   $("refreshDot").className="refresh-dot loading";$("refreshLabel").textContent="atualizando";
   try{
     const cli=ensureSupabaseClient();
@@ -202,7 +112,6 @@ async function loadDashboard(silent){
       var bmDiD=new Date(_bmConfig.di+"T00:00:00"),bmDfD=new Date(_bmConfig.df+"T23:59:59");
       dashboardData.desvios=dashboardData.desvios.filter(function(d){var dt=d.created_at?new Date(d.created_at):null;return dt&&dt>=bmDiD&&dt<=bmDfD;});
     }
-    populateEquipeFilter();
   }catch(e){console.error("Falha ao carregar dashboard:",e);dashboardData={oms:[],reports:[],desvios:[]};}
   $("refreshDot").className="refresh-dot";$("refreshLabel").textContent="ao vivo";
   renderAll();
@@ -254,7 +163,7 @@ async function salvarConfigBDI(){
 }
 
 async function exportarBmExcel(){
-  var bmNum=(($("filterBM")&&$("filterBM").value)||$("cfgBmNumero").value||"").trim();
+  var bmNum=($("cfgBmNumero").value||"").trim();
   if(!bmNum){adminToast("Configure ou selecione o N° BM primeiro","warn");return;}
   if(typeof XLSX==="undefined"){adminToast("XLSX lib não carregada","error");return;}
   try{
@@ -265,21 +174,16 @@ async function exportarBmExcel(){
     var configBDI=parseFloat(cfgMap.bdi_percentual||0);
     var configTipoSol=cfgMap.tipo_solicitacao||"Climatização e Refrigeração";
     var bmDi=cfgMap.bm_data_inicio||"",bmDf=cfgMap.bm_data_fim||"";
-    var oms=[];
-    if(_selectedBM&&String(_selectedBM)===String(bmNum)&&(dashboardData.oms||[]).length){
-      oms=JSON.parse(JSON.stringify(dashboardData.oms));
-    }else{
-      var omsRes=await sb.from("oms").select("*").order("updated_at",{ascending:false});
-      if(omsRes.error)throw omsRes.error;
-      oms=(omsRes.data||[]).filter(function(om){
-        var d=_getOmBaseDateSafe(om);
-        if(!bmDi&&!bmDf)return true;
-        if(!d)return false;
-        if(bmDi&&d<new Date(bmDi+"T00:00:00"))return false;
-        if(bmDf&&d>new Date(bmDf+"T23:59:59"))return false;
-        return true;
-      });
-    }
+    var omsRes=await sb.from("oms").select("*").order("updated_at",{ascending:false});
+    if(omsRes.error)throw omsRes.error;
+    var oms=(omsRes.data||[]).filter(function(om){
+      var d=_getOmBaseDateSafe(om);
+      if(!bmDi&&!bmDf)return true;
+      if(!d)return false;
+      if(bmDi&&d<new Date(bmDi+"T00:00:00"))return false;
+      if(bmDf&&d>new Date(bmDf+"T23:59:59"))return false;
+      return true;
+    });
     oms=oms.map(function(om){om.materiais_total=_recalcOmMateriaisTotalSafe(om);return om;});
     if(!oms.length){adminToast("Nenhuma OM encontrada para o BM informado","warn");return;}
     function fmtTempo(seg){if(!seg||seg<=0)return"00:00:00";var h=Math.floor(seg/3600);var m=Math.floor((seg%3600)/60);var s=Math.floor(seg%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
